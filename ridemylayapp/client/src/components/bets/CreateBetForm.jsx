@@ -29,11 +29,11 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
     if (existingBet) {
       const betData = {
         title: isEditing ? existingBet.title : `Riding: ${existingBet.title}`,
-        description: isEditing ? existingBet.description : `Riding ${existingBet.userId.username}'s bet`,
+        description: isEditing ? existingBet.description : `Riding ${existingBet.userId?.username || 'another user'}'s bet`,
         stake: isEditing ? existingBet.stake.toString() : '',
         odds: existingBet.odds.toString(),
         sport: existingBet.sport,
-        bettingSiteId: existingBet.bettingSiteId._id || existingBet.bettingSiteId,
+        bettingSiteId: existingBet.bettingSiteId?._id || existingBet.bettingSiteId,
         legs: existingBet.legs.map(leg => ({
           team: leg.team,
           betType: leg.betType,
@@ -218,10 +218,11 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
     { value: 'under', label: 'Under' },
     { value: 'prop', label: 'Prop' }
   ];
-  
-  return (
+    return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Create a New Bet</h2>
+      <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
+        {isEditing ? 'Edit Bet' : (isRiding ? 'Ride This Bet' : 'Create a New Bet')}
+      </h2>
       
       {error && (
         <div className="bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-3 rounded-md mb-4">
