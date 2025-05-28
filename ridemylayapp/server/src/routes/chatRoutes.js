@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  getUserChats, 
+const {   getUserChats, 
   accessChat, 
   createGroupChat, 
   updateGroupChat, 
-  addToGroup, 
-  removeFromGroup 
+  addToGroup,
+  removeFromGroup,
+  searchUsers
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/auth');
 
@@ -14,6 +14,7 @@ const { protect } = require('../middleware/auth');
 router.use(protect);
 
 router.get('/', getUserChats);
+router.get('/users/search', searchUsers);
 router.post('/', accessChat);
 router.post('/group', createGroupChat);
 router.put('/group/:id', updateGroupChat);

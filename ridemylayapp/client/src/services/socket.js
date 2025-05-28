@@ -182,6 +182,53 @@ export const disconnectSocket = () => {
   }
 };
 
+// Chat event emitters
+export const joinChat = (chatId) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.emit('join chat', chatId);
+  }
+};
+
+export const leaveChat = (chatId) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.emit('leave chat', chatId);
+  }
+};
+
+export const sendChatMessage = (message) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.emit('new message', message);
+  }
+};
+
+export const subscribeToMessages = (callback) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.on('message received', callback);
+    return () => socket.off('message received', callback);
+  }
+  return () => {};
+};
+
+export const subscribeToChatTyping = (callback) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.on('typing', callback);
+    return () => socket.off('typing', callback);
+  }
+  return () => {};
+};
+
+export const emitTyping = (chatId) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.emit('typing', chatId);
+  }
+};
+
 export default {
   initializeSocket,
   getSocket,

@@ -121,3 +121,21 @@ export const truncateText = (text, maxLength) => {
   
   return text.substring(0, maxLength) + '...';
 };
+
+// Get initials from a string
+export const getInitials = (string, maxChars = 2) => {
+  if (!string) return '';
+  
+  const words = string.trim().split(/\s+/);
+  
+  if (words.length === 1) {
+    // For single words, take the first N characters
+    return string.slice(0, maxChars).toUpperCase();
+  }
+  
+  // For multiple words, take first letter of each word
+  return words
+    .slice(0, maxChars)
+    .map(word => word.charAt(0).toUpperCase())
+    .join('');
+};

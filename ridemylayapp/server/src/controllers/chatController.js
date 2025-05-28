@@ -320,3 +320,40 @@ exports.removeFromGroup = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Search for users
+ * @route   GET /api/chats/users/search
+ * @access  Private
+ */
+exports.searchUsers = async (req, res, next) => {
+  try {
+    const { query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required'
+      });
+    }
+
+    // Search users by username or name, excluding current user
+    const users = await User.find({
+      _id: { $ne: req.user.id },
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { name: { $regex: query, $options: 'i' } }
+      ]
+    })
+      .select('username name avatarUrl')
+      .limit(10);
+
+    res.status(200).json({
+      success: true,
+      users
+    });
+  } catch (error) {
+    logger.error('Search users error:', error);
+    next(error);
+  }
+};
