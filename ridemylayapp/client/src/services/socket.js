@@ -269,7 +269,7 @@ export const unsubscribeFromBetUpdates = (betId, callback) => {
   }
 };
 
-export default {
+const socketService = {
   initializeSocket,
   getSocket,
   joinChatRoom,
@@ -283,3 +283,5 @@ export default {
   markNotificationAsRead,
   disconnectSocket,
 };
+
+export default socketService;
