@@ -1,0 +1,30 @@
+{
+  "name": "ridemylayapp",
+  "version": "1.0.0",
+  "description": "A social sports-betting platform for sharing parlays and bets",
+  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "start": "concurrently \"npm run start:client\" \"npm run start:server\"",
+    "start:client": "npm run start --workspace=client",
+    "start:server": "npm run dev --workspace=server",
+    "build": "npm run build --workspace=client",
+    "install:all": "npm install && npm install --workspace=client && npm install --workspace=server"
+  },
+  "keywords": [
+    "sports-betting",
+    "social",
+    "parlays",
+    "react",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.1"
+  }
+}
