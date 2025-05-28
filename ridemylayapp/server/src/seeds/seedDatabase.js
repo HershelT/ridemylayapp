@@ -97,83 +97,81 @@ const betTemplates = [
   {
     title: 'NBA Finals Parlay',
     description: 'Lakers to win + LeBron over 30 points',
-    odds: '+350',
+    odds: -110, // Changed from string to number
     stake: 50,
-    potentialPayout: 225,
-    sport: 'Basketball',
+    potentialWinnings: 95.45, // Added required field
+    sport: 'basketball', // Changed to lowercase to match enum
     league: 'NBA',
-    status: 'active',
+    status: 'pending', // Changed from 'active' to valid enum value
     legs: [
       {
         team: 'Los Angeles Lakers',
-        type: 'Moneyline',
-        odds: '-110',
-        status: 'pending'
+        betType: 'moneyline', // Changed from 'type' to 'betType'
+        odds: -110,
+        outcome: 'pending' // Changed from 'status' to 'outcome'
       },
       {
-        player: 'LeBron James',
-        type: 'Over',
-        stat: 'Points',
-        line: 30.5,
-        odds: '-115',
-        status: 'pending'
+        team: 'LeBron James', // Player counts as team in schema
+        betType: 'over', // Changed from 'type' to 'betType'
+        odds: -115,
+        outcome: 'pending'
       }
     ]
   },
   {
     title: 'NFL Sunday Special',
     description: 'Chiefs + Bills + Packers all to win',
-    odds: '+500',
+    odds: 500,
     stake: 100,
-    potentialPayout: 600,
-    sport: 'Football',
+    potentialWinnings: 600,
+    sport: 'football',
     league: 'NFL',
-    status: 'active',
+    status: 'pending',
     legs: [
       {
         team: 'Kansas City Chiefs',
-        type: 'Moneyline',
-        odds: '-150',
-        status: 'pending'
+        betType: 'moneyline',
+        odds: -150,
+        outcome: 'pending'
       },
       {
         team: 'Buffalo Bills',
-        type: 'Moneyline',
-        odds: '-200',
-        status: 'pending'
+        betType: 'moneyline',
+        odds: -200,
+        outcome: 'pending'
       },
       {
         team: 'Green Bay Packers',
-        type: 'Moneyline',
-        odds: '+120',
-        status: 'pending'
+        betType: 'moneyline',
+        odds: 120,
+        outcome: 'pending'
       }
     ]
   },
-  {
-    title: 'MLB Home Run Prop',
-    description: 'Judge & Ohtani both to hit HRs today',
-    odds: '+750',
-    stake: 25,
-    potentialPayout: 212.5,
-    sport: 'Baseball',
+ {
+    title: 'MLB Double Header',
+    description: 'Yankees and Dodgers both to win',
+    odds: 300,
+    stake: 75,
+    potentialWinnings: 225,
+    sport: 'baseball',
     league: 'MLB',
-    status: 'active',
+    status: 'pending',
     legs: [
       {
-        player: 'Aaron Judge',
-        type: 'To Hit Home Run',
-        odds: '+320',
-        status: 'pending'
+        team: 'New York Yankees',
+        betType: 'moneyline',
+        odds: -120,
+        outcome: 'pending'
       },
       {
-        player: 'Shohei Ohtani',
-        type: 'To Hit Home Run',
-        odds: '+350',
-        status: 'pending'
+        team: 'Los Angeles Dodgers',
+        betType: 'moneyline',
+        odds: -130,
+        outcome: 'pending'
       }
     ]
-  }
+    },
 ];
 
 // Clear database and seed with new data
@@ -197,15 +195,17 @@ const seedDatabase = async () => {
     const createdSites = await BettingSite.insertMany(bettingSites);
     
     // Seed users with hashed passwords
+    // Update the userPromises creation
     logger.info('Seeding users...');
     const userPromises = users.map(async (user) => {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(user.password, salt);
-      return {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(user.password, salt);
+    return {
         ...user,
-        password: hashedPassword,
+        passwordHash: hashedPassword, // Change password to passwordHash
+        password: undefined, // Remove the password field
         preferredBettingSites: [createdSites[Math.floor(Math.random() * createdSites.length)]._id]
-      };
+    };
     });
     
     const createdUsers = await User.create(await Promise.all(userPromises));
@@ -227,9 +227,9 @@ const seedDatabase = async () => {
     // Create bets linked to users
     logger.info('Seeding bets...');
     const bets = betTemplates.map((bet, index) => ({
-      ...bet,
-      user: createdUsers[index % createdUsers.length]._id,
-      bettingSite: createdSites[index % createdSites.length]._id
+        ...bet,
+        userId: createdUsers[index % createdUsers.length]._id, // Changed from user to userId
+        bettingSiteId: createdSites[index % createdSites.length]._id // Changed from bettingSite to bettingSiteId
     }));
     
     const createdBets = await Bet.insertMany(bets);
@@ -238,18 +238,18 @@ const seedDatabase = async () => {
     logger.info('Creating comments...');
     const comments = [
       {
-        user: createdUsers[1]._id,
-        bet: createdBets[0]._id,
+        userId: createdUsers[1]._id,  // Changed from user to userId
+        betId: createdBets[0]._id,    // Changed from bet to betId
         content: 'Great pick! I think Lakers will win for sure.'
       },
       {
-        user: createdUsers[2]._id,
-        bet: createdBets[0]._id,
+        userId: createdUsers[2]._id,   // Changed from user to userId
+        betId: createdBets[0]._id,     // Changed from bet to betId
         content: 'LeBron has been on fire lately, solid bet!'
       },
       {
-        user: createdUsers[0]._id,
-        bet: createdBets[1]._id,
+        userId: createdUsers[0]._id,   // Changed from user to userId
+        betId: createdBets[1]._id,     // Changed from bet to betId
         content: 'Riding this one with you!'
       }
     ];
