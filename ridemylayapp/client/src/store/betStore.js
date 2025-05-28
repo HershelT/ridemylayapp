@@ -119,27 +119,7 @@ const useBetStore = create((set, get) => ({
       throw error;
     }
   },
-    set({ isLoading: true, error: null });
-    
-    try {
-      const response = await betAPI.createBet(betData);
-      const newBet = response.data.bet;
-      
-      // Add to bets list
-      set(state => ({
-        bets: [newBet, ...state.bets],
-        isLoading: false
-      }));
-      
-      return newBet;
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error.response?.data?.message || 'Failed to create bet'
-      });
-      throw error;
-    }
-  },
+  
   
   // Get single bet
   fetchBet: async (betId) => {
@@ -210,29 +190,7 @@ const useBetStore = create((set, get) => ({
       throw error;
     }
   },
-    set({ isLoading: true, error: null });
-    
-    try {
-      const response = await betAPI.createBet(betData);
-      const newBet = response.data;
-      
-      // Update bets array with the new bet at the beginning
-      set(state => ({
-        bets: [newBet, ...state.bets],
-        isLoading: false
-      }));
-      
-      return { success: true, bet: newBet };
-    } catch (error) {
-      set({
-        isLoading: false,
-        error: error.response?.data?.message || 'Failed to create bet'
-      });
-      
-      return { success: false, error: error.response?.data?.message || 'Failed to create bet' };
-    }
-  },
-  
+
   // Update an existing bet
   updateBet: async (betId, betData) => {
     set({ isLoading: true, error: null });

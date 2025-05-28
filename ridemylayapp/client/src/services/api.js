@@ -71,6 +71,19 @@ export const betAPI = {
     api.get(`/bets/${betId}/comments`, { params: { page, limit } }),
   addComment: (betId, content, parentId) => 
     api.post(`/bets/${betId}/comments`, { content, parentId }),
+  toggleRide: (betId) => api.put(`/bets/${betId}/ride`),
+  toggleHedge: (betId) => api.put(`/bets/${betId}/hedge`),
+  shareBet: (betId, platform) => api.post(`/bets/${betId}/share`, { platform }),
+};
+
+// Comment API calls
+export const commentAPI = {
+  getComments: (betId) => api.get(`/bets/${betId}/comments`),
+  addComment: (betId, commentData) => api.post(`/bets/${betId}/comments`, commentData),
+  getComment: (commentId) => api.get(`/comments/${commentId}`),
+  updateComment: (commentId, content) => api.put(`/comments/${commentId}`, { content }),
+  deleteComment: (commentId) => api.delete(`/comments/${commentId}`),
+  likeComment: (commentId) => api.put(`/comments/${commentId}/like`),
 };
 
 // Leaderboard API calls
