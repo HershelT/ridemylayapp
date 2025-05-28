@@ -205,7 +205,12 @@ const setupSocketIO = (server) => {
           type, // 'like', 'comment', 'share', 'ride', 'hedge'
           data
       });
-    });
+    }
+        catch (error) {
+            logger.error(`Error handling bet interaction: ${error.message}`);
+            socket.emit('bet_interaction_error', 'Failed to process bet interaction');
+        }
+        });
   });
 
   // Helper function to update user's online status
