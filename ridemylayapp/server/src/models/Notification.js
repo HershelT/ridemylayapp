@@ -48,6 +48,12 @@ notificationSchema.index({ recipient: 1, read: 1 });
 // TTL index to auto-delete notifications after 30 days
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
+// Compound index for efficient querying of user's notifications
+notificationSchema.index({ recipient: 1, read: 1, createdAt: -1 });
+
+// Index for efficient cleaning up of old notifications that have been read
+notificationSchema.index({ read: 1, createdAt: 1 });
+
 const Notification = mongoose.model('Notification', notificationSchema);
 
 module.exports = Notification;

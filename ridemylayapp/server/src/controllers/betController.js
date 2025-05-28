@@ -217,12 +217,28 @@ exports.toggleLike = async (req, res, next) => {
     // Check if user already liked the bet
     const index = bet.likes.findIndex(
       id => id.toString() === req.user.id
-    );
-
-    // Toggle like
+    );    // Toggle like
     if (index === -1) {
       // Add like
       bet.likes.push(req.user.id);
+
+      // Create notification for bet owner
+      if (bet.userId.toString() !== req.user.id) {
+        const notification = await Notification.create({
+          recipient: bet.userId,
+          sender: req.user._id,
+          type: 'bet_interaction',
+          content: `${req.user.username} liked your bet`,
+          entityType: 'bet',
+          entityId: bet._id,
+          metadata: { interactionType: 'like' }
+        });
+
+        // Send real-time notification if user is online
+        if (req.io && activeUsers.has(bet.userId.toString())) {
+          req.io.to(`user:${bet.userId}`).emit('new_notification', notification);
+        }
+      }
     } else {
       // Remove like
       bet.likes.splice(index, 1);
