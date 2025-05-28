@@ -340,3 +340,43 @@ exports.addComment = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Delete a bet
+ * @route   DELETE /api/bets/:id
+ * @access  Private
+ */
+exports.deleteBet = async (req, res, next) => {
+  try {
+    const bet = await Bet.findById(req.params.id);
+
+    if (!bet) {
+      return res.status(404).json({
+        success: false,
+        error: 'Bet not found'
+      });
+    }
+
+    // Check ownership
+    if (bet.userId.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to delete this bet'
+      });
+    }
+
+    // Delete all comments associated with the bet
+    await Comment.deleteMany({ betId: req.params.id });
+
+    // Delete the bet
+    await bet.deleteOne();
+
+    res.status(200).json({
+      success: true,
+      message: 'Bet deleted successfully'
+    });
+  } catch (error) {
+    logger.error(`Delete bet error for ID ${req.params.id}:`, error);
+    next(error);
+  }
+};

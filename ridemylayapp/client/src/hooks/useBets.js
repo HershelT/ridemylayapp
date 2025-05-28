@@ -14,6 +14,7 @@ const useBets = () => {
     fetchUserBets,
     createBet,
     updateBet,
+    deleteBet,
     rideBet,
     hedgeBet,
     likeBet,
@@ -47,8 +48,7 @@ const useBets = () => {
       return likeBet(betId);
     }
   }, [likeBet, unlikeBet]);
-  
-  return {
+    return {
     bets,
     getUserBets,
     currentBet,
@@ -62,6 +62,7 @@ const useBets = () => {
     loadMoreUserBets,
     createBet,
     updateBet,
+    deleteBet,
     rideBet,
     hedgeBet,
     toggleLike,

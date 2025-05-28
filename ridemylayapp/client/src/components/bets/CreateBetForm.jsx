@@ -4,11 +4,10 @@ import { FaPlus, FaMinus, FaTimes } from 'react-icons/fa';
 import useAuthStore from '../../store/authStore';
 import { betAPI, bettingSiteAPI } from '../../services/api';
 
-const CreateBetForm = () => {
+const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  
-  // Form state
+    // Form state
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -24,6 +23,28 @@ const CreateBetForm = () => {
   const [error, setError] = useState('');
   const [bettingSites, setBettingSites] = useState([]);
   const [potentialWinnings, setPotentialWinnings] = useState(0);
+  
+  // Pre-fill form with existing bet data if editing or riding
+  useEffect(() => {
+    if (existingBet) {
+      const betData = {
+        title: isEditing ? existingBet.title : `Riding: ${existingBet.title}`,
+        description: isEditing ? existingBet.description : `Riding ${existingBet.userId.username}'s bet`,
+        stake: isEditing ? existingBet.stake.toString() : '',
+        odds: existingBet.odds.toString(),
+        sport: existingBet.sport,
+        bettingSiteId: existingBet.bettingSiteId._id || existingBet.bettingSiteId,
+        legs: existingBet.legs.map(leg => ({
+          team: leg.team,
+          betType: leg.betType,
+          odds: leg.odds.toString(),
+          outcome: isRiding ? 'pending' : leg.outcome
+        }))
+      };
+      
+      setFormData(betData);
+    }
+  }, [existingBet, isEditing, isRiding]);
   
   // Fetch betting sites on component mount
   useEffect(() => {
@@ -116,8 +137,7 @@ const CreateBetForm = () => {
       legs: updatedLegs
     }));
   };
-  
-  // Submit form
+    // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -136,8 +156,7 @@ const CreateBetForm = () => {
         }
       }
       
-      // Create bet
-      const response = await betAPI.createBet({
+      const betPayload = {
         ...formData,
         stake: parseFloat(formData.stake),
         odds: parseFloat(formData.odds),
@@ -146,9 +165,32 @@ const CreateBetForm = () => {
           ...leg,
           odds: parseFloat(leg.odds)
         }))
-      });
+      };
       
-      // Navigate to the created bet page
+      let response;
+      
+      if (isEditing && existingBet) {
+        // Update existing bet
+        response = await betAPI.updateBet(existingBet._id, betPayload);
+      } else if (isRiding && existingBet) {
+        // Create a new bet as a ride of an existing bet
+        response = await betAPI.createBet({
+          ...betPayload,
+          isRide: true,
+          originalBetId: existingBet._id
+        });
+      } else {
+        // Create a new bet
+        response = await betAPI.createBet(betPayload);
+      }
+      
+      // Navigate to the created/updated bet page
+      if (response.data && (response.data.bet || response.data._id)) {
+        const betId = response.data.bet?._id || response.data._id;
+        navigate(`/bets/${betId}`);
+      } else {
+        throw new Error('Failed to create/update bet');
+      }
       navigate(`/bets/${response.data.bet._id}`);
     } catch (error) {
       setError(error.response?.data?.message || error.message || 'Failed to create bet');
@@ -393,14 +435,15 @@ const CreateBetForm = () => {
               </div>
             ))}
           </div>
-          
-          <div className="flex justify-end">
+            <div className="flex justify-end">
             <button
               type="submit"
               disabled={loading}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating...' : 'Create Bet'}
+              {loading 
+                ? (isEditing ? 'Updating...' : isRiding ? 'Riding...' : 'Creating...') 
+                : (isEditing ? 'Update Bet' : isRiding ? 'Ride This Bet' : 'Create Bet')}
             </button>
           </div>
         </div>

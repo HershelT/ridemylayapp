@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { FaEllipsisH, FaEdit, FaTrash } from 'react-icons/fa';
 import { betAPI } from '../../services/api';
 import { emitBetInteraction } from '../../services/socket';
 import { useAuth } from '../../hooks/useAuth';
@@ -10,8 +11,12 @@ const BetCard = ({ bet }) => {
   const [liked, setLiked] = useState(bet.liked || false);
   const [likeCount, setLikeCount] = useState(bet.likes?.length || 0);
   const [showShareModal, setShowShareModal] = useState(false);
-    const { toggleLike } = useBets();
+  const [showOptions, setShowOptions] = useState(false);
+  const { toggleLike, deleteBet } = useBets();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const isOwner = user && bet.userId && user._id === bet.userId._id;
   
   const handleLike = async () => {
     // Optimistic UI update
@@ -103,20 +108,42 @@ const BetCard = ({ bet }) => {
     }
   };
   
-  return (
+  const handleEdit = () => {
+    navigate(`/post?modify=${bet._id}`);
+  };
+  
+  const handleDelete = async () => {
+    // Confirm delete
+    if (!window.confirm('Are you sure you want to delete this bet? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      const result = await deleteBet(bet._id);
+      
+      if (result.success) {
+        // Bet will be removed from the UI through store state update
+      } else {
+        console.error('Error deleting bet:', result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting bet:', error);
+    }
+  };
+    return (
     <div className="card mb-4">
       {/* User Info */}
-      <div className="flex items-center mb-3">
-        <Link to={`/profile/${bet.userId}`} className="flex items-center">
+      <div className="flex items-center justify-between mb-3">
+        <Link to={`/profile/${bet.userId?._id}`} className="flex items-center">
           <img 
-            src={bet.user?.avatarUrl || 'https://via.placeholder.com/40'} 
+            src={bet.userId?.avatarUrl || 'https://via.placeholder.com/40'} 
             alt="User Avatar" 
             className="w-10 h-10 rounded-full"
           />
           <div className="ml-2">
             <div className="flex items-center">
-              <span className="font-medium">{bet.user?.username || 'User'}</span>
-              {bet.user?.verified && (
+              <span className="font-medium">{bet.userId?.username || 'User'}</span>
+              {bet.userId?.verified && (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>

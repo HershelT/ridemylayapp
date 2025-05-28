@@ -505,6 +505,47 @@ const useBetStore = create((set, get) => ({
     }
   },
   
+  // Delete a bet
+  deleteBet: async (betId) => {
+    set({ isLoading: true, error: null });
+    
+    try {
+      await betAPI.deleteBet(betId);
+      
+      // Remove bet from state
+      set(state => {
+        const updatedBets = state.bets.filter(bet => bet._id !== betId);
+        
+        const updatedUserBets = { ...state.userBets };
+        
+        // Remove from user bets if present
+        Object.keys(updatedUserBets).forEach(userId => {
+          if (updatedUserBets[userId].bets) {
+            updatedUserBets[userId].bets = updatedUserBets[userId].bets.filter(bet => 
+              bet._id !== betId
+            );
+          }
+        });
+        
+        return {
+          bets: updatedBets,
+          userBets: updatedUserBets,
+          currentBet: state.currentBet?._id === betId ? null : state.currentBet,
+          isLoading: false
+        };
+      });
+      
+      return { success: true, message: 'Bet deleted successfully' };
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error.response?.data?.message || 'Failed to delete bet'
+      });
+      
+      return { success: false, error: error.response?.data?.message || 'Failed to delete bet' };
+    }
+  },
+
   // Clear errors
   clearError: () => set({ error: null })
 }));
