@@ -6,7 +6,8 @@ const BettingSiteSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a betting site name'],
       unique: true,
-      trim: true
+      trim: true,
+      enum: ['DraftKings', 'FanDuel', 'BetMGM', 'Caesars', 'PointsBet', 'BetRivers', 'Barstool Sportsbook', 'Unibet', 'William Hill', 'Other']
     },
     logoUrl: {
       type: String,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaHeart, FaShare, FaComment, FaEllipsisH, FaCheck, FaTimesCircle, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaArrowLeft, FaHeart, FaShare, FaEllipsisH, FaCheck, FaTimesCircle } from 'react-icons/fa';
 import { GiRaceCar } from 'react-icons/gi';
 import { formatDistanceToNow } from 'date-fns';
 import CommentList from '../components/comments/CommentList';
@@ -27,6 +27,15 @@ const BetDetails = () => {
     share: false,
     delete: false
   });
+
+  // Validate bet ID format
+  useEffect(() => {
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      setError('Invalid bet ID');
+      setLoading(false);
+      return;
+    }
+  }, [id]);
   
   // Get bet details when component mounts
   useEffect(() => {
@@ -191,13 +200,7 @@ const BetDetails = () => {
       setActionLoading(prev => ({ ...prev, delete: false }));
     }
   };
-  
-  // Handle edit action
-  const handleEdit = () => {
-    navigate(`/post?modify=${id}`);
-  };
-  
-  if (loading) {
+    if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>

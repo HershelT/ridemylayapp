@@ -115,7 +115,17 @@ exports.getBets = async (req, res, next) => {
  */
 exports.getBet = async (req, res, next) => {
   try {
-    const bet = await Bet.findById(req.params.id)
+    const betId = req.params.id;
+    
+    // Check if the ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(betId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid bet ID format'
+      });
+    }
+
+    const bet = await Bet.findById(betId)
       .populate('userId', 'username avatarUrl verified bio')
       .populate('bettingSiteId', 'name logoUrl websiteUrl')
       .populate('originalBetId', 'userId odds stake potentialWinnings status');
