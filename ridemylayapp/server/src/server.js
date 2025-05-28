@@ -13,7 +13,6 @@ dotenv.config();
 const { connectDB } = require('./config/db');
 const routes = require('./routes');
 const setupSocketIO = require('./sockets');
-const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 
 // Create Express app
@@ -48,6 +47,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Error handling middleware
+const { errorHandler } = require('./middleware/errorHandler');
 app.use(errorHandler);
 
 // Create HTTP server
