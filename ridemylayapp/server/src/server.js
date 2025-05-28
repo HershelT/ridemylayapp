@@ -23,7 +23,12 @@ connectDB();
 
 // Middleware
 app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://ridemylayapp.vercel.app', 'https://www.ridemylay.com']
+    : 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
@@ -35,13 +40,13 @@ if (process.env.NODE_ENV === 'development') {
 // Mount API routes
 app.use('/api', routes);
 
-// Serve static assets in production
+// Remove static file serving for Vercel deployment
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder
   app.use(express.static(path.join(__dirname, '../../client/build')));
-
-  // Serve index.html for all non-API routes
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next();
+    }
     res.sendFile(path.resolve(__dirname, '../../client/build', 'index.html'));
   });
 }
