@@ -51,9 +51,6 @@ const BettingSiteSchema = new mongoose.Schema(
   }
 );
 
-// Index for efficient querying by name
-BettingSiteSchema.index({ name: 1 });
-
 // Index for querying active sites
 BettingSiteSchema.index({ isActive: 1 });
 
