@@ -41,3 +41,4 @@ debug/
 .npm/
 .eslintcache
 .vercel
+.env*.local
