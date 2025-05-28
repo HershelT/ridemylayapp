@@ -40,3 +40,4 @@ debug/
 # Cache directories
 .npm/
 .eslintcache
+.vercel

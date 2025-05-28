@@ -2,13 +2,13 @@
   "version": 2,
   "builds": [
     {
+      "src": "server/src/server.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "client/package.json",
       "use": "@vercel/static-build",
       "config": { "distDir": "build" }
-    },
-    {
-      "src": "server/src/server.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -20,10 +20,5 @@
       "src": "/(.*)",
       "dest": "client/build/$1"
     }
-  ],
-  "env": {
-    "MONGO_URI": "@mongo_uri",
-    "JWT_SECRET": "@jwt_secret",
-    "NODE_ENV": "production"
-  }
+  ]
 }
