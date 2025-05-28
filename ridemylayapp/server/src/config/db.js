@@ -1,19 +1,28 @@
 const mongoose = require('mongoose');
+
 const logger = require('../utils/logger');
 
 // Connect to MongoDB
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      // These options are no longer needed in mongoose 6+
-      // useNewUrlParser: true,
-      // useUnifiedTopology: true,
-      // useCreateIndex: true,
-      // useFindAndModify: false
-    });
+    // Remove deprecated options since using Mongoose 6+
+    const conn = await mongoose.connect(process.env.MONGO_URI);
     
-    logger.info(`MongoDB Connected: ${conn.connection.host}`);
-    return conn;  } catch (error) {
+    // Add event listeners for connection states
+    mongoose.connection.on('connected', () => {
+      logger.info(`MongoDB Connected: ${conn.connection.host}`);
+    });
+
+    mongoose.connection.on('error', (err) => {
+      logger.error(`MongoDB Error: ${err}`);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      logger.warn('MongoDB Disconnected');
+    });
+
+    return conn;
+  } catch (error) {
     logger.error(`Error connecting to MongoDB: ${error.message}`);
     process.exit(1);
   }
