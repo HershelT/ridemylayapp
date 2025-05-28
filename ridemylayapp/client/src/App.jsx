@@ -12,6 +12,8 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import BetDetails from './pages/BetDetails';
+import Messages from './pages/Messages'; // Add this import
+
 
 // Components
 import Header from './components/common/Header';
@@ -63,8 +65,10 @@ function App() {
             <Route path="/reset-password/:token" element={isAuthenticated ? <Navigate to="/" /> : <ResetPassword />} />
             
             {/* Protected Routes */}
-            <Route path="/" element={isAuthenticated ? <Home /> : <Navigate to="/login" />} />            <Route path="/search" element={isAuthenticated ? <Search /> : <Navigate to="/login" />} />
+            <Route path="/" element={isAuthenticated ? <Home /> : <Navigate to="/login" />} />            
+            <Route path="/search" element={isAuthenticated ? <Search /> : <Navigate to="/login" />} />
             <Route path="/post" element={isAuthenticated ? <Post /> : <Navigate to="/login" />} />
+            <Route path="/messages" element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} /> 
             <Route path="/leaderboard" element={isAuthenticated ? <Leaderboard /> : <Navigate to="/login" />} />
             <Route path="/profile/:userId?" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
             <Route path="/bets/:id" element={isAuthenticated ? <BetDetails /> : <Navigate to="/login" />} />
