@@ -255,6 +255,20 @@ export const emitTyping = (chatId) => {
   }
 };
 
+export const subscribeToBetUpdates = (betId, callback) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.on(`bet:${betId}:update`, callback);
+  }
+};
+
+export const unsubscribeFromBetUpdates = (betId, callback) => {
+  const socket = getSocket();
+  if (socket) {
+    socket.off(`bet:${betId}:update`, callback);
+  }
+};
+
 export default {
   initializeSocket,
   getSocket,

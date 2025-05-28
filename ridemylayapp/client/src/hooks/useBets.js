@@ -73,4 +73,5 @@ const useBets = () => {
   };
 };
 
+export { useBets };
 export default useBets;
