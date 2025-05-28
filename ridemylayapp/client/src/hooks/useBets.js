@@ -11,6 +11,7 @@ const useBets = () => {
     isLoading,
     error,
     fetchBets,
+    fetchBet,
     fetchUserBets,
     createBet,
     updateBet,
@@ -48,7 +49,7 @@ const useBets = () => {
       return likeBet(betId);
     }
   }, [likeBet, unlikeBet]);
-    return {
+  return {
     bets,
     getUserBets,
     currentBet,
@@ -58,6 +59,7 @@ const useBets = () => {
     isLoading,
     error,
     fetchBets,
+    fetchBet,
     fetchUserBets,
     loadMoreUserBets,
     createBet,

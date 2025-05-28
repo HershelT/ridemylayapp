@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams, Navigate, useNavigate } from 'react-router-dom';
 import CreateBetForm from '../components/bets/CreateBetForm';
 import useAuthStore from '../store/authStore';
 import useBets from '../hooks/useBets';
@@ -9,6 +9,7 @@ const Post = () => {
   const { isAuthenticated } = useAuthStore();
   const [searchParams] = useSearchParams();
   const { fetchBet } = useBets();
+  const navigate = useNavigate();
   
   const [betToEdit, setBetToEdit] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -64,6 +65,12 @@ const Post = () => {
         <div className="bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-lg">
           <h2 className="text-xl font-semibold mb-2">Error</h2>
           <p>{error}</p>
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     );
@@ -77,141 +84,7 @@ const Post = () => {
       className="max-w-4xl mx-auto py-6"
     >
       <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-        {isEditing ? 'Edit Bet' : (betToEdit ? 'Ride This Bet' : 'Create a New Bet')}
-      </h1>
-      <CreateBetForm existingBet={betToEdit} isEditing={isEditing} isRiding={!!rideBetId} />
-    </motion.div>
-  );
-};
-
-export default Post;
-
-  // Redirect if not authenticated
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto py-6 flex justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto py-6">
-        <div className="bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">Error</h2>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="max-w-4xl mx-auto py-6"
-    >
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-        {isEditing ? 'Edit Bet' : (betToEdit ? 'Ride This Bet' : 'Create a New Bet')}
-      </h1>
-      <CreateBetForm existingBet={betToEdit} isEditing={isEditing} isRiding={!!rideBetId} />
-    </motion.div>
-  );
-};
-
-export default Post;
-
-  const addLeg = () => {
-    setBetForm({
-      ...betForm,
-      legs: [...betForm.legs, { team: '', betType: '', odds: '' }]
-    });
-  };
-
-  const removeLeg = (index) => {
-    const updatedLegs = [...betForm.legs];
-    updatedLegs.splice(index, 1);
-    setBetForm({ ...betForm, legs: updatedLegs });
-  };
-
-  const calculatePotentialWinnings = () => {
-    const stake = parseFloat(betForm.stake) || 0;
-    
-    // Calculate combined odds for parlay
-    let totalOdds = 1;
-    betForm.legs.forEach(leg => {
-      const legOdds = parseFloat(leg.odds) || 0;
-      if (legOdds > 0) {
-        totalOdds *= (1 + legOdds / 100);
-      } else if (legOdds < 0) {
-        totalOdds *= (1 + 100 / Math.abs(legOdds));
-      }
-    });
-    
-    const potentialWinnings = stake * totalOdds;
-    return potentialWinnings.toFixed(2);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // TODO: Add validation
-    
-    console.log('Submitting bet:', betForm);
-    
-    // TODO: Submit to API
-    // api.post('/api/bets', betForm)
-    //   .then(response => {
-    //     // Handle success
-    //   })
-    //   .catch(error => {
-    //     // Handle error
-    //   });
-  };
-
-  const getSelectedBettingSite = () => {
-    return bettingSites.find(site => site._id === betForm.bettingSiteId);
-  };
-
-  // Redirect if not authenticated
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto py-6 flex justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto py-6">
-        <div className="bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">Error</h2>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="max-w-4xl mx-auto py-6"
-    >
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-        {isEditing ? 'Edit Bet' : (betToEdit ? 'Ride This Bet' : 'Create a New Bet')}
+        {isEditing ? 'Edit Bet' : (rideBetId ? 'Ride This Bet' : 'Create a New Bet')}
       </h1>
       <CreateBetForm existingBet={betToEdit} isEditing={isEditing} isRiding={!!rideBetId} />
     </motion.div>

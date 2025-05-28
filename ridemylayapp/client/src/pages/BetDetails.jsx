@@ -62,19 +62,21 @@ const BetDetails = () => {
       setActionLoading(prev => ({ ...prev, like: false }));
     }
   };
-  
-  // Handle ride action
+    // Handle ride action
   const handleRide = async () => {
-    if (actionLoading.ride) return;
+    if (actionLoading.ride || isOwner) return;
     
     setActionLoading(prev => ({ ...prev, ride: true }));
     
     try {
-      const response = await betAPI.toggleRide(id);
-      setBet(response.data.bet);
+      // Navigate to the post page with the bet ID as a URL parameter
+      navigate(`/post?ride=${id}`);
+      
+      // Optional: You can still call toggleRide if you want to track rides
+      // const response = await betAPI.toggleRide(id);
+      // setBet(response.data.bet);
     } catch (error) {
       console.error('Error riding bet:', error);
-    } finally {
       setActionLoading(prev => ({ ...prev, ride: false }));
     }
   };
@@ -268,15 +270,14 @@ const BetDetails = () => {
               >
                 <FaEllipsisH />
               </button>
-              
-              {showOptions && (
+                {showOptions && (
                 <div className="absolute right-0 mt-1 w-48 rounded-md shadow-lg bg-white dark:bg-gray-700 ring-1 ring-black ring-opacity-5 z-10">
                   <div className="py-1" role="menu" aria-orientation="vertical">
-                    {isOwner && (
+                    {isOwner ? (
                       <>
                         <button
                           onClick={() => {
-                            navigate(`/bets/${id}/edit`);
+                            navigate(`/post?modify=${id}`);
                             setShowOptions(false);
                           }}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600"
@@ -295,6 +296,17 @@ const BetDetails = () => {
                           Delete Bet
                         </button>
                       </>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          navigate(`/post?ride=${id}`);
+                          setShowOptions(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-600"
+                        role="menuitem"
+                      >
+                        Ride This Bet
+                      </button>
                     )}
                     <button
                       onClick={() => {
