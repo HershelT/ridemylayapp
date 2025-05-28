@@ -4,7 +4,7 @@ import { notificationAPI } from '../services/notificationService';
 const useNotificationStore = create((set, get) => ({
   notifications: [],
   unreadCount: 0,
-  loading: false,
+  loading: true,
   error: null,
 
   fetchNotifications: async () => {

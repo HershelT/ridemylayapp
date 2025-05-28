@@ -94,14 +94,19 @@ const EmptyState = styled.div`
 `;
 
 const NotificationList = () => {
-  const { notifications, loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
+  const { notifications = [], loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [fetchNotifications]);
 
   if (loading) {
-    return <Container>Loading notifications...</Container>;
+    return <Container>
+      <Header>
+        <h3>Notifications</h3>
+      </Header>
+      <EmptyState>Loading notifications...</EmptyState>
+    </Container>;
   }
 
   const getNotificationTitle = (notification) => {
