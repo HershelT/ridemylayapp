@@ -10,7 +10,7 @@ const path = require('path');
 dotenv.config();
 
 // Import modules
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 const routes = require('./routes');
 const setupSocketIO = require('./sockets');
 const errorHandler = require('./middleware/errorHandler');
