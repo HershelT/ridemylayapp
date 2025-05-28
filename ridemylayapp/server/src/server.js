@@ -51,6 +51,26 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// For Vercel deployment
+if (process.env.VERCEL) {
+  // Export the Express app directly
+  module.exports = app;
+} else {
+  // Start server normally for local development
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  });
+}
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  logger.error(`Unhandled Rejection: ${err.message}`);
+  if (!process.env.VERCEL) {
+    server.close(() => process.exit(1));
+  }
+});
+
 // Error handling middleware
 const { errorHandler } = require('./middleware/errorHandler');
 app.use(errorHandler);
