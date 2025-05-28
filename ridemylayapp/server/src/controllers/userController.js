@@ -153,11 +153,26 @@ exports.toggleFollow = async (req, res, next) => {
       // Follow
       currentUser.following.push(userToFollow._id);
       userToFollow.followers.push(currentUser._id);
-    }
-
-    // Save changes
+    }    // Save changes
     await currentUser.save();
     await userToFollow.save();
+
+    // Create notification if following (not unfollowing)
+    if (!isFollowing) {
+      const notification = await Notification.create({
+        recipient: userToFollow._id,
+        sender: currentUser._id,
+        type: 'follow',
+        content: `${currentUser.username} started following you`,
+        entityType: 'user',
+        entityId: currentUser._id
+      });
+
+      // If user is online, send real-time notification
+      if (req.io && activeUsers.has(userToFollow._id.toString())) {
+        req.io.to(`user:${userToFollow._id}`).emit('new_notification', notification);
+      }
+    }
 
     res.status(200).json({
       success: true,

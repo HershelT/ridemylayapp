@@ -129,24 +129,57 @@ export const onBetUpdate = (callback) => {
 
 export const onNewNotification = (callback) => {
   const s = getSocket();
+  let cleanupFunctions = [];
+
   if (s) {
+    // Listen for new notifications
     s.on('new_notification', callback);
+    cleanupFunctions.push(() => s.off('new_notification', callback));
+
+    // Listen for notification updates (e.g., marking as read)
+    s.on('notification_updated', notification => {
+      callback(notification, 'update');
+    });
+    cleanupFunctions.push(() => s.off('notification_updated', callback));
+
+    // Handle reconnection
+    s.on('connect', () => {
+      s.emit('subscribe_notifications');
+    });
+    cleanupFunctions.push(() => s.off('connect'));
+
+    // Handle errors
+    s.on('notification_error', (error) => {
+      console.error('Notification error:', error);
+    });
+    cleanupFunctions.push(() => s.off('notification_error'));
   }
+
   return () => {
     if (s) {
-      s.off('new_notification', callback);
+      cleanupFunctions.forEach(cleanup => cleanup());
     }
   };
 };
 
 export const onUserStatusChange = (callback) => {
   const s = getSocket();
+  let cleanupFunctions = [];
+
   if (s) {
     s.on('user_status_change', callback);
+    cleanupFunctions.push(() => s.off('user_status_change', callback));
+
+    // Handle reconnection
+    s.on('connect', () => {
+      s.emit('subscribe_status_updates');
+    });
+    cleanupFunctions.push(() => s.off('connect'));
   }
+
   return () => {
     if (s) {
-      s.off('user_status_change', callback);
+      cleanupFunctions.forEach(cleanup => cleanup());
     }
   };
 };
