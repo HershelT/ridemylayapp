@@ -6,34 +6,46 @@ const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const Comment = require('../models/Comment');
 const bcrypt = require('bcryptjs');
-const { connectDB, closeDB } = require('../config/db');
+const { connectDB } = require('../config/db');
 const logger = require('../utils/logger');
 
-// Sample data for seeding
+// Update the bettingSites array in seedDatabase.js
 const bettingSites = [
   {
     name: 'DraftKings',
-    logo: 'https://example.com/draftkings-logo.png',
-    url: 'https://draftkings.com',
-    isActive: true
+    logoUrl: 'https://example.com/draftkings-logo.png', // Changed from logo to logoUrl
+    websiteUrl: 'https://draftkings.com', // Changed from url to websiteUrl
+    apiEndpoint: 'https://api.draftkings.com',
+    supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
+    isActive: true,
+    countryAvailability: ['US']
   },
   {
     name: 'FanDuel',
-    logo: 'https://example.com/fanduel-logo.png',
-    url: 'https://fanduel.com',
-    isActive: true
+    logoUrl: 'https://example.com/fanduel-logo.png',
+    websiteUrl: 'https://fanduel.com',
+    apiEndpoint: 'https://api.fanduel.com',
+    supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
+    isActive: true,
+    countryAvailability: ['US']
   },
   {
     name: 'BetMGM',
-    logo: 'https://example.com/betmgm-logo.png',
-    url: 'https://betmgm.com',
-    isActive: true
+    logoUrl: 'https://example.com/betmgm-logo.png',
+    websiteUrl: 'https://betmgm.com',
+    apiEndpoint: 'https://api.betmgm.com',
+    supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
+    isActive: true,
+    countryAvailability: ['US']
   },
   {
     name: 'Caesars',
-    logo: 'https://example.com/caesars-logo.png',
-    url: 'https://caesars.com',
-    isActive: true
+    logoUrl: 'https://example.com/caesars-logo.png',
+    websiteUrl: 'https://caesars.com',
+    apiEndpoint: 'https://api.caesars.com',
+    supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
+    isActive: true,
+    countryAvailability: ['US']
   }
 ];
 
@@ -312,13 +324,14 @@ const seedDatabase = async () => {
       },
       $inc: { ridesCount: 2, likesCount: 1 }
     });
-      logger.info('✅ Database seeded successfully!');
+    
+    logger.info('✅ Database seeded successfully!');
     logger.info(`Created ${createdUsers.length} users`);
     logger.info(`Created ${createdBets.length} bets`);
     logger.info(`Created ${createdComments.length} comments`);
     
     // Disconnect from database
-    await closeDB();
+    await mongoose.disconnect();
     
   } catch (error) {
     logger.error('Error seeding database:', error);

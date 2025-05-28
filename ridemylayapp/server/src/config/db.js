@@ -1,10 +1,14 @@
 const mongoose = require('mongoose');
-
+require('dotenv').config();
+// Import logger utility for logging
 const logger = require('../utils/logger');
 
 // Connect to MongoDB
 const connectDB = async () => {
   try {
+    if (!process.env.MONGO_URI) {
+      throw new Error('MONGO_URI environment variable is not defined');
+    }
     // Remove deprecated options since using Mongoose 6+
     const conn = await mongoose.connect(process.env.MONGO_URI);
     
