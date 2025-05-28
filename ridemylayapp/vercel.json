@@ -5,10 +5,7 @@
       "src": "server/src/server.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": [
-          "server/**/*",
-          "server/.env*"
-        ]
+        "includeFiles": ["server/**/*"]
       }
     },
     {
@@ -23,33 +20,22 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/src/server.js"
+      "dest": "server/src/server.js"
     },
     {
       "src": "/socket.io/(.*)",
-      "dest": "/server/src/server.js"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "/client/build/static/$1"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/client/build/favicon.ico"
-    },
-    {
-      "src": "/manifest.json",
-      "dest": "/client/build/manifest.json"
+      "dest": "server/src/server.js"
     },
     {
       "handle": "filesystem"
     },
     {
       "src": "/(.*)",
-      "dest": "/client/build/index.html"
+      "dest": "client/build/index.html"
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VERCEL": "1"
   }
 }

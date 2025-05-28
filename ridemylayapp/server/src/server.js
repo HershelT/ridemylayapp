@@ -18,19 +18,16 @@ const logger = require('./utils/logger');
 // Create Express app
 const app = express();
 
-// Connect to database
-connectDB();
-
 // Middleware
-app.use(helmet()); // Security headers
+app.use(helmet()); 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://ridemylayapp.vercel.app', 'https://www.ridemylay.com']
+    ? ['https://ride-my-lay.vercel.app', 'https://www.ridemylay.com']
     : 'http://localhost:3000',
   credentials: true
 }));
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Logging
 if (process.env.NODE_ENV === 'development') {
@@ -40,7 +37,7 @@ if (process.env.NODE_ENV === 'development') {
 // Mount API routes
 app.use('/api', routes);
 
-// Remove static file serving for Vercel deployment
+// Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../client/build')));
   app.get('*', (req, res, next) => {
@@ -51,49 +48,56 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// For Vercel deployment
-if (process.env.VERCEL) {
-  // Export the Express app directly
-  module.exports = app;
-} else {
-  // Start server normally for local development
-  const PORT = process.env.PORT || 5000;
-  server.listen(PORT, () => {
-    logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  });
-}
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  logger.error(`Unhandled Rejection: ${err.message}`);
-  if (!process.env.VERCEL) {
-    server.close(() => process.exit(1));
-  }
-});
-
 // Error handling middleware
 const { errorHandler } = require('./middleware/errorHandler');
 app.use(errorHandler);
 
-// Create HTTP server
-const server = http.createServer(app);
+// Initialize server and socket.io if not in serverless environment
+if (!process.env.VERCEL) {
+  const init = async () => {
+    try {
+      // Connect to database
+      await connectDB();
 
-// Setup Socket.IO
-const io = setupSocketIO(server);
+      // Create HTTP server
+      const server = http.createServer(app);
 
-// Set port
-const PORT = process.env.PORT || 5000;
+      // Setup Socket.IO
+      const io = setupSocketIO(server);
 
-// Start server
-server.listen(PORT, () => {
-  logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-});
+      // Set port
+      const PORT = process.env.PORT || 5000;
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  logger.error(`Unhandled Rejection: ${err.message}`);
-  // Close server & exit process
-  server.close(() => process.exit(1));
-});
+      // Start server
+      server.listen(PORT, () => {
+        logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+      });
 
-module.exports = { app, server };
+      // Handle unhandled promise rejections
+      process.on('unhandledRejection', (err) => {
+        logger.error(`Unhandled Rejection: ${err.message}`);
+        server.close(() => process.exit(1));
+      });
+
+      return { app, server };
+    } catch (error) {
+      logger.error(`Server initialization error: ${error.message}`);
+      process.exit(1);
+    }
+  };
+
+  // Initialize server in non-serverless environment
+  if (require.main === module) {
+    init();
+  }
+}
+
+// Connect to database for serverless environment
+if (process.env.VERCEL) {
+  connectDB().catch(err => {
+    logger.error(`Database connection error: ${err.message}`);
+  });
+}
+
+// Export for serverless environment
+module.exports = app;

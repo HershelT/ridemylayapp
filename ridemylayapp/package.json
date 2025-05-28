@@ -11,11 +11,10 @@
    "scripts": {
     "start": "cd server && npm start",
     "dev": "concurrently \"cd client && npm start\" \"cd server && npm run dev\"",
-    "build": "cd client && npm install && npm run build && cd ../server && npm install",
+    "build": "npm run install-deps && cd client && npm run build",
     "vercel-build": "npm run build",
-    "postinstall": "npm run install-client && npm run install-server",
-    "install-client": "cd client && npm install",
-    "install-server": "cd server && npm install"
+    "install-deps": "cd client && npm install && cd ../server && npm install",
+    "clean": "rimraf node_modules && cd client && rimraf node_modules && cd ../server && rimraf node_modules"
   },
   "keywords": [
     "sports-betting",
@@ -27,7 +26,8 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "concurrently": "^8.2.1"
+    "concurrently": "^8.2.1",
+    "rimraf": "^5.0.0"
   },
   "dependencies": {
     "mongodb": "^6.16.0"
