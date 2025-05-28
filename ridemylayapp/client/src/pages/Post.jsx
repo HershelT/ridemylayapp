@@ -1,34 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
+import CreateBetForm from '../components/bets/CreateBetForm';
+import useAuthStore from '../store/authStore';
+import { Navigate } from 'react-router-dom';
 
 const Post = () => {
-  const [betForm, setBetForm] = useState({
-    bettingSiteId: '',
-    stake: '',
-    legs: [{ team: '', betType: '', odds: '' }]
-  });
-  const [showBettingSites, setShowBettingSites] = useState(false);
-  const [showBetTypes, setShowBetTypes] = useState(false);
-  const [activeLegIndex, setActiveLegIndex] = useState(null);
+  const { isAuthenticated } = useAuthStore();
 
-  // Mock data
-  const bettingSites = [
-    { _id: 'site1', name: 'DraftKings', logoUrl: 'https://via.placeholder.com/30' },
-    { _id: 'site2', name: 'FanDuel', logoUrl: 'https://via.placeholder.com/30' },
-    { _id: 'site3', name: 'BetMGM', logoUrl: 'https://via.placeholder.com/30' },
-    { _id: 'site4', name: 'Caesars', logoUrl: 'https://via.placeholder.com/30' }
-  ];
+  // Redirect if not authenticated
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
 
-  const betTypes = ['Moneyline', 'Spread', 'Total Over', 'Total Under', 'Player Prop'];
-
-  const handleBettingSiteSelect = (siteId) => {
-    setBetForm({ ...betForm, bettingSiteId: siteId });
-    setShowBettingSites(false);
-  };
-
-  const handleBetTypeSelect = (betType) => {
-    if (activeLegIndex !== null) {
-      const updatedLegs = [...betForm.legs];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-4xl mx-auto py-6"
+    >
+      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Create a New Bet</h1>
+      <CreateBetForm />
+    </motion.div>
+  );
+};
       updatedLegs[activeLegIndex] = { ...updatedLegs[activeLegIndex], betType };
       setBetForm({ ...betForm, legs: updatedLegs });
       setShowBetTypes(false);
