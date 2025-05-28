@@ -8,10 +8,14 @@
     "client",
     "server"
   ],
-  "scripts": {
+   "scripts": {
     "start": "cd server && npm start",
-    "build": "cd client && npm install && npm run build",
-    "vercel-build": "npm run build"
+    "dev": "concurrently \"cd client && npm start\" \"cd server && npm run dev\"",
+    "build": "cd client && npm install && npm run build && cd ../server && npm install",
+    "vercel-build": "npm run build",
+    "postinstall": "npm run install-client && npm run install-server",
+    "install-client": "cd client && npm install",
+    "install-server": "cd server && npm install"
   },
   "keywords": [
     "sports-betting",
