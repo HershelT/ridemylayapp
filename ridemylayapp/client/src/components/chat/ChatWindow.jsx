@@ -4,19 +4,27 @@ import { format } from 'date-fns';
 import { messageAPI } from '../../services/chatApi';
 import useAuthStore from '../../store/authStore';
 import { getInitials } from '../../utils/formatters';
+import { 
+  joinChatRoom, 
+  leaveChatRoom, 
+  sendChatMessage, 
+  typingInChat, 
+  markMessagesAsRead,
+  onMessageReceived,
+  onUserTyping
+} from '../../services/socket';
 
 const ChatWindow = ({ chat, onBack, isMobileView }) => {
   const { user } = useAuthStore();
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [newMessage, setNewMessage] = useState('');  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const messagesEndRef = useRef(null);
   const [showOptions, setShowOptions] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);
 
   const otherUser = chat.isGroupChat ? null : chat.users.find(u => u._id !== user._id);
-
-  // Fetch messages when chat changes
+  // Fetch messages and setup socket listeners when chat changes
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -30,12 +38,59 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
       }
     };
 
+    // Join chat room
+    joinChatRoom(chat._id);
     fetchMessages();
+
+    // Setup message listener
+    const messageCleanup = onMessageReceived((message) => {
+      if (message.chat === chat._id) {
+        setMessages(prev => [...prev, message]);
+        scrollToBottom();
+        markMessagesAsRead(chat._id);
+      }
+    });
+
+    // Setup typing listener
+    const typingCleanup = onUserTyping(({ chatId, isTyping, username }) => {
+      if (chatId === chat._id) {
+        setTypingUsers(prev => {
+          if (isTyping) {
+            return [...new Set([...prev, username])];
+          } else {
+            return prev.filter(u => u !== username);
+          }
+        });
+      }
+    });
+
+    // Cleanup function
+    return () => {
+      leaveChatRoom(chat._id);
+      messageCleanup();
+      typingCleanup();
+    };
   }, [chat._id]);
 
   // Scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  // Handle typing events
+  const typingTimeoutRef = useRef(null);
+  const handleTyping = () => {
+    if (!typingTimeoutRef.current) {
+      typingInChat(chat._id, true);
+    }
+    
+    // Clear previous timeout
+    clearTimeout(typingTimeoutRef.current);
+    
+    // Set new timeout
+    typingTimeoutRef.current = setTimeout(() => {
+      typingInChat(chat._id, false);
+      typingTimeoutRef.current = null;
+    }, 2000);
   };
 
   // Send message
@@ -49,9 +104,22 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
         content: newMessage
       });
 
+      // Send through socket
+      sendChatMessage({
+        ...response.data.message,
+        chat: chat._id
+      });
+
       setMessages([...messages, response.data.message]);
       setNewMessage('');
       scrollToBottom();
+
+      // Clear typing state
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingInChat(chat._id, false);
+        typingTimeoutRef.current = null;
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -179,17 +247,33 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
               </div>
             );
           })
-        )}
-        <div ref={messagesEndRef} />
+        )}          {/* Typing Indicator */}
+          {typingUsers.length > 0 && (
+            <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 p-2">
+              <div className="flex space-x-1">
+                <span className="animate-bounce">•</span>
+                <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>•</span>
+                <span className="animate-bounce" style={{ animationDelay: "0.4s" }}>•</span>
+              </div>
+              <span>
+                {typingUsers.length === 1
+                  ? `${typingUsers[0]} is typing...`
+                  : `${typingUsers.length} people are typing...`}
+              </span>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input */}
       <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex space-x-2">
-          <input
+        <div className="flex space-x-2">          <input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              handleTyping();
+            }}
             placeholder="Type a message..."
             className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />

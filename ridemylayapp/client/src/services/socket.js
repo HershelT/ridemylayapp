@@ -64,13 +64,6 @@ export const leaveChatRoom = (chatId) => {
   }
 };
 
-export const sendChatMessage = (message) => {
-  const s = getSocket();
-  if (s) {
-    s.emit('new_message', message);
-  }
-};
-
 export const typingInChat = (chatId, isTyping) => {
   const s = getSocket();
   if (s) {
