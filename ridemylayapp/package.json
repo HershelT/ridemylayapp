@@ -26,5 +26,8 @@
   "license": "ISC",
   "devDependencies": {
     "concurrently": "^8.2.1"
+  },
+  "dependencies": {
+    "mongodb": "^6.16.0"
   }
 }
