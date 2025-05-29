@@ -7,6 +7,15 @@ const useCommentStore = create(
     comments: {},  // Organized by betId: { [betId]: [comments] }
     loading: false,
     error: null,
+    
+    // Reset store state
+    resetState: () => {
+      set({
+        comments: {},
+        loading: false,
+        error: null
+      });
+    },
 
     // Get comments for a bet
     getComments: async (betId) => {
@@ -34,28 +43,54 @@ const useCommentStore = create(
         });
         return [];
       }
-    },
-
-    // Add a new comment
+    },    // Add a new comment    
     addComment: async (betId, content, parentId = null) => {
+      // Optimistic update with temporary comment
+      const tempId = Date.now().toString();
+      const tempComment = {
+        _id: tempId,
+        content,
+        userId: get().currentUser,
+        createdAt: new Date().toISOString(),
+        likes: [],
+        parentId,
+        isTemp: true
+      };
+      
+      set((state) => ({
+        comments: {
+          ...state.comments,
+          [betId]: state.comments[betId] 
+            ? [tempComment, ...state.comments[betId]]
+            : [tempComment],
+        },
+      }));
+
       try {
-        const response = await commentAPI.addComment(betId, { content, parentId });
+        // Make the actual API call
+        const response = await commentAPI.addComment(betId, content, parentId);
         const newComment = response.data.comment;
         
+        // Replace the temporary comment with the real one
         set((state) => ({
           comments: {
             ...state.comments,
-            [betId]: state.comments[betId] 
-              ? [newComment, ...state.comments[betId]] 
-              : [newComment],
+            [betId]: state.comments[betId].map(comment => 
+              comment._id === tempId ? newComment : comment
+            ),
           },
         }));
         
         return newComment;
       } catch (error) {
-        set({
+        // Remove the temporary comment on error
+        set((state) => ({
+          comments: {
+            ...state.comments,
+            [betId]: state.comments[betId].filter(comment => comment._id !== tempId),
+          },
           error: error.response?.data?.message || 'Failed to add comment',
-        });
+        }));
         throw error;
       }
     },

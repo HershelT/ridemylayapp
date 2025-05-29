@@ -1,10 +1,12 @@
 import useAuthStore from './authStore';
 import useBetStore from './betStore';
+import useCommentStore from './commentStore';
 
 // Export all stores
 export {
   useAuthStore,
-  useBetStore
+  useBetStore,
+  useCommentStore
 };
 
 // Combine reset function for all stores

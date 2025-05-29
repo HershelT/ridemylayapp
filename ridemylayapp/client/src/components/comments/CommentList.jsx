@@ -11,17 +11,24 @@ const CommentList = ({
   onDeleteComment,
   loading = false
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState(null);
-  
-  const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!newComment.trim()) return;
     
-    onAddComment(betId, newComment, replyTo?._id);
-    setNewComment('');
-    setReplyTo(null);
+    setIsSubmitting(true);
+    try {
+      await onAddComment(betId, newComment, replyTo?._id);
+      setNewComment('');
+      setReplyTo(null);
+    } catch (error) {
+      console.error('Failed to submit comment:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const handleReply = (comment) => {
@@ -53,34 +60,41 @@ const CommentList = ({
           )}
           
           <textarea
-            id="comment-input"
-            placeholder="Add a comment..."
+            id="comment-input"            placeholder={isSubmitting ? "Posting comment..." : "Add a comment..."}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
+            disabled={isSubmitting}
             className={`w-full border border-gray-300 dark:border-gray-700 ${
               replyTo ? 'rounded-b-lg rounded-t-none' : 'rounded-lg'
-            } px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white`}
+            } px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white disabled:opacity-75 disabled:cursor-not-allowed`}
             rows="2"
           />
-          
-          <button
+            <button
             type="submit"
-            disabled={!newComment.trim()}
-            className="absolute bottom-2 right-2 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!newComment.trim() || isSubmitting}
+            className={`absolute bottom-2 right-2 ${
+              isSubmitting 
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            <FaPaperPlane />
+            {isSubmitting ? (
+              <div className="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full" />
+            ) : (
+              <FaPaperPlane />
+            )}
           </button>
         </div>
       </form>
-      
-      {/* Comments list */}
+        {/* Comments list */}
       {loading ? (
         <div className="py-4 text-center text-gray-500 dark:text-gray-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500 mx-auto mb-2"></div>
           Loading comments...
         </div>
-      ) : comments.length > 0 ? (
+      ) : comments && comments.length > 0 ? (
         <div className="space-y-1">
-          {comments.map((comment) => (
+          {[...comments].map((comment) => (
             <Comment
               key={comment._id}
               comment={comment}

@@ -5,19 +5,27 @@ import { FaEllipsisH, FaHeart, FaReply } from 'react-icons/fa';
 
 const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
   const [showOptions, setShowOptions] = React.useState(false);
-
   if (!comment) {
     return null; // Don't render anything if comment is undefined
   }
-
-  const { _id, user, content, createdAt, likes = [] } = comment;
-  // Ensure user object exists to prevent undefined errors
-  if (!user) {
+  // First handle user info to avoid null reference errors
+  const userInfo = comment.user || { username: 'Anonymous', _id: null, profilePicture: null };
+  
+  // Then safely destructure with defaults
+  const { 
+    _id, 
+    content = '', 
+    createdAt,
+    likes = []
+  } = comment;
+  
+  // Ensure we have required data
+  if (!content) {
     return null;
   }
 
   const isLiked = Array.isArray(likes) && likes.includes(currentUserId);
-  const isOwner = user._id === currentUserId;
+  const isOwner = userInfo._id === currentUserId;
   
   const handleDelete = () => {
     if (isOwner && onDelete) {
@@ -41,11 +49,10 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
   
   return (
     <div className="flex space-x-3 py-3 border-b border-gray-700/20">
-      <div className="flex-shrink-0">
-        <Link to={`/profile/${user._id}`}>
+      <div className="flex-shrink-0">        <Link to={userInfo._id ? `/profile/${userInfo._id}` : '#'}>
           <img 
-            src={user.profilePicture || `https://api.dicebear.com/9.x/icons/svg?seed=${user.username || 'anonymous'}`} 
-            alt={user.username || 'User'}
+            src={userInfo.profilePicture || `https://api.dicebear.com/9.x/icons/svg?seed=${userInfo.username || 'anonymous'}`} 
+            alt={userInfo.username || 'User'}
             className="h-9 w-9 rounded-full object-cover" 
           />
         </Link>
@@ -53,15 +60,14 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <div>
-            <Link 
-              to={`/profile/${user._id}`}
+          <div>            <Link 
+              to={userInfo._id ? `/profile/${userInfo._id}` : '#'}
               className="font-medium text-gray-900 dark:text-white hover:underline"
             >
-              {user.name || user.username || 'Anonymous'}
+              {userInfo.name || userInfo.username || 'Anonymous'}
             </Link>
             <span className="ml-1 text-sm text-gray-500 dark:text-gray-400">
-              @{user.username || 'anonymous'}
+              @{userInfo.username || 'anonymous'}
             </span>
             <span className="mx-1 text-gray-500 dark:text-gray-400">·</span>
             <span className="text-xs text-gray-500 dark:text-gray-400">

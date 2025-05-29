@@ -3,16 +3,16 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaHeart, FaShare, FaEllipsisH, FaCheck, FaTimesCircle } from 'react-icons/fa';
 import { GiRaceCar } from 'react-icons/gi';
 import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
 import CommentList from '../components/comments/CommentList';
 import useAuthStore from '../store/authStore';
 import useCommentStore from '../store/commentStore';
 import { betAPI } from '../services/api';
 import useBets from '../hooks/useBets';
 
-const BetDetails = () => {
-  const { id } = useParams();
+const BetDetails = () => {  const { id } = useParams();
   const { user } = useAuthStore();
-  const { comments, getComments, addComment, likeComment, deleteComment } = useCommentStore();
+  const { comments, loading: commentsLoading, getComments, addComment, likeComment, deleteComment } = useCommentStore();
   const { deleteBet } = useBets();
   const navigate = useNavigate();
   
@@ -41,11 +41,11 @@ const BetDetails = () => {
   useEffect(() => {
     const fetchBet = async () => {
       try {
-        const response = await betAPI.getBet(id);
-        setBet(response.data.bet);
+        const betResponse = await betAPI.getBet(id);
+        setBet(betResponse.data.bet);
         
-        // Fetch comments for this bet
-        getComments(id);
+        // Fetch comments separately to handle loading state properly
+        await getComments(id);
       } catch (error) {
         setError(error.response?.data?.message || 'Failed to load bet details');
       } finally {
@@ -176,12 +176,28 @@ const BetDetails = () => {
     }
   };
   
-  // Handle adding a comment
-  const handleAddComment = async (betId, content, parentId) => {
+  // Handle adding a comment  const handleAddComment = async (betId, content, parentId) => {
+    const handleAddComment = async (betId, content, parentId) => {
+    if (!user) {
+      toast.error('Please log in to comment');
+      return;
+    }
+    
     try {
-      await addComment(betId, content, parentId);
+      // Add the comment
+      const newComment = await addComment(betId, content, parentId);
+      
+      if (!newComment) {
+        toast.error('Failed to add comment');
+        return;
+      }
+
+      // Refresh comments to get the latest state
+      await getComments(betId);
+      
     } catch (error) {
       console.error('Error adding comment:', error);
+      toast.error('Failed to add comment');
     }
   };
   
@@ -542,20 +558,25 @@ const BetDetails = () => {
           </div>
         </div>
       </div>
-      
-      {/* Comments section */}
+        {/* Comments section */}
       <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <CommentList
-          betId={id}
+        <CommentList          betId={id}
           comments={comments[id] || []}
           currentUserId={user?._id}
           onAddComment={handleAddComment}
           onLikeComment={handleLikeComment}
           onDeleteComment={handleDeleteComment}
+          loading={commentsLoading}
         />
+        {comments[id]?.length === 0 && !loading && (
+          <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+            No comments yet. Be the first to comment!
+          </div>
+        )}
       </div>
     </div>
   );
+
 };
 
 export default BetDetails;
