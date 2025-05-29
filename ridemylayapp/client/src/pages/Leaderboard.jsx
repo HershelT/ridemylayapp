@@ -15,16 +15,16 @@ const Leaderboard = () => {
 
     try {
       // Mock API call
-      setTimeout(() => {
-        setLeaderboardData(generateMockLeaderboardData());
-        setLoading(false);
-      }, 500);
+    //   setTimeout(() => {
+    //     setLeaderboardData(generateMockLeaderboardData());
+    //     setLoading(false);
+    //   }, 500);
 
       // Real API call would look like:
-      // const response = await api.get(`/api/leaderboards/${leaderboardType}`, {
-      //   params: { timeRange }
-      // });
-      // setLeaderboardData(response.data);
+      const response = await api.get(`/api/leaderboards/${leaderboardType}`, {
+        params: { timeRange }
+      });
+      setLeaderboardData(response.data);
     } catch (error) {
       console.error('Error fetching leaderboard data:', error);
       setLoading(false);

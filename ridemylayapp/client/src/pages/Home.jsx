@@ -16,24 +16,24 @@ const Home = () => {
   const fetchBets = async () => {
     setLoading(true);
     try {
-      // Mock data for now, would be replaced with actual API call
-      const mockBets = generateMockBets(page);
+      // fetch the bets from the API (mongo)
+    //   const mockBets = generateMockBets(page);
       
-      setTimeout(() => {
-        if (page > 3) {
-          setHasMore(false);
-        } else {
-          setBets(prevBets => [...prevBets, ...mockBets]);
-          setPage(prevPage => prevPage + 1);
-        }
-        setLoading(false);
-      }, 1000);
+    //   setTimeout(() => {
+    //     if (page > 3) {
+    //       setHasMore(false);
+    //     } else {
+    //       setBets(prevBets => [...prevBets, ...mockBets]);
+    //       setPage(prevPage => prevPage + 1);
+    //     }
+    //     setLoading(false);
+    //   }, 1000);
       
       // Real API call would look like:
-      // const response = await api.get('/api/bets', { params: { page, limit: 10 } });
-      // setBets(prevBets => [...prevBets, ...response.data.bets]);
-      // setHasMore(response.data.hasMore);
-      // setPage(prevPage => prevPage + 1);
+      const response = await api.get('/api/bets', { params: { page, limit: 10 } });
+      setBets(prevBets => [...prevBets, ...response.data.bets]);
+      setHasMore(response.data.hasMore);
+      setPage(prevPage => prevPage + 1);
     } catch (error) {
       console.error('Error fetching bets:', error);
       setLoading(false);
