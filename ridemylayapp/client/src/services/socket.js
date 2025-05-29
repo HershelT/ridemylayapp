@@ -1,77 +1,77 @@
 import { io } from 'socket.io-client';
 
-let socket;
+let socket = null;
 
-export const initializeSocket = () => {
+// Create and initialize socket instance
+const createSocket = () => {
   const token = localStorage.getItem('token');
   
   if (!token) {
     console.warn('No auth token found, socket connection not established');
     return null;
   }
+
+  // Connect to the socket server with authentication
+  socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
+    auth: {
+      token,
+    },
+    transports: ['websocket'],
+    autoConnect: true,
+  });
   
-  if (!socket) {
-    // Connect to the socket server with authentication
-    socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
-      auth: {
-        token,
-      },
-      transports: ['websocket'],
-      autoConnect: true,
-    });
+  // Socket connection events
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id);
+  });
+  
+  socket.on('disconnect', (reason) => {
+    console.log('Socket disconnected:', reason);
+  });
+  
+  socket.on('connect_error', (error) => {
+    console.error('Socket connection error:', error);
     
-    // Socket connection events
-    socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
-    });
-    
-    socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
-    
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      
-      // If unauthorized, clear token
-      if (error.message.includes('Authentication error')) {
-        localStorage.removeItem('token');
-      }
-    });
-  }
+    // If unauthorized, clear token
+    if (error.message.includes('Authentication error')) {
+      localStorage.removeItem('token');
+    }
+  });
   
   return socket;
 };
 
-export const getSocket = () => {
+// Get or create socket instance
+const getSocket = () => {
   if (!socket) {
-    return initializeSocket();
+    return createSocket();
   }
   return socket;
 };
 
 // Chat events
-export const joinChatRoom = (chatId) => {
+const joinChatRoom = (chatId) => {
   const s = getSocket();
   if (s) {
     s.emit('join_chat', chatId);
   }
 };
 
-export const leaveChatRoom = (chatId) => {
+const leaveChatRoom = (chatId) => {
   const s = getSocket();
   if (s) {
     s.emit('leave_chat', chatId);
   }
 };
 
-export const typingInChat = (chatId, isTyping) => {
+const typingInChat = (chatId, isTyping) => {
   const s = getSocket();
   if (s) {
     s.emit('typing', { chatId, isTyping });
   }
 };
 
-export const markMessagesAsRead = (chatId) => {
+const markMessagesAsRead = (chatId) => {
   const s = getSocket();
   if (s) {
     s.emit('read_messages', chatId);
@@ -79,7 +79,7 @@ export const markMessagesAsRead = (chatId) => {
 };
 
 // Bet events
-export const emitBetInteraction = (betId, type, data) => {
+const emitBetInteraction = (betId, type, data) => {
   const s = getSocket();
   if (s) {
     s.emit('bet_interaction', {
@@ -91,7 +91,7 @@ export const emitBetInteraction = (betId, type, data) => {
 };
 
 // Add listeners for socket events
-export const onMessageReceived = (callback) => {
+const onMessageReceived = (callback) => {
   const s = getSocket();
   if (s) {
     s.on('message_received', callback);
@@ -103,7 +103,7 @@ export const onMessageReceived = (callback) => {
   };
 };
 
-export const onUserTyping = (callback) => {
+const onUserTyping = (callback) => {
   const s = getSocket();
   if (s) {
     s.on('user_typing', callback);
@@ -115,7 +115,7 @@ export const onUserTyping = (callback) => {
   };
 };
 
-export const onBetUpdate = (callback) => {
+const onBetUpdate = (callback) => {
   const s = getSocket();
   if (s) {
     s.on('bet_update', callback);
@@ -127,7 +127,7 @@ export const onBetUpdate = (callback) => {
   };
 };
 
-export const onNewNotification = (callback) => {
+const onNewNotification = (callback) => {
   const s = getSocket();
   let cleanupFunctions = [];
 
@@ -162,7 +162,7 @@ export const onNewNotification = (callback) => {
   };
 };
 
-export const onUserStatusChange = (callback) => {
+const onUserStatusChange = (callback) => {
   const s = getSocket();
   let cleanupFunctions = [];
 
@@ -186,14 +186,14 @@ export const onUserStatusChange = (callback) => {
 
 
 // Notification events
-export const subscribeToNotifications = () => {
+const subscribeToNotifications = () => {
   const s = getSocket();
   if (s) {
     s.emit('subscribe_notifications');
   }
 };
 
-export const markNotificationAsRead = (notificationId) => {
+const markNotificationAsRead = (notificationId) => {
   const s = getSocket();
   if (s) {
     s.emit('read_notification', { notificationId });
@@ -201,7 +201,7 @@ export const markNotificationAsRead = (notificationId) => {
 };
 
 // Disconnecting socket on logout
-export const disconnectSocket = () => {
+const disconnectSocket = () => {
   if (socket) {
     socket.disconnect();
     socket = null;
@@ -209,28 +209,28 @@ export const disconnectSocket = () => {
 };
 
 // Chat event emitters
-export const joinChat = (chatId) => {
+const joinChat = (chatId) => {
   const socket = getSocket();
   if (socket) {
     socket.emit('join chat', chatId);
   }
 };
 
-export const leaveChat = (chatId) => {
+const leaveChat = (chatId) => {
   const socket = getSocket();
   if (socket) {
     socket.emit('leave chat', chatId);
   }
 };
 
-export const sendChatMessage = (message) => {
+const sendChatMessage = (message) => {
   const socket = getSocket();
   if (socket) {
     socket.emit('new message', message);
   }
 };
 
-export const subscribeToMessages = (callback) => {
+const subscribeToMessages = (callback) => {
   const socket = getSocket();
   if (socket) {
     socket.on('message received', callback);
@@ -239,7 +239,7 @@ export const subscribeToMessages = (callback) => {
   return () => {};
 };
 
-export const subscribeToChatTyping = (callback) => {
+const subscribeToChatTyping = (callback) => {
   const socket = getSocket();
   if (socket) {
     socket.on('typing', callback);
@@ -248,21 +248,21 @@ export const subscribeToChatTyping = (callback) => {
   return () => {};
 };
 
-export const emitTyping = (chatId) => {
+const emitTyping = (chatId) => {
   const socket = getSocket();
   if (socket) {
     socket.emit('typing', chatId);
   }
 };
 
-export const subscribeToBetUpdates = (betId, callback) => {
+const subscribeToBetUpdates = (betId, callback) => {
   const socket = getSocket();
   if (socket) {
     socket.on(`bet:${betId}:update`, callback);
   }
 };
 
-export const unsubscribeFromBetUpdates = (betId, callback) => {
+const unsubscribeFromBetUpdates = (betId, callback) => {
   const socket = getSocket();
   if (socket) {
     socket.off(`bet:${betId}:update`, callback);
@@ -270,8 +270,8 @@ export const unsubscribeFromBetUpdates = (betId, callback) => {
 };
 
 const socketService = {
-  initializeSocket,
   getSocket,
+  createSocket,
   joinChatRoom,
   leaveChatRoom,
   sendChatMessage,
@@ -282,6 +282,15 @@ const socketService = {
   subscribeToNotifications,
   markNotificationAsRead,
   disconnectSocket,
+  onMessageReceived,
+  onUserTyping,
+  onBetUpdate,
+  onNewNotification,
+  onUserStatusChange,
+  subscribeToMessages,
+  subscribeToChatTyping,
+  emitTyping,
+  emitBetInteraction
 };
 
 export default socketService;

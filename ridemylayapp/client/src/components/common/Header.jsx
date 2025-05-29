@@ -4,7 +4,7 @@ import NotificationBadge from '../notifications/NotificationBadge';
 import NotificationList from '../notifications/NotificationList';
 import useMessageStore from '../../stores/messageStore';
 import { useAuth } from '../../hooks/useAuth';
-import socket from '../../services/socket';
+import socketService from '../../services/socket';
 
 const Header = ({ toggleTheme }) => {
   const { unreadCount, fetchUnreadCount, incrementUnreadCount } = useMessageStore();
@@ -17,34 +17,36 @@ const Header = ({ toggleTheme }) => {
     if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
       setShowNotifications(false);
     }
-  };
-
-  // Fetch initial unread count and set up socket listeners
+  };  // Fetch initial unread count and set up socket listeners
   React.useEffect(() => {
     if (user) {  // Only fetch and listen if user is logged in
       fetchUnreadCount();
 
-      // Set up socket listener for new messages
-      socket.on('new_message', (data) => {
+      // Set up message event listeners using the socket service
+      const cleanup = socketService.onMessageReceived((data) => {
         if (data.sender !== user._id) {  // Only increment if message is not from current user
           incrementUnreadCount();
         }
       });
 
-      // Listen for message read events
-      socket.on('message_read', (data) => {
-        if (data.readBy === user._id) {
-          // Update the unread count when messages are marked as read
-          fetchUnreadCount();
-        }
-      });
+      // Set up socket listener for message read events
+      const socket = socketService.getSocket();
+      if (socket) {
+        socket.on('messages_read', (data) => {
+          if (data.readBy === user._id) {
+            fetchUnreadCount();
+          }
+        });
+      }
 
       return () => {
-        socket.off('new_message');
-        socket.off('message_read');
+        cleanup(); // Clean up message received listener
+        if (socket) {
+          socket.off('messages_read'); // Clean up message read listener
+        }
       };
     }
-  }, [fetchUnreadCount, user]);
+  }, [fetchUnreadCount, user, incrementUnreadCount]);
 
   React.useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
