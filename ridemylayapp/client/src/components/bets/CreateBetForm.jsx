@@ -164,16 +164,25 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     loadBettingSites();
   }, [user]);
   
-  // Calculate potential winnings when stake or odds change  // Calculate parlay odds when legs change
+  // Calculate potential winnings when stake or odds change  // Calculate total odds whenever legs change
   useEffect(() => {
-    if (formData.legs.length > 1) {
-      const totalOdds = calculateParlayOdds(formData.legs);
-      if (totalOdds !== 0) {
-        setFormData(prev => ({
-          ...prev,
-          odds: totalOdds > 0 ? `+${totalOdds}` : totalOdds.toString()
-        }));
-      }
+    // If there's only one leg, use its odds
+    if (formData.legs.length === 1) {
+      const legOdds = formData.legs[0].odds;
+      setFormData(prev => ({
+        ...prev,
+        odds: legOdds
+      }));
+      return;
+    }
+
+    // For multiple legs, calculate parlay odds
+    const totalOdds = calculateParlayOdds(formData.legs);
+    if (totalOdds !== 0) {
+      setFormData(prev => ({
+        ...prev,
+        odds: totalOdds > 0 ? `+${totalOdds}` : totalOdds.toString()
+      }));
     }
   }, [formData.legs]);
 
@@ -295,12 +304,11 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate required fields are present
-    if (!formData.stake || !formData.odds || formData.legs.some(leg => !leg.odds)) {
+      // Validate required fields are present
+    if (!formData.stake || formData.legs.some(leg => !leg.odds || !leg.team)) {
       toast.error('Please fill in all required fields');
       return;
-    }    try {
+    }try {
       const parsedStake = parseFloat(formData.stake);
       const parsedOdds = parseAmericanOdds(formData.odds);
       
@@ -483,13 +491,11 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                 Total Odds*
               </label>
               <input
-                type="text"
-                name="odds"
+                type="text"                name="odds"
                 value={formData.odds}
-                onChange={handleOddsChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                placeholder="E.g., -110, +150"
-                required
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-gray-50 dark:bg-gray-600 dark:text-white"
+                placeholder="Auto-calculated from legs"
               />              <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 block">
                   Use American odds format (e.g., -110, +200)
