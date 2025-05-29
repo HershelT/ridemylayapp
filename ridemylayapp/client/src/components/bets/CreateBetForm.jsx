@@ -160,20 +160,34 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
   useEffect(() => {
     const calculateWinnings = () => {
       const stake = parseFloat(formData.stake) || 0;
-      const odds = parseFloat(formData.odds) || 0;
+      const odds = parseAmericanOdds(formData.odds);
+      
+      if (!odds || isNaN(stake)) {
+        setPotentialWinnings(0);
+        return;
+      }
       
       let winnings = 0;
       
-      // American odds calculation
+      // American odds calculation with precise decimal arithmetic
       if (odds > 0) {
         // Positive odds (underdog)
-        winnings = stake * (odds / 100);
+        winnings = (stake * odds) / 100;
       } else if (odds < 0) {
         // Negative odds (favorite)
-        winnings = stake * (100 / Math.abs(odds));
+        winnings = (stake * 100) / Math.abs(odds);
       }
       
-      setPotentialWinnings(stake + winnings);
+      // Round to 2 decimal places for display
+      setPotentialWinnings(Number((stake + winnings).toFixed(2)));
+    };
+    
+    const parseAmericanOdds = (oddsStr) => {
+      if (!oddsStr || oddsStr === '-' || oddsStr === '+') return null;
+      // Remove any non-numeric characters except minus sign
+      const cleanOdds = oddsStr.replace(/[^\d-]/g, '');
+      // Convert to number, ensuring we keep the sign
+      return cleanOdds.startsWith('-') ? -parseInt(cleanOdds.slice(1)) : parseInt(cleanOdds);
     };
     
     calculateWinnings();
