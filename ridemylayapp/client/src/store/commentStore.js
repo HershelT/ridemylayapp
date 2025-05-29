@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { commentAPI } from '../services/api';
+import useAuthStore from './authStore';
 
 const useCommentStore = create(
   devtools((set, get) => ({
@@ -43,18 +44,30 @@ const useCommentStore = create(
         });
         return [];
       }
-    },    // Add a new comment    
+    },    // Add a new comment      
     addComment: async (betId, content, parentId = null) => {
-      // Optimistic update with temporary comment
-      const tempId = Date.now().toString();
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) {
+        throw new Error('User must be logged in to comment');
+      }
+
+      // Create unique ID for temporary comment
+      const tempId = Date.now().toString();        // Create temporary comment object that matches server format exactly
       const tempComment = {
         _id: tempId,
         content,
-        userId: get().currentUser,
+        betId,
+        userId: currentUser._id,
         createdAt: new Date().toISOString(),
         likes: [],
-        parentId,
-        isTemp: true
+        parentId: parentId || null,  // Ensure null for top-level comments
+        isTemp: true,
+        user: {  // Include populated user data in the same format as server
+          _id: currentUser._id,
+          username: currentUser.username,
+          avatarUrl: currentUser.avatarUrl || '',  // Handle missing avatar gracefully
+          verified: currentUser.verified || false  // Default to false if not set
+        }
       };
       
       set((state) => ({
@@ -66,9 +79,8 @@ const useCommentStore = create(
         },
       }));
 
-      try {
-        // Make the actual API call
-        const response = await commentAPI.addComment(betId, content, parentId);
+      try {      // Make the actual API call
+        const response = await commentAPI.addComment(betId, { content, parentId });
         const newComment = response.data.comment;
         
         // Replace the temporary comment with the real one
