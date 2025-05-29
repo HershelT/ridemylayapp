@@ -8,6 +8,7 @@ export const chatAPI = {
   updateGroupChat: (chatId, data) => api.put(`/chats/group/${chatId}`, data),
   addToGroup: (chatId, userId) => api.put(`/chats/group/${chatId}/add`, { userId }),
   removeFromGroup: (chatId, userId) => api.put(`/chats/group/${chatId}/remove`, { userId }),
+  getUnreadMessageCount: () => api.get('/chats/unread-count'),
 };
 
 export const messageAPI = {

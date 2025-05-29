@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import NotificationBadge from '../notifications/NotificationBadge';
 import NotificationList from '../notifications/NotificationList';
+import useMessageStore from '../../stores/messageStore';
 
 const Header = ({ toggleTheme }) => {
-  const [messageCount, setMessageCount] = useState(2);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const { unreadCount, fetchUnreadCount, incrementUnreadCount } = useMessageStore();
+  const [showNotifications, setShowNotifications] = React.useState(false);
   const notificationsRef = useRef(null);
 
   // Close notifications when clicking outside
@@ -14,6 +15,23 @@ const Header = ({ toggleTheme }) => {
       setShowNotifications(false);
     }
   };
+
+  // Fetch initial unread count and set up socket listeners
+  React.useEffect(() => {
+    fetchUnreadCount();
+
+    // Set up socket listener for new messages
+    socket.on('new_message', (data) => {
+      // Only increment if message is not from current user
+      if (data.sender !== user?._id) {
+        incrementUnreadCount();
+      }
+    });
+
+    return () => {
+      socket.off('new_message');
+    };
+  }, [fetchUnreadCount]);
 
   React.useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
@@ -50,9 +68,9 @@ const Header = ({ toggleTheme }) => {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
-              {messageCount > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {messageCount}
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </button>

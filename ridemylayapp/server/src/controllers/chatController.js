@@ -357,3 +357,30 @@ exports.searchUsers = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Get count of unread messages across all chats
+ * @route   GET /api/chats/unread-count
+ * @access  Private
+ */
+exports.getUnreadMessageCount = async (req, res, next) => {
+  try {
+    // Get all chats for the user
+    const userChats = await Chat.find({ users: req.user.id });
+    
+    // Count unread messages across all chats
+    const count = await Message.countDocuments({
+      chat: { $in: userChats.map(chat => chat._id) },
+      readBy: { $ne: req.user.id },
+      sender: { $ne: req.user.id } // Don't count user's own messages
+    });
+
+    res.status(200).json({
+      success: true,
+      count
+    });
+  } catch (error) {
+    logger.error('Get unread message count error:', error);
+    next(error);
+  }
+};

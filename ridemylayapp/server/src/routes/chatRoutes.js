@@ -6,7 +6,8 @@ const {   getUserChats,
   updateGroupChat, 
   addToGroup,
   removeFromGroup,
-  searchUsers
+  searchUsers,
+  getUnreadMessageCount
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/auth');
 
@@ -20,5 +21,6 @@ router.post('/group', createGroupChat);
 router.put('/group/:id', updateGroupChat);
 router.put('/group/:id/add', addToGroup);
 router.put('/group/:id/remove', removeFromGroup);
+router.get('/unread-count', getUnreadMessageCount);
 
 module.exports = router;
