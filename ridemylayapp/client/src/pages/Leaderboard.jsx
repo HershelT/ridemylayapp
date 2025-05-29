@@ -13,6 +13,7 @@ const Leaderboard = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState(null);
 
+  // Fetch leaderboard data when filters change
   useEffect(() => {
     fetchLeaderboardData();
   }, [leaderboardType, timeRange, page]);
@@ -24,23 +25,10 @@ const Leaderboard = () => {
     try {
       let timeframe = timeRange === 'allTime' ? 'all' : timeRange;
       
-      console.log('Fetching leaderboard with:', {
-        timeframe,
-        page,
-        type: leaderboardType
-      });
-      
       const response = await userAPI.getLeaderboard(timeframe, page, 10, leaderboardType);
-      console.log('Leaderboard API response:', response.data);
       
       if (!response?.data?.leaderboard) {
-        console.error('Invalid response structure:', response);
         throw new Error('Invalid leaderboard data received');
-      }
-      
-      if (!Array.isArray(response.data.leaderboard)) {
-        console.error('Leaderboard is not an array:', response.data.leaderboard);
-        throw new Error('Invalid leaderboard data format');
       }
       
       const formattedData = response.data.leaderboard.map((user, index) => ({
@@ -68,15 +56,16 @@ const Leaderboard = () => {
 
   const handleFollowToggle = async (username) => {
     try {
+      // Get user from current data
+      const userToUpdate = leaderboardData.find(u => u.username === username);
+      if (!userToUpdate) return;
+
       // Optimistic UI update
+      const newFollowState = !userToUpdate.following;
       setLeaderboardData(prevData => 
         prevData.map(user => {
           if (user.username === username) {
-            const newFollowState = !user.following;
-            return { 
-              ...user, 
-              following: newFollowState
-            };
+            return { ...user, following: newFollowState };
           }
           return user;
         })
@@ -84,15 +73,20 @@ const Leaderboard = () => {
       
       // Call API
       await userAPI.toggleFollow(username);
+
+      // If we're in the friends view, we need to refresh the data
+      if (leaderboardType === 'friends' && !newFollowState) {
+        // Remove the unfollowed user from the friends view immediately
+        setLeaderboardData(prevData => prevData.filter(user => user.username !== username));
+        // Then refresh the data to get updated rankings
+        await fetchLeaderboardData();
+      }
     } catch (error) {
       // Revert optimistic update on error
       setLeaderboardData(prevData => 
         prevData.map(user => {
           if (user.username === username) {
-            return { 
-              ...user, 
-              following: !user.following 
-            };
+            return { ...user, following: !user.following };
           }
           return user;
         })

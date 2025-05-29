@@ -19,14 +19,17 @@ const Profile = () => {
 
   // Function to handle follow status changes
   const handleFollowToggle = useCallback((isNowFollowing) => {
-    setUser(prevUser => ({
-      ...prevUser,
-      isFollowing: isNowFollowing,
-      followers: isNowFollowing ? 
-        [...(prevUser.followers || []), 'currentUser'] : 
-        (prevUser.followers || []).filter(f => f !== 'currentUser')
-    }));
-    // No need to refresh the whole profile since we're handling the state update here
+    setUser(prevUser => {
+      if (!prevUser) return null;
+      return {
+        ...prevUser,
+        isFollowing: isNowFollowing,
+        followers: isNowFollowing 
+          ? [...(prevUser.followers || []), 'currentUser']
+          : (prevUser.followers || []).filter(f => f !== 'currentUser'),
+        followerCount: (prevUser.followerCount || 0) + (isNowFollowing ? 1 : -1)
+      };
+    });
   }, []);
 
   // Define fetchTabData first

@@ -25,16 +25,22 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
       setFollowerCount(prev => newFollowState ? prev + 1 : prev - 1);
       
       // Call API to update follow status
-      await userAPI.toggleFollow(user.username);
+      const response = await userAPI.toggleFollow(user.username);
+      
+      // Update based on server response
+      if (!response?.data?.isFollowing === newFollowState) {
+        // Revert if server state doesn't match our optimistic update
+        setIsFollowing(!newFollowState);
+        setFollowerCount(prev => !newFollowState ? prev + 1 : prev - 1);
+        throw new Error('Server state mismatch');
+      }
       
       // Notify parent component about the change
       if (onFollowToggle) {
         onFollowToggle(newFollowState);
       }
     } catch (error) {
-      // Revert optimistic update on error
-      setIsFollowing(!isFollowing);
-      setFollowerCount(prev => !isFollowing ? prev - 1 : prev + 1);
+      // Toast error is already handled by the catch block since we throw above
       toast.error('Failed to update follow status');
       console.error('Follow toggle error:', error);
     }
