@@ -160,7 +160,7 @@ const BetCard = ({ bet }) => {
         <div className="ml-auto text-right">
           <div className="flex items-center justify-end">
             <img 
-              src={bet.bettingSite?.logoUrl || 'https://via.placeholder.com/20'} 
+              src={bet.bettingSite?.logoUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZTVlN2ViIi8+PC9zdmc+'} 
               alt="Betting Site" 
               className="w-5 h-5 mr-1"
             />

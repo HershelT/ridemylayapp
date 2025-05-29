@@ -44,7 +44,7 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
       <div className="flex-shrink-0">
         <Link to={`/profile/${user._id}`}>
           <img 
-            src={user.profilePicture || 'https://via.placeholder.com/40'} 
+            src={user.profilePicture || `https://api.dicebear.com/9.x/icons/svg?seed=${user.username || 'anonymous'}`} 
             alt={user.username || 'User'}
             className="h-9 w-9 rounded-full object-cover" 
           />

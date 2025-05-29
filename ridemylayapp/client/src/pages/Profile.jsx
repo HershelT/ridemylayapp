@@ -15,52 +15,16 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchUserData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
+  // Define fetchTabData first
+  const fetchTabData = useCallback(async (tab, targetUser) => {
     try {
-      // Get user profile data
-      const userResponse = !userId || userId === 'me' 
-        ? await authAPI.getCurrentUser()
-        : await userAPI.getProfile(userId);
-        
-      if (!userResponse.data.user) {
-        throw new Error('User not found');
-      }
-      
-      const isOwn = !userId || userId === 'me' || userId === userResponse.data.user._id;
-      
-      setUser(userResponse.data.user);
-      setIsOwnProfile(isOwn);
-      
-      // Now that we have user data, load initial tab data
-      await fetchTabData(activeTab);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, activeTab, fetchTabData]);
-
-  useEffect(() => {
-    fetchUserData();
-  }, [userId, fetchUserData]);
-  const fetchTabData = useCallback(async (tab) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Determine the target user identifier
-      // If no userId or it's 'me', use 'me', otherwise use the stored user info
       const target = !userId || userId === 'me' 
         ? 'me' 
-        : user?.username;
+        : targetUser?.username;
 
-      // If we don't have a target yet and we're not loading the profile, throw an error
-      if (!target && !loading) {
-        throw new Error('No user information available');
+      // If we don't have a target yet, skip fetching
+      if (!target) {
+        return;
       }
 
       // For analytics tab, only fetch if it's own profile and we have a target
@@ -70,11 +34,6 @@ const Profile = () => {
           setAnalytics(analyticsResponse.data.analytics);
         }
         setActiveTab(tab);
-        return;
-      }
-
-      // For other tabs, we need a valid target
-      if (!target) {
         return;
       }
 
@@ -101,10 +60,48 @@ const Profile = () => {
     } catch (error) {
       console.error(`Error fetching ${tab} data:`, error);
       setError(`Error loading ${tab}: ${error.message}`);
+    }
+  }, [userId, isOwnProfile]); // Remove loading dependency
+
+  // Then define fetchUserData
+  const fetchUserData = useCallback(async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const userResponse = !userId || userId === 'me' 
+        ? await authAPI.getCurrentUser()
+        : await userAPI.getProfile(userId);
+        
+      if (!userResponse.data.user) {
+        throw new Error('User not found');
+      }
+      
+      const userData = userResponse.data.user;
+      setUser(userData);
+      setIsOwnProfile(!userId || userId === 'me' || userId === userData._id);
+      
+      // Load initial tab data only after we have the user
+      await fetchTabData(activeTab, userData);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
-  }, [userId, user?.username, isOwnProfile, loading]);
+  }, [userId, activeTab, fetchTabData]);
+
+  // Only fetch user data when component mounts or userId changes
+  useEffect(() => {
+    fetchUserData();
+  }, [userId]); // Remove fetchUserData from dependencies
+
+  // Handle tab changes separately from user data fetching
+  useEffect(() => {
+    if (user) {
+      fetchTabData(activeTab, user);
+    }
+  }, [activeTab, fetchTabData, user]);
 
   if (loading) {
     return (
