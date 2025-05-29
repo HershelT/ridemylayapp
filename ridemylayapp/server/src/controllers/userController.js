@@ -98,7 +98,8 @@ exports.getUserBets = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('userId', 'username avatarUrl verified');
+      .populate('userId', 'username avatarUrl verified bio streak')
+      .populate('bettingSiteId', 'name logoUrl websiteUrl');
 
     // Get total count for pagination
     const total = await Bet.countDocuments({ userId: user._id });
