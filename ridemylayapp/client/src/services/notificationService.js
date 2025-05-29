@@ -41,16 +41,15 @@ export const handleNewNotification = (notification) => {
       ? `New message from ${notification.sender.username}`
       : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
 
-    const browserNotification = new Notification(title, {
-      body: notification.content,
-      icon: notification.sender.avatarUrl,
+    const browserNotification = new Notification(title, {      body: notification.content,
+      icon: notification.sender.avatarUrl || '/favicon.ico', // Use sender's avatar or fallback to app icon
       tag: `${notification.type}-${notification.entityId}`, // Prevent duplicate notifications
       data: { 
         type: notification.type,
         entityId: notification.entityId,
         senderId: notification.sender._id
-      },      requireInteraction: true, // Keep notification until user interacts with it
-      icon: notification.sender.avatarUrl || '/favicon.ico' // Use sender's avatar or fallback to app icon
+      },
+      requireInteraction: true // Keep notification until user interacts with it
     });
 
     // Add click handler to open the relevant chat/content
