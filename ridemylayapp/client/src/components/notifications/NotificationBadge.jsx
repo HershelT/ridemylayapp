@@ -1,31 +1,7 @@
 import React, { useEffect } from 'react';
 import { BsBell } from 'react-icons/bs';
-import useNotificationStore from '../stores/notificationStore';
-import { subscribeToNotifications } from '../services/notificationService';
-import styled from 'styled-components';
-
-const BadgeContainer = styled.div`
-  position: relative;
-  cursor: pointer;
-`;
-
-const Badge = styled.span`
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #ff4444;
-  color: white;
-  border-radius: 50%;
-  padding: 2px 6px;
-  font-size: 12px;
-  min-width: 18px;
-  text-align: center;
-`;
-
-const Icon = styled(BsBell)`
-  font-size: 24px;
-  color: ${props => props.theme.text};
-`;
+import useNotificationStore from '../../stores/notificationStore';
+import { subscribeToNotifications } from '../../services/notificationService';
 
 const NotificationBadge = () => {
   const { unreadCount, fetchUnreadCount, addNotification } = useNotificationStore();
@@ -49,12 +25,14 @@ const NotificationBadge = () => {
   }, []);
 
   return (
-    <BadgeContainer>
-      <Icon />
+    <div className="relative">
+      <BsBell className="w-6 h-6 text-gray-600 dark:text-gray-300" />
       {unreadCount > 0 && (
-        <Badge>{unreadCount > 99 ? '99+' : unreadCount}</Badge>
+        <span className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
       )}
-    </BadgeContainer>
+    </div>
   );
 };
 

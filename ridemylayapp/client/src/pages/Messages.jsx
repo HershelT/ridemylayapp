@@ -30,7 +30,7 @@ const Messages = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="h-[calc(100vh-64px)] flex">
+    <div className="h-[calc(100vh-134px)] flex">
       {/* Chat List Sidebar */}
       <div className={`${
         isMobileView && selectedChat ? 'hidden' : 'w-full md:w-1/3 lg:w-1/4'

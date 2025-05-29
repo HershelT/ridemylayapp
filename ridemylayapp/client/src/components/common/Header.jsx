@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import NotificationBadge from '../NotificationBadge';
-import NotificationList from '../NotificationList';
+import NotificationBadge from '../notifications/NotificationBadge';
+import NotificationList from '../notifications/NotificationList';
 
 const Header = ({ toggleTheme }) => {
   const [messageCount, setMessageCount] = useState(2);
