@@ -33,6 +33,11 @@ const useCommentStore = create(
           const userId = comment.userId?._id || comment.userId?.$oid || comment.userId;
           const user = comment.userId?.username ? comment.userId : comment.user;
           
+          // Handle replyToUserId correctly if it's populated
+          const replyToUser = comment.replyToUserId?.username 
+            ? comment.replyToUserId 
+            : null;
+            
           return {
             _id: comment._id?.$oid || comment._id,
             content: comment.content,
@@ -40,7 +45,7 @@ const useCommentStore = create(
             betId: comment.betId?.$oid || comment.betId,
             parentId: comment.parentId?.$oid || comment.parentId || null,
             replyToUsername: comment.replyToUsername || null,
-            replyToUserId: comment.replyToUserId?.$oid || comment.replyToUserId || null,
+            replyToUserId: comment.replyToUserId?.$oid || comment.replyToUserId?._id || comment.replyToUserId || null,
             likes: comment.likes?.map(like => like.$oid || like) || [],
             createdAt: comment.createdAt?.$date?.$numberLong 
               ? new Date(parseInt(comment.createdAt.$date.$numberLong)).toISOString()
@@ -80,7 +85,7 @@ const useCommentStore = create(
         });
         return [];
       }
-    },    // Add a new comment      
+    },    // Add a new comment        
     addComment: async (betId, content, parentId = null, replyToUsername = null, replyToUserId = null) => {
       const currentUser = useAuthStore.getState().user;
       if (!currentUser) {
@@ -116,8 +121,7 @@ const useCommentStore = create(
             ? [tempComment, ...state.comments[betId]]
             : [tempComment],
         },
-      }));      
-        try {      
+      }));        try {      
         // Make the actual API call
         console.log("Sending comment to server:", { content, parentId, replyToUsername, replyToUserId });
         const response = await commentAPI.addComment(betId, { 
@@ -128,12 +132,16 @@ const useCommentStore = create(
         });
         console.log("Server response:", response.data);
         
-        const serverComment = response.data.comment;
-
-        // Transform the server response to match our format
+        const serverComment = response.data.comment;        // Transform the server response to match our format
         const userId = serverComment.userId?._id || serverComment.userId?.$oid || serverComment.userId;
         const user = serverComment.userId?.username ? serverComment.userId : serverComment.user;
-          const newComment = {
+        
+        // Get populated replyToUser if available
+        const replyToUser = serverComment.replyToUserId?.username 
+          ? serverComment.replyToUserId 
+          : null;
+          
+        const newComment = {
           _id: serverComment._id?.$oid || serverComment._id,
           content: serverComment.content,
           userId: userId,
@@ -141,7 +149,7 @@ const useCommentStore = create(
           likes: serverComment.likes?.map(like => like.$oid || like) || [],
           parentId: serverComment.parentId || null,
           replyToUsername: serverComment.replyToUsername || null,
-          replyToUserId: serverComment.replyToUserId || null,
+          replyToUserId: serverComment.replyToUserId?.$oid || serverComment.replyToUserId?._id || serverComment.replyToUserId || null,
           createdAt: serverComment.createdAt?.$date?.$numberLong 
             ? new Date(parseInt(serverComment.createdAt.$date.$numberLong)).toISOString()
             : serverComment.createdAt,

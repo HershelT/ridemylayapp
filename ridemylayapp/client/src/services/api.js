@@ -77,8 +77,7 @@ export const betAPI = {
   updateBetStatus: (betId, statusData) => api.put(`/bets/${betId}/status`, statusData),
   toggleLike: (betId) => api.put(`/bets/${betId}/like`),  getBetComments: (betId, page = 1, limit = 10) => 
     api.get(`/bets/${betId}/comments`, { params: { page, limit } }),
-  addComment: (betId, content, parentId, replyToUsername, replyToUserId) => 
-    api.post(`/bets/${betId}/comments`, { content, parentId, replyToUsername, replyToUserId }),
+  addComment: (betId, commentData) => api.post(`/bets/${betId}/comments`, commentData),
   toggleRide: (betId) => api.put(`/bets/${betId}/ride`),
   toggleHedge: (betId) => api.put(`/bets/${betId}/hedge`),
   shareBet: (betId, platform) => api.post(`/bets/${betId}/share`, { platform }),

@@ -111,8 +111,7 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
               </div>
             )}
           </div>        </div>
-        
-        <div className="mt-1 text-gray-700 dark:text-gray-300">
+          <div className="mt-1 text-gray-700 dark:text-gray-300">
           {replyToUsername && (
             <span className="text-blue-500 dark:text-blue-400 font-medium mr-1">
               @{replyToUsername}{' '}

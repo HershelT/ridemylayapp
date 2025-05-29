@@ -13,7 +13,9 @@ const CommentList = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [replyTo, setReplyTo] = useState(null);  const handleSubmit = async (e) => {
+  const [replyTo, setReplyTo] = useState(null);
+  
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!newComment.trim()) return;
@@ -42,7 +44,8 @@ const CommentList = ({
       setIsSubmitting(false);
     }
   };
-    const handleReply = (comment) => {
+    
+  const handleReply = (comment) => {
     // Ensure the comment has a valid user object before setting as replyTo
     if (comment && comment.content) {
       // Make sure user property is always defined with at least an empty object
@@ -64,7 +67,8 @@ const CommentList = ({
       
       {/* Comment form */}
       <form onSubmit={handleSubmit} className="mb-4">
-        <div className="relative">          {replyTo && (
+        <div className="relative">
+          {replyTo && (
             <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 text-xs px-3 py-1 rounded-t-md border-t border-x border-blue-200 dark:border-blue-800">
               Replying to <span className="font-semibold">@{replyTo.user?.username || 'Anonymous'}</span>
               <button 
@@ -78,7 +82,8 @@ const CommentList = ({
           )}
           
           <textarea
-            id="comment-input"            placeholder={isSubmitting ? "Posting comment..." : "Add a comment..."}
+            id="comment-input"
+            placeholder={isSubmitting ? "Posting comment..." : "Add a comment..."}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             disabled={isSubmitting}
@@ -87,7 +92,7 @@ const CommentList = ({
             } px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white disabled:opacity-75 disabled:cursor-not-allowed`}
             rows="2"
           />
-            <button
+          <button
             type="submit"
             disabled={!newComment.trim() || isSubmitting}
             className={`absolute bottom-2 right-2 ${
@@ -104,44 +109,48 @@ const CommentList = ({
           </button>
         </div>
       </form>
-        {/* Comments list */}
+        
+      {/* Comments list */}
       {loading ? (
         <div className="py-4 text-center text-gray-500 dark:text-gray-400">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500 mx-auto mb-2"></div>
           Loading comments...
-        </div>      ) : comments && comments.length > 0 ? (
+        </div>
+      ) : comments && comments.length > 0 ? (
         <div className="space-y-4">
           {/* Filter for top-level comments only - those without a parentId */}
-          {[...comments].filter(comment => !comment.parentId).map((comment) => (
-            <div key={comment._id} className="comment-thread">
-              <Comment
-                comment={comment}
-                currentUserId={currentUserId}
-                onLike={onLikeComment}
-                onReply={handleReply}
-                onDelete={onDeleteComment}
-              />
-              
-              {/* Display replies to this comment */}
-              {comments.filter(reply => reply.parentId === comment._id).length > 0 && (
-                <div className="ml-8 mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-3">
-                  {comments
-                    .filter(reply => reply.parentId === comment._id)
-                    .map(reply => (
-                      <Comment
-                        key={reply._id}
-                        comment={reply}
-                        currentUserId={currentUserId}
-                        onLike={onLikeComment}
-                        onReply={handleReply}
-                        onDelete={onDeleteComment}
-                      />
-                    ))
-                  }
-                </div>
-              )}
-            </div>
-          ))}
+          {[...comments]
+            .filter(comment => !comment.parentId)
+            .map((comment) => (
+              <div key={comment._id} className="comment-thread">
+                <Comment
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  onLike={onLikeComment}
+                  onReply={handleReply}
+                  onDelete={onDeleteComment}
+                />
+                
+                {/* Display replies to this comment */}
+                {comments.filter(reply => reply.parentId === comment._id).length > 0 && (
+                  <div className="ml-8 mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-3">
+                    {comments
+                      .filter(reply => reply.parentId === comment._id)
+                      .map(reply => (
+                        <Comment
+                          key={reply._id}
+                          comment={reply}
+                          currentUserId={currentUserId}
+                          onLike={onLikeComment}
+                          onReply={handleReply}
+                          onDelete={onDeleteComment}
+                        />
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
+            ))}
         </div>
       ) : (
         <div className="py-4 text-center text-gray-500 dark:text-gray-400">

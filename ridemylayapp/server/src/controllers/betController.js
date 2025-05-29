@@ -329,12 +329,35 @@ exports.getBetComments = async (req, res, next) => {
     });
 
     // Attach replies to their parent comments
+    // All replies will be at the same level, but with replyToUsername set
     replies.forEach(reply => {
       const parentId = reply.parentId.toString();
       if (commentMap[parentId]) {
         commentMap[parentId].replies.push(reply);
       }
     });
+
+    // Sort replies by createdAt for each parent comment
+    // This ensures newest/oldest ordering is consistent with the main thread
+    if (sort === '-createdAt') {
+      // Newest first
+      Object.keys(commentMap).forEach(commentId => {
+        if (commentMap[commentId].replies.length > 0) {
+          commentMap[commentId].replies.sort((a, b) => 
+            new Date(b.createdAt) - new Date(a.createdAt)
+          );
+        }
+      });
+    } else {
+      // Oldest first
+      Object.keys(commentMap).forEach(commentId => {
+        if (commentMap[commentId].replies.length > 0) {
+          commentMap[commentId].replies.sort((a, b) => 
+            new Date(a.createdAt) - new Date(b.createdAt)
+          );
+        }
+      });
+    }
 
     // Prepare the final response - include organized comments
     const organizedComments = topLevelComments.map(comment => ({
@@ -371,14 +394,27 @@ exports.addComment = async (req, res, next) => {
         success: false,
         error: 'Bet not found'
       });
-    }    
+    }
+
+    // If we're replying to a reply, we need to find the top-level comment
+    let targetParentId = parentId;
+    
+    if (parentId) {
+      // Check if the parent comment is itself a reply
+      const parentComment = await Comment.findById(parentId);
+      if (parentComment && parentComment.parentId) {
+        // If parent is already a reply, use its parent instead
+        // This flattens the hierarchy to max depth of 1
+        targetParentId = parentComment.parentId;
+      }
+    }
     
     // Create comment with reply information if provided
     const comment = await Comment.create({
       userId: req.user.id,
       betId: req.params.id,
       content,
-      parentId,
+      parentId: targetParentId, // Use the correct parent ID (could be original or top-level)
       replyToUsername,
       replyToUserId
     });
@@ -389,7 +425,8 @@ exports.addComment = async (req, res, next) => {
 
     // Populate user data - this is important for the frontend
     const populatedComment = await Comment.findById(comment._id)
-      .populate('userId', 'username avatarUrl verified');
+      .populate('userId', 'username avatarUrl verified')
+      .populate('replyToUserId', 'username avatarUrl verified');
 
     res.status(201).json({
       success: true,

@@ -174,8 +174,7 @@ const BetDetails = () => {  const { id } = useParams();
     } finally {
       setActionLoading(prev => ({ ...prev, share: false }));
     }
-  };
-  // Handle adding a comment
+  };  // Handle adding a comment
   const handleAddComment = async (betId, content, parentId, replyToUsername, replyToUserId) => {
     if (!user) {
       toast.error('Please log in to comment');
