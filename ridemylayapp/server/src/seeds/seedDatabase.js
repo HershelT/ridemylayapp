@@ -13,7 +13,7 @@ const logger = require('../utils/logger');
 const bettingSites = [
   {
     name: 'DraftKings',
-    logoUrl: 'https://example.com/draftkings-logo.png', // Changed from logo to logoUrl
+    logoUrl: 'https://th.bing.com/th/id/R.5df99c707ab2ad4af852a29bfc924b49?rik=hlYUsMH5kvdPlw&pid=ImgRaw&r=0', // Changed from logo to logoUrl
     websiteUrl: 'https://draftkings.com', // Changed from url to websiteUrl
     apiEndpoint: 'https://api.draftkings.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
@@ -22,7 +22,7 @@ const bettingSites = [
   },
   {
     name: 'FanDuel',
-    logoUrl: 'https://example.com/fanduel-logo.png',
+    logoUrl: 'https://th.bing.com/th/id/OIP.dyX-UyyCs-_N4x8AI2HzSQHaHY?rs=1&pid=ImgDetMain',
     websiteUrl: 'https://fanduel.com',
     apiEndpoint: 'https://api.fanduel.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
@@ -31,7 +31,7 @@ const bettingSites = [
   },
   {
     name: 'BetMGM',
-    logoUrl: 'https://example.com/betmgm-logo.png',
+    logoUrl: 'https://pnghq.com/wp-content/uploads/betmgm-logo-png-free-png-image-downloads-40248.png',
     websiteUrl: 'https://betmgm.com',
     apiEndpoint: 'https://api.betmgm.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
@@ -40,7 +40,7 @@ const bettingSites = [
   },
   {
     name: 'Caesars',
-    logoUrl: 'https://example.com/caesars-logo.png',
+    logoUrl: 'https://companieslogo.com/img/orig/CZR-be64a80f.png?t=1673235343',
     websiteUrl: 'https://caesars.com',
     apiEndpoint: 'https://api.caesars.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
@@ -56,7 +56,7 @@ const users = [
     password: 'password123',
     name: 'John Smith',
     bio: 'Sports betting enthusiast with a knack for NFL parlays',
-    profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=john_bettor',
     isVerified: true,
     role: 'user',
     streak: 3
@@ -67,7 +67,7 @@ const users = [
     password: 'password123',
     name: 'Sarah Johnson',
     bio: 'NBA specialist. Follow for daily basketball picks!',
-    profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=sarah_wins',
     isVerified: true,
     role: 'user',
     streak: 5
@@ -78,7 +78,7 @@ const users = [
     password: 'password123',
     name: 'Mike Wilson',
     bio: 'MLB and NHL picks. 60% win rate lifetime.',
-    profilePicture: 'https://randomuser.me/api/portraits/men/3.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=mike_bets',
     isVerified: true,
     role: 'user',
     streak: -2
@@ -89,7 +89,7 @@ const users = [
     password: 'adminpass123',
     name: 'Admin User',
     bio: 'Site administrator',
-    profilePicture: 'https://randomuser.me/api/portraits/men/4.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=admin_user',
     isVerified: true,
     role: 'admin',
     streak: 0
@@ -100,7 +100,7 @@ const users = [
     password: 'password123',
     name: 'Tom Vegas',
     bio: '🎲 Professional Sports Bettor | 15 years experience | VIP picks available',
-    profilePicture: 'https://randomuser.me/api/portraits/men/5.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=vegas_insider',
     isVerified: true,
     role: 'user',
     streak: 8
@@ -111,7 +111,7 @@ const users = [
     password: 'password123',
     name: 'Ashley Parker',
     bio: '👑 Parlay Specialist | 70% hit rate on 3+ leg parlays',
-    profilePicture: 'https://randomuser.me/api/portraits/women/6.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=parlay_queen',
     isVerified: true,
     role: 'user',
     streak: 4
@@ -122,7 +122,7 @@ const users = [
     password: 'password123',
     name: 'David Chen',
     bio: '📊 Data Analyst | Sports Betting Analytics | Mathematical approach to betting',
-    profilePicture: 'https://randomuser.me/api/portraits/men/7.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=stats_master',
     isVerified: true,
     role: 'user',
     streak: 2
@@ -133,7 +133,7 @@ const users = [
     password: 'password123',
     name: 'Maria Rodriguez',
     bio: '⚽ European Soccer Specialist | Premier League & La Liga Expert',
-    profilePicture: 'https://randomuser.me/api/portraits/women/8.jpg',
+    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=soccer_expert',
     isVerified: true,
     role: 'user',
     streak: 6
