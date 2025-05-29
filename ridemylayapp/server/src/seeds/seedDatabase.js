@@ -358,16 +358,18 @@ const seedDatabase = async () => {
     await User.findByIdAndUpdate(createdUsers[2]._id, {
       $push: { followers: createdUsers[0]._id }
     });
-    
-    // Create bets linked to users
+      // Create bets linked to users
     logger.info('Seeding bets...');
-    const bets = betTemplates.map((bet, index) => ({
+    const betsData = betTemplates.map((bet, index) => ({
         ...bet,
-        userId: createdUsers[index % createdUsers.length]._id, // Changed from user to userId
-        bettingSiteId: createdSites[index % createdSites.length]._id // Changed from bettingSite to bettingSiteId
+        userId: createdUsers[index % createdUsers.length]._id,
+        bettingSiteId: createdSites[index % createdSites.length]._id
     }));
     
-    const createdBets = await Bet.insertMany(bets);
+    // Use create() to trigger pre-save middleware for each bet
+    const createdBets = await Promise.all(
+        betsData.map(bet => Bet.create(bet))
+    );
     
     // Create comments on bets
     logger.info('Creating comments...');
