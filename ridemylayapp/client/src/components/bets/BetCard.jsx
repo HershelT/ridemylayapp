@@ -26,6 +26,12 @@ const BetCard = ({ bet }) => {
     return 'No streak';
   };
 
+  // Helper function to get betting site data consistently
+  const getBettingSiteData = (bet, field) => {
+    const bettingSiteData = bet.bettingSite || bet.bettingSiteId || {};
+    return bettingSiteData[field];
+  };
+
   useEffect(() => {
     // Listen for bet updates
     const cleanup = socketService.onBetUpdate((update) => {      if (update.betId === bet._id) {
@@ -175,14 +181,11 @@ const BetCard = ({ bet }) => {
           </div>
         </Link>
           <div className="ml-auto text-right">          <div className="flex items-center justify-end mb-1">
-                <a 
-                    href={
-                      // Get the betting site from either bettingSiteId or bettingSite object
-                      (bet.bettingSiteId?.websiteUrl || bet.bettingSite?.websiteUrl) ||
-                      // If no direct websiteUrl, try to determine from name
-                      (bet.bettingSiteId?.name || bet.bettingSite?.name)?.toLowerCase().replace(' ', '') ?
-                        `https://${(bet.bettingSiteId?.name || bet.bettingSite?.name).toLowerCase().replace(' ', '')}.com` :
-                        "https://example.com"
+                <a                    href={
+                      getBettingSiteData(bet, 'websiteUrl') ||
+                      (getBettingSiteData(bet, 'name') ?
+                        `https://${getBettingSiteData(bet, 'name').toLowerCase().replace(/\s+/g, '')}.com` :
+                        "https://example.com")
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -193,8 +196,8 @@ const BetCard = ({ bet }) => {
                     }}
                 >                    <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white dark:bg-black rounded-sm shadow-sm overflow-hidden group-hover:opacity-80">
                         <img
-                            src={(bet.bettingSite?.logoUrl || bet.bettingSiteId?.logoUrl) || '/assets/images/placeholder-logo.png'} 
-                            alt={(bet.bettingSite?.name || bet.bettingSiteId?.name) || 'Betting Site'} 
+                            src={getBettingSiteData(bet, 'logoUrl') || '/logo512.png'} 
+                            alt={getBettingSiteData(bet, 'name') || 'Betting Site'} 
                             className="w-full h-full object-contain"
                             onError={(e) => {
                                 e.target.src = '/assets/images/placeholder-logo.png';
@@ -204,7 +207,7 @@ const BetCard = ({ bet }) => {
                         />
                     </div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
-                      {(bet.bettingSite?.name || bet.bettingSiteId?.name) || 'Betting Site'}
+                      {getBettingSiteData(bet, 'name') || 'Betting Site'}
                     </span>
                 </a>
             </div>

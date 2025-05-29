@@ -5,6 +5,7 @@ import BetCard from '../components/bets/BetCard';
 import { userAPI, betAPI, authAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
+import useBets from '../hooks/useBets';
 import { ensureFollowStatus } from '../utils/followUtils';
 
 const Profile = () => {
@@ -12,13 +13,20 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [activeTab, setActiveTab] = useState('bets');
-  const [bets, setBets] = useState([]);
   const [likes, setLikes] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const currentUser = useAuthStore(state => state.user);
+  
+  // Get bets from the global store
+  const { 
+    getUserBets, 
+    fetchUserBets, 
+    hasMoreUserBets, 
+    loadMoreUserBets 
+  } = useBets();
 
   // Function to handle follow status changes
   const handleFollowToggle = useCallback((isNowFollowing) => {
@@ -55,13 +63,11 @@ const Profile = () => {
         }
         setActiveTab(tab);
         return;
-      }
-
-      switch (tab) {
+      }      switch (tab) {
         case 'bets':
-          const betsResponse = await userAPI.getUserBets(target);
-          if (betsResponse.data.bets) {
-            setBets(betsResponse.data.bets);
+          const targetUsername = !userId || userId === 'me' ? 'me' : targetUser?.username;
+          if (targetUsername) {
+            await fetchUserBets(targetUsername, {}, true); // true to reset the list
           }
           break;
             case 'likes':
@@ -160,10 +166,11 @@ const Profile = () => {
   const renderTabContent = () => {
     if (loading) {
       return <div className="text-center py-8">Loading...</div>;
-    }
-
-    if (activeTab === 'bets') {
-      if (!bets || bets.length === 0) {
+    }    if (activeTab === 'bets') {
+      const targetUsername = !userId || userId === 'me' ? 'me' : user?.username;
+      const userBets = getUserBets(targetUsername);
+      
+      if (!userBets || userBets.length === 0) {
         return (
           <div className="text-center py-8 text-gray-500">
             No bets posted yet.
@@ -172,10 +179,22 @@ const Profile = () => {
       }
 
       return (
-        <div className="space-y-4">
-          {bets.map(bet => (
-            <BetCard key={bet._id} bet={bet} />
-          ))}
+        <div>
+          <div className="space-y-4">
+            {userBets.map(bet => (
+              <BetCard key={bet._id} bet={bet} />
+            ))}
+          </div>
+          {hasMoreUserBets(targetUsername) && (
+            <div className="text-center mt-4">
+              <button
+                onClick={() => loadMoreUserBets(targetUsername)}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Load More
+              </button>
+            </div>
+          )}
         </div>
       );
     }
