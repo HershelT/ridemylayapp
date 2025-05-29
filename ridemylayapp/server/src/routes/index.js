@@ -9,6 +9,7 @@ const chatRoutes = require('./chatRoutes');
 const messageRoutes = require('./messageRoutes');
 const bettingSiteRoutes = require('./bettingSiteRoutes');
 const notificationRoutes = require('./notificationRoutes');
+const commentRoutes = require('./commentRoutes'); // Added new comment routes
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -18,5 +19,6 @@ router.use('/chats', chatRoutes);
 router.use('/messages', messageRoutes);
 router.use('/betting-sites', bettingSiteRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/comments', commentRoutes); // Mount the new comment routes
 
 module.exports = router;
