@@ -21,14 +21,20 @@ const Leaderboard = () => {
 
     try {
       let timeframe = timeRange === 'allTime' ? 'all' : timeRange;      
+      console.log('Fetching leaderboard with timeframe:', timeframe, 'page:', page);
       const response = await leaderboardAPI.getLeaderboard(timeframe, page);
-      console.log('Leaderboard API response:', response.data); // Debug log
+      console.log('Leaderboard API response:', response.data);
       
-      if (!response.data.leaderboard || !Array.isArray(response.data.leaderboard)) {
+      if (!response?.data?.leaderboard) {
+        console.error('Invalid response structure:', response);
         throw new Error('Invalid leaderboard data received');
       }
       
-      // Format the leaderboard data
+      if (!Array.isArray(response.data.leaderboard)) {
+        console.error('Leaderboard is not an array:', response.data.leaderboard);
+        throw new Error('Invalid leaderboard data format');
+      }
+      
       const formattedData = response.data.leaderboard.map((user, index) => ({
         _id: user._id,
         rank: (page - 1) * 10 + index + 1,
@@ -66,6 +72,7 @@ const Leaderboard = () => {
     } catch (error) {
       console.error('Error toggling follow:', error);
       toast.error('Failed to update follow status');
+    }
   };
 
   return (
@@ -129,8 +136,12 @@ const Leaderboard = () => {
       <div className="card">
         {loading ? (
           <div className="text-center py-8">Loading...</div>
+        ) : error ? (
+          <div className="text-red-500 text-center mb-4">{error}</div>
+        ) : leaderboardData.length === 0 ? (
+          <div className="text-center py-8">No data found for the selected filters.</div>
         ) : (
-          <div>
+          <>
             <div className="grid grid-cols-12 py-2 px-4 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-500 dark:text-gray-400 text-sm">
               <div className="col-span-1">#</div>
               <div className="col-span-5">User</div>
@@ -173,7 +184,8 @@ const Leaderboard = () => {
                 <div className="col-span-2 text-center">{user.winRate}%</div>
                 <div className={`col-span-2 text-center ${user.profitLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {user.profitLoss >= 0 ? '+' : ''}{user.profitLoss.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                </div>                <div className="col-span-2 text-center">
+                </div>
+                <div className="col-span-2 text-center">
                   <button 
                     className={`px-3 py-1 text-xs rounded-full transition-colors ${
                       user.following ? 
@@ -187,15 +199,9 @@ const Leaderboard = () => {
                 </div>
               </div>
             ))}
-          </div>
+          </>
         )}
-      </div>      {error && (
-        <div className="text-red-500 text-center mb-4">{error}</div>
-      )}
-
-      {!error && !loading && leaderboardData.length === 0 && (
-        <div className="text-center py-8">No data found for the selected filters.</div>
-      )}
+      </div>
 
       {totalPages > 1 && (
         <div className="mt-4 flex justify-center space-x-2">
@@ -228,7 +234,6 @@ const Leaderboard = () => {
       )}
     </div>
   );
-};
 };
 
 export default Leaderboard;
