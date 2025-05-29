@@ -64,13 +64,13 @@ const BetDetails = () => {  const { id } = useParams();
     
     try {
       // Optimistic update
-      const newIsLiked = !bet.likes?.includes(user._id);
+      const newIsLiked = !bet.likes?.includes(user._id);      // Optimistic update
       setBet(prev => ({
         ...prev,
         likes: newIsLiked 
           ? [...(prev.likes || []), user._id]
           : (prev.likes || []).filter(id => id !== user._id),
-        likesCount: (prev.likesCount || 0) + (newIsLiked ? 1 : -1)
+        likeCount: (prev.likes || []).length + (newIsLiked ? 1 : -1) // Use likeCount to match server virtual
       }));
 
       // Make API call
@@ -86,15 +86,14 @@ const BetDetails = () => {  const { id } = useParams();
           likesCount: (prev.likesCount || 0) + (newIsLiked ? -1 : 1)
         }));
       }
-    } catch (error) {
-      // Revert optimistic update on error
+    } catch (error) {      // Revert optimistic update on error
       const isCurrentlyLiked = bet.likes?.includes(user._id);
       setBet(prev => ({
         ...prev,
         likes: isCurrentlyLiked
           ? (prev.likes || []).filter(id => id !== user._id)
           : [...(prev.likes || []), user._id],
-        likesCount: (prev.likesCount || 0) + (isCurrentlyLiked ? -1 : 1)
+        likeCount: (prev.likes || []).length + (isCurrentlyLiked ? -1 : 1)
       }));
       console.error('Error liking bet:', error);
     } finally {
@@ -515,7 +514,7 @@ const BetDetails = () => {  const { id } = useParams();
               }`}
             >
               <FaHeart className={isLiked ? 'fill-current' : ''} />
-              <span>{bet.likesCount || 0}</span>
+              <span>{bet.likeCount || bet.likes?.length || 0}</span>
             </button>
             
             <button 

@@ -26,7 +26,7 @@ const Header = ({ toggleTheme }) => {
     <header className="fixed top-0 left-0 w-full bg-white dark:bg-gray-800 shadow-md z-10">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <Link to="/" className="text-xl font-bold text-primary-500">
-          RideMyLayApp
+          RideMyLay
         </Link>
         
         <div className="flex items-center space-x-4">          {/* Notifications */}

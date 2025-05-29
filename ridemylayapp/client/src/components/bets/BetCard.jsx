@@ -12,17 +12,15 @@ const BetCard = ({ bet }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { deleteBet } = useBets();
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [isLiked, setIsLiked] = useState(bet.likes?.includes(user?._id));
-  const [likeCount, setLikeCount] = useState(bet.likes?.length || 0);
+  const [showShareModal, setShowShareModal] = useState(false);  const [isLiked, setIsLiked] = useState(bet.likes?.includes(user?._id));
+  const [likeCount, setLikeCount] = useState(bet.likeCount || bet.likes?.length || 0);
   const isOwner = user && bet.userId && user._id === (bet.userId._id || bet.userId); // Handle both populated and unpopulated userId
 
   useEffect(() => {
     // Listen for bet updates
-    const cleanup = onBetUpdate((update) => {
-      if (update.betId === bet._id) {
+    const cleanup = onBetUpdate((update) => {      if (update.betId === bet._id) {
         if (update.type === 'like' || update.type === 'unlike') {
-          setLikeCount(update.data.likesCount);
+          setLikeCount(update.data.likes.length); // Use the actual length of likes array
           setIsLiked(update.data.likes.includes(user?._id));
         }
       }
