@@ -15,17 +15,12 @@ const BetCard = ({ bet }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isLiked, setIsLiked] = useState(bet.likes?.includes(user?._id));
   const [likeCount, setLikeCount] = useState(bet.likeCount || bet.likes?.length || 0);
-  const isOwner = user && bet.userId && user._id === (bet.userId._id || bet.userId); // Handle both populated and unpopulated userId
-
-  // Debug log to see what's coming through
-  console.log('BetCard bet.userId:', bet.userId);
+  const isOwner = user && bet.userId && user._id === (bet.userId._id || bet.userId);
 
   // Helper function to get streak display text
   const getStreakText = () => {
-    // Handle both populated user object and direct streak value
-    const streak = typeof bet.userId === 'object' ? bet.userId?.streak : bet.streak;
+    const streak = bet.userId?.streak;
     
-    if (!streak && streak !== 0) return 'No streak';
     if (streak > 0) return `🔥 ${streak} Win Streak`;
     if (streak < 0) return `❄️ ${Math.abs(streak)} Loss Streak`;
     return 'No streak';
