@@ -3,43 +3,40 @@ import { userAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
 
-const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
-  const [isFollowing, setIsFollowing] = useState(user?.isFollowing || false);
-  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
+const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
   const [showEditModal, setShowEditModal] = useState(false);
   const followUser = useAuthStore(state => state.followUser);
+  const isFollowing = user?._id ? useAuthStore(state => state.isFollowingUser(user._id)) : false;
 
-  // Update state when user prop changes
+  // Update follower count when user prop changes
   useEffect(() => {
     if (user) {
-      setIsFollowing(user.isFollowing || false);
       setFollowerCount(user.followers?.length || 0);
     }
   }, [user]);
-
   const handleFollow = async () => {
     if (!user?.username) return;
 
     try {
-      // Optimistic UI update
       const newFollowState = !isFollowing;
-      setIsFollowing(newFollowState);
+      const originalCount = followerCount;
+      
+      // Optimistic UI update for follower count only
       setFollowerCount(prev => newFollowState ? prev + 1 : prev - 1);
       
       // Call the global store action to follow/unfollow
       const result = await followUser(user.username);
       
       // Validate the result
-      if (!result.success || result.isFollowing !== newFollowState) {
-        // Revert if server state doesn't match our optimistic update
-        setIsFollowing(!newFollowState);
-        setFollowerCount(prev => !newFollowState ? prev + 1 : prev - 1);
+      if (!result.success) {
+        // Revert follower count if the action failed
+        setFollowerCount(originalCount);
         throw new Error(result.error || 'Failed to update follow status');
       }
       
       // Notify parent component about the change
       if (onFollowToggle) {
-        onFollowToggle(newFollowState);
+        onFollowToggle(result.isFollowing);
       }
     } catch (error) {
       toast.error(error.message || 'Failed to update follow status');

@@ -30,18 +30,22 @@ const Leaderboard = () => {
       if (!response?.data?.leaderboard) {
         throw new Error('Invalid leaderboard data received');
       }
-      
-      const formattedData = response.data.leaderboard.map((user, index) => ({
-        _id: user._id,
-        rank: (page - 1) * 10 + index + 1,
-        username: user.username || 'Unknown User',
-        avatarUrl: user.avatarUrl || '',
-        verified: user.verified || false,
-        winRate: user.winRate ? Math.round(user.winRate) : 0,
-        profitLoss: user.profit || 0,
-        streak: user.streak || 0,
-        following: user.isFollowing || false,
-      }));
+        const formattedData = response.data.leaderboard.map((user, index) => {
+        // Get the following state from auth store as source of truth
+        const isFollowingFromStore = useAuthStore.getState().isFollowingUser(user._id);
+        
+        return {
+          _id: user._id,
+          rank: (page - 1) * 10 + index + 1,
+          username: user.username || 'Unknown User',
+          avatarUrl: user.avatarUrl || '',
+          verified: user.verified || false,
+          winRate: user.winRate ? Math.round(user.winRate) : 0,
+          profitLoss: user.profit || 0,
+          streak: user.streak || 0,
+          following: isFollowingFromStore,
+        };
+      });
 
       setLeaderboardData(formattedData);
       setTotalPages(response.data.pages);
@@ -53,28 +57,26 @@ const Leaderboard = () => {
       setLoading(false);
     }
   };
-
   const handleFollowToggle = async (username) => {
     try {
-      // Get user from current data
       const userToUpdate = leaderboardData.find(u => u.username === username);
       if (!userToUpdate) return;
 
-      // Optimistic UI update
-      const newFollowState = !userToUpdate.following;
+      // Call API first - let the auth store handle the state
+      const response = await userAPI.toggleFollow(username);
+      
+      // Update local state based on auth store's state
       setLeaderboardData(prevData => 
         prevData.map(user => {
           if (user.username === username) {
-            return { ...user, following: newFollowState };
+            return { 
+              ...user, 
+              following: useAuthStore.getState().isFollowingUser(user._id)
+            };
           }
           return user;
         })
       );
-        // Call API and validate response
-      const response = await userAPI.toggleFollow(username);
-      if (response?.data?.isFollowing !== newFollowState) {
-        throw new Error('Server state mismatch');
-      }
 
       // If we're in the friends view and unfollowing, we need to refresh the data
       if (leaderboardType === 'friends' && !newFollowState) {

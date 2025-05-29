@@ -131,32 +131,36 @@ const useAuthStore = create((set) => ({
   },  
   // Clear errors
   clearError: () => set({ error: null }),
-  
-  // Track followed users
-  followUser: async (username) => {
+    // Track followed users  
+    followUser: async (username) => {
     try {
       const response = await userAPI.toggleFollow(username);
+      const { isFollowing, userId } = response.data;
       
-      if (response.data.isFollowing) {
-        // Update the current user's following list
-        set(state => ({
-          user: state.user ? {
+      set(state => {
+        if (!state.user) return state;
+        
+        // Normalize the following array to ensure we're working with strings
+        const following = (state.user.following || []).map(id => 
+          typeof id === 'object' ? id._id || id.toString() : id.toString()
+        );
+        
+        // Create a new following list based on the server response
+        const newFollowing = isFollowing
+          ? [...new Set([...following, userId.toString()])]
+          : following.filter(id => id !== userId.toString());
+        
+        return {
+          user: {
             ...state.user,
-            following: [...(state.user.following || []), response.data.userId]
-          } : state.user
-        }));
-        return { success: true, isFollowing: true, userId: response.data.userId };
-      } else {
-        // Remove from following list
-        set(state => ({
-          user: state.user ? {
-            ...state.user,
-            following: (state.user.following || []).filter(id => id !== response.data.userId)
-          } : state.user
-        }));
-        return { success: true, isFollowing: false, userId: response.data.userId };
-      }
+            following: newFollowing
+          }
+        };
+      });
+      
+      return { success: true, isFollowing, userId };
     } catch (error) {
+      console.error('Error following user:', error);
       return { 
         success: false, 
         error: error.response?.data?.message || 'Failed to update follow status' 
