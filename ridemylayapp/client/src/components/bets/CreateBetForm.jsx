@@ -28,16 +28,38 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
 
   // Calculate optimal hedge amount and potential profit
   const calculateHedge = (originalStake, originalOdds) => {
-    const decimalOdds = parseInt(originalOdds) > 0 
-      ? (parseInt(originalOdds) / 100) + 1 
-      : (100 / Math.abs(parseInt(originalOdds))) + 1;
+    // Convert American odds to decimal
+    const odds = parseInt(originalOdds);
+    if (isNaN(odds)) return null;
+    
+    const decimalOdds = odds > 0 
+      ? (odds / 100) + 1 
+      : (100 / Math.abs(odds)) + 1;
 
-    const potentialWin = originalStake * (decimalOdds - 1);
-    const recommendedHedgeStake = (potentialWin + parseFloat(originalStake)) / 2;
+    // Calculate original bet potential profit
+    const originalBetPotentialWin = originalStake * (decimalOdds - 1);
+    const totalRisk = parseFloat(originalStake);
+
+    // Calculate hedge bet details
+    const hedgeOdds = -odds; // Inverse of original odds
+    const decimalHedgeOdds = hedgeOdds > 0 
+      ? (hedgeOdds / 100) + 1 
+      : (100 / Math.abs(hedgeOdds)) + 1;
+    
+    // Calculate optimal hedge stake for guaranteed profit
+    const recommendedHedgeStake = (originalBetPotentialWin * decimalHedgeOdds) / 
+      (decimalHedgeOdds - 1);
+    
+    // Calculate guaranteed profit (accounting for both stakes)
+    const guaranteedProfit = (originalBetPotentialWin - recommendedHedgeStake) > 0 
+      ? ((originalBetPotentialWin - recommendedHedgeStake) / 2).toFixed(2)
+      : 0;
 
     return {
       recommendedStake: recommendedHedgeStake.toFixed(2),
-      guaranteedProfit: ((potentialWin - recommendedHedgeStake) / 2).toFixed(2)
+      guaranteedProfit,
+      totalRisk: (totalRisk + recommendedHedgeStake).toFixed(2),
+      effectiveOdds: hedgeOdds
     };
   };
 
@@ -231,13 +253,27 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
       
       if (isEditing && existingBet) {
         // Update existing bet
-        response = await betAPI.updateBet(existingBet._id, betPayload);
-      } else if (isRiding && existingBet) {
+        response = await betAPI.updateBet(existingBet._id, betPayload);      } else if (isRiding && existingBet) {
         // Create a new bet as a ride of an existing bet
         response = await betAPI.createBet({
           ...betPayload,
           isRide: true,
           originalBetId: existingBet._id
+        });
+      } else if (isHedging && existingBet) {
+        // Create a new bet as a hedge of an existing bet
+        const hedgeCalc = calculateHedge(existingBet.stake, existingBet.odds);
+        
+        if (!hedgeCalc) {
+          throw new Error('Failed to calculate hedge values');
+        }
+
+        response = await betAPI.createBet({
+          ...betPayload,
+          isHedge: true,
+          originalBetId: existingBet._id,
+          stake: parseFloat(hedgeCalc.recommendedStake),
+          odds: hedgeCalc.effectiveOdds
         });
       } else {
         // Create a new bet
@@ -278,6 +314,35 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     { value: 'under', label: 'Under' },
     { value: 'prop', label: 'Prop' }
   ];
+  
+  // Display hedge calculator results
+  const renderHedgeCalculator = () => {
+    if (!isHedging || !hedgeCalculation) return null;
+
+    return (
+      <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-4 mb-6">
+        <h3 className="text-lg font-medium text-orange-800 dark:text-orange-300 mb-2">Hedge Calculator</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-orange-700 dark:text-orange-400 mb-1">Recommended Stake</p>
+            <p className="text-xl font-semibold text-orange-900 dark:text-orange-300">${hedgeCalculation.recommendedStake}</p>
+          </div>
+          <div>
+            <p className="text-sm text-orange-700 dark:text-orange-400 mb-1">Guaranteed Profit</p>
+            <p className="text-xl font-semibold text-orange-900 dark:text-orange-300">${hedgeCalculation.guaranteedProfit}</p>
+          </div>
+          <div>
+            <p className="text-sm text-orange-700 dark:text-orange-400 mb-1">Total Risk</p>
+            <p className="text-xl font-semibold text-orange-900 dark:text-orange-300">${hedgeCalculation.totalRisk}</p>
+          </div>
+        </div>
+        <p className="text-sm text-orange-600 dark:text-orange-400 mt-3">
+          * These calculations help you lock in a profit regardless of the outcome
+        </p>
+      </div>
+    );
+  };
+  
     return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow p-6">
       <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
@@ -412,6 +477,9 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
               ))}
             </select>
           </div>
+
+          {/* Hedge calculator results */}
+          {renderHedgeCalculator()}
           
           {/* Bet Legs */}
           <div className="space-y-4">
