@@ -140,172 +140,101 @@ const users = [
   }
 ];
 
+// HershelT's pre-existing bets
+const hershelBets = [
+  {
+    type: 'parlay',
+    stake: 100,
+    title: "NBA Finals Parlay Special",
+    description: "Heat vs Nuggets Game 1 parlay. Feeling confident about these picks! 🏀",
+    selections: [
+      {
+        game: "Miami Heat vs Denver Nuggets",
+        pick: "Nuggets -8.5",
+        odds: -110,
+        status: "won"
+      },
+      {
+        game: "Miami Heat vs Denver Nuggets",
+        pick: "Over 219.5",
+        odds: -105,
+        status: "won"
+      }
+    ],
+    status: "won",
+    visibility: "public",
+    createdAt: new Date('2023-06-01T20:00:00Z')
+  },
+  {
+    type: 'single',
+    stake: 50,
+    title: "MLB Value Pick",
+    description: "Yankees looking strong tonight. Great value at these odds! ⚾",
+    selections: [
+      {
+        game: "New York Yankees vs Boston Red Sox",
+        pick: "Yankees ML",
+        odds: -150,
+        status: "won"
+      }
+    ],
+    status: "won",
+    visibility: "public",
+    createdAt: new Date('2023-06-03T23:00:00Z')
+  }
+];
+
 // Sample bets (will be populated with user IDs after user creation)
 const betTemplates = [
-  {    title: 'NBA Finals Parlay',
+  {
+    title: 'NBA Finals Parlay',
     description: 'Lakers to win + LeBron over 30 points',
+    type: 'parlay',
     stake: 50,
-    sport: 'basketball',
-    league: 'NBA',
-    status: 'won',
-    legs: [
+    selections: [
       {
-        team: 'Los Angeles Lakers',
-        betType: 'moneyline',
+        game: "Lakers vs Heat",
+        pick: "Lakers ML",
         odds: -110,
-        outcome: 'won'
+        status: "won"
       },
       {
-        team: 'LeBron James',
-        betType: 'over',
+        game: "Lakers vs Heat",
+        pick: "LeBron James Over 30.5 Points",
         odds: -115,
-        outcome: 'won'
+        status: "won"
       }
-    ]
+    ],
+    status: "won",
+    visibility: "public"
   },
-  {    title: 'NFL Sunday Special',
-    description: 'Chiefs + Bills + Packers all to win',
+  {
+    title: 'NFL Sunday Special',
+    description: 'Chiefs + Bills + Packers ML Parlay',
+    type: 'parlay',
     stake: 100,
-    sport: 'football',
-    league: 'NFL',
-    status: 'lost',
-    legs: [
+    selections: [
       {
-        team: 'Kansas City Chiefs',
-        betType: 'moneyline',
+        game: "Chiefs vs Raiders",
+        pick: "Chiefs ML",
         odds: -150,
-        outcome: 'won'
+        status: "won"
       },
       {
-        team: 'Buffalo Bills',
-        betType: 'moneyline',
+        game: "Bills vs Jets",
+        pick: "Bills ML",
         odds: -200,
-        outcome: 'won'
+        status: "won"
       },
       {
-        team: 'Green Bay Packers',
-        betType: 'moneyline',
+        game: "Packers vs Bears",
+        pick: "Packers ML",
         odds: 120,
-        outcome: 'lost'
+        status: "lost"
       }
-    ]
-  },
-  {    title: 'MLB Double Header',
-    description: 'Yankees and Dodgers both to win',
-    stake: 75,
-    sport: 'baseball',
-    league: 'MLB',
-    status: 'won',
-    legs: [
-      {
-        team: 'New York Yankees',
-        betType: 'moneyline',
-        odds: -120,
-        outcome: 'won'
-      },
-      {
-        team: 'Los Angeles Dodgers',
-        betType: 'moneyline',
-        odds: -130,
-        outcome: 'won'
-      }
-    ]
-  },
-  {    title: 'Premier League Accumulator',
-    description: 'Manchester City, Arsenal, Liverpool all to win',
-    stake: 50,
-    sport: 'soccer',
-    league: 'Premier League',
-    status: 'pending',
-    legs: [
-      {
-        team: 'Manchester City',
-        betType: 'moneyline',
-        odds: -150,
-        outcome: 'pending'
-      },
-      {
-        team: 'Arsenal',
-        betType: 'moneyline',
-        odds: -130,
-        outcome: 'pending'
-      },
-      {
-        team: 'Liverpool',
-        betType: 'moneyline',
-        odds: -160,
-        outcome: 'pending'
-      }
-    ]
-  },
-  {    title: 'NHL Playoff Special',
-    description: 'Bruins to win + Total goals over 5.5',
-    stake: 100,
-    sport: 'hockey',
-    league: 'NHL',
-    status: 'lost',
-    legs: [
-      {
-        team: 'Boston Bruins',
-        betType: 'moneyline',
-        odds: -130,
-        outcome: 'lost'
-      },
-      {
-        team: 'Game Total',
-        betType: 'over',
-        odds: -110,
-        outcome: 'won'
-      }
-    ]
-  },
-  {    title: 'NBA Player Props Parlay',
-    description: 'Curry 25+ points, Jokic triple-double, Tatum 30+ points',
-    stake: 50,
-    sport: 'basketball',
-    league: 'NBA',
-    status: 'pending',
-    legs: [
-      {
-        team: 'Stephen Curry',
-        betType: 'over',
-        odds: -120,
-        outcome: 'pending'
-      },
-      {
-        team: 'Nikola Jokic',
-        betType: 'special',
-        odds: 200,
-        outcome: 'pending'
-      },
-      {
-        team: 'Jayson Tatum',
-        betType: 'over',
-        odds: -110,
-        outcome: 'pending'
-      }
-    ]
-  },
-  {    title: 'UFC Fight Night Parlay',
-    description: 'Main Event + Co-Main Winners',
-    stake: 100,
-    sport: 'mma',
-    league: 'UFC',
-    status: 'won',
-    legs: [
-      {
-        team: 'Israel Adesanya',
-        betType: 'moneyline',
-        odds: -200,
-        outcome: 'won'
-      },
-      {
-        team: 'Alex Pereira',
-        betType: 'moneyline',
-        odds: -150,
-        outcome: 'won'
-      }
-    ]
+    ],
+    status: "lost",
+    visibility: "public"
   }
 ];
 
@@ -313,12 +242,31 @@ const betTemplates = [
 const seedDatabase = async () => {
   try {
     await connectDB();
-    
-    // Clear existing data
+
+    // Get existing HershelT user or create if doesn't exist
+    logger.info('Finding or creating HershelT user...');
+    let hershelT = await User.findOne({ username: 'hershelt' });
+    if (!hershelT) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('your-secure-password', salt);
+      hershelT = await User.create({
+        username: 'hershelt',
+        email: 'hershel@example.com',
+        passwordHash: hashedPassword,
+        name: 'Hershel T',
+        bio: '🎲 Sports betting enthusiast | Analytics-driven picks | Building RideMyLay',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hershelt',
+        isVerified: true,
+        role: 'admin',
+        streak: 7
+      });
+    }
+
+    // Clear existing data except HershelT
     logger.info('Clearing existing database data...');
     await Promise.all([
       User.deleteMany({ username: { $ne: 'hershelt' } }),
-      Bet.deleteMany({}),
+      Bet.deleteMany({ userId: { $ne: hershelT._id } }),
       BettingSite.deleteMany({}),
       Chat.deleteMany({}),
       Message.deleteMany({}),
@@ -329,295 +277,177 @@ const seedDatabase = async () => {
     logger.info('Seeding betting sites...');
     const createdSites = await BettingSite.insertMany(bettingSites);
     
-    // Seed users with hashed passwords
-    // Update the userPromises creation
-    logger.info('Seeding users...');
+    // Create HershelT's bets
+    logger.info('Creating HershelT\'s bets...');
+    const hersheltBetData = hershelBets.map(bet => ({
+      ...bet,
+      userId: hershelT._id,
+      bettingSiteId: createdSites[Math.floor(Math.random() * createdSites.length)]._id
+    }));
+    const createdHershelBets = await Promise.all(
+      hersheltBetData.map(bet => Bet.create(bet))
+    );
+
+    // Seed other users with hashed passwords
+    logger.info('Seeding other users...');
     const userPromises = users.map(async (user) => {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(user.password, salt);
-    return {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(user.password, salt);
+      return {
         ...user,
-        passwordHash: hashedPassword, // Change password to passwordHash
-        password: undefined, // Remove the password field
+        passwordHash: hashedPassword,
+        password: undefined,
         preferredBettingSites: [createdSites[Math.floor(Math.random() * createdSites.length)]._id]
-    };
+      };
     });
     
     const createdUsers = await User.create(await Promise.all(userPromises));
     
-    // Set up followers
-    logger.info('Setting up user relationships...');
-    // Make user 1 follow user 2 and 3
-    await User.findByIdAndUpdate(createdUsers[0]._id, {
-      $push: { following: [createdUsers[1]._id, createdUsers[2]._id] }
+    // Set up followers for HershelT
+    logger.info('Setting up HershelT\'s relationships...');
+    const followerIds = [createdUsers[0]._id, createdUsers[1]._id, createdUsers[4]._id];
+    const followingIds = [createdUsers[4]._id, createdUsers[5]._id];
+    
+    await User.findByIdAndUpdate(hershelT._id, {
+      $push: {
+        followers: followerIds,
+        following: followingIds
+      }
     });
-    // Update followers for user 2 and 3
-    await User.findByIdAndUpdate(createdUsers[1]._id, {
-      $push: { followers: createdUsers[0]._id }
-    });
-    await User.findByIdAndUpdate(createdUsers[2]._id, {
-      $push: { followers: createdUsers[0]._id }
-    });
-      // Create bets linked to users
-    logger.info('Seeding bets...');
-    const betsData = betTemplates.map((bet, index) => ({
-        ...bet,
-        userId: createdUsers[index % createdUsers.length]._id,
-        bettingSiteId: createdSites[index % createdSites.length]._id
+
+    // Update followers' following list
+    await Promise.all(followerIds.map(id => 
+      User.findByIdAndUpdate(id, {
+        $push: { following: hershelT._id }
+      })
+    ));
+
+    // Update following users' followers list
+    await Promise.all(followingIds.map(id =>
+      User.findByIdAndUpdate(id, {
+        $push: { followers: hershelT._id }
+      })
+    ));
+
+    // Create bets for other users
+    logger.info('Creating bets for other users...');
+    const otherBetsData = betTemplates.map((bet, index) => ({
+      ...bet,
+      userId: createdUsers[index % createdUsers.length]._id,
+      bettingSiteId: createdSites[index % createdSites.length]._id
     }));
     
-    // Use create() to trigger pre-save middleware for each bet
-    const createdBets = await Promise.all(
-        betsData.map(bet => Bet.create(bet))
+    const createdOtherBets = await Promise.all(
+      otherBetsData.map(bet => Bet.create(bet))
     );
+
+    const allBets = [...createdHershelBets, ...createdOtherBets];
     
-    // Create comments on bets
+    // Create comments
     logger.info('Creating comments...');
-    const comments = [
-      {
-        userId: createdUsers[1]._id,
-        betId: createdBets[0]._id,
-        content: 'Great pick! I think Lakers will win for sure.'
-      },
-      {
-        userId: createdUsers[2]._id,
-        betId: createdBets[0]._id,
-        content: 'LeBron has been on fire lately, solid bet!'
-      },
+    const commentsData = [
       {
         userId: createdUsers[0]._id,
-        betId: createdBets[1]._id,
-        content: 'Riding this one with you!'
-      },
-      {
-        userId: createdUsers[4]._id,
-        betId: createdBets[3]._id,
-        content: 'As a Premier League expert, I love this accumulator. Manchester City is in great form!'
-      },
-      {
-        userId: createdUsers[5]._id,
-        betId: createdBets[3]._id,
-        content: 'Tailing this! The odds are too good to pass up.'
-      },
-      {
-        userId: createdUsers[6]._id,
-        betId: createdBets[5]._id,
-        content: 'Based on my statistical analysis, Curry has hit 25+ in 80% of his last 20 games. Strong prop!'
-      },
-      {
-        userId: createdUsers[3]._id,
-        betId: createdBets[5]._id,
-        content: 'Great research! Adding this to my picks.'
-      },
-      {
-        userId: createdUsers[7]._id,
-        betId: createdBets[4]._id,
-        content: 'Tough loss on the Bruins bet. They were dominating but couldn\'t finish.'
-      },
-      {
-        userId: createdUsers[2]._id,
-        betId: createdBets[4]._id,
-        content: 'Yeah, hockey can be unpredictable. At least the over hit!'
+        betId: createdHershelBets[0]._id,
+        content: 'Great analysis on this Nuggets game! Tailing 🔥'
       },
       {
         userId: createdUsers[1]._id,
-        betId: createdBets[6]._id,
-        content: 'UFC parlays are risky but this one looks solid!'
+        betId: createdHershelBets[0]._id,
+        content: 'This parlay hit perfectly. Your NBA picks are solid!'
       },
       {
-        userId: createdUsers[5]._id,
-        betId: createdBets[6]._id,
-        content: 'Agreed! Both fighters are in great form. BOL!'
+        userId: hershelT._id,
+        betId: createdOtherBets[0]._id,
+        content: 'Love this Lakers play. LeBron has been unstoppable lately.'
       }
     ];
     
-    const createdComments = await Comment.insertMany(comments);
+    const createdComments = await Comment.insertMany(commentsData);
     
-    // Add comments to bets with more complex relationships
-    await Bet.findByIdAndUpdate(createdBets[0]._id, {
-      $push: { comments: { $each: [createdComments[0]._id, createdComments[1]._id] } }
-    });
-    
-    await Bet.findByIdAndUpdate(createdBets[1]._id, {
-      $push: { comments: createdComments[2]._id }
-    });
+    // Add comments to bets
+    await Promise.all([
+      Bet.findByIdAndUpdate(createdHershelBets[0]._id, {
+        $push: { comments: { $each: [createdComments[0]._id, createdComments[1]._id] } }
+      }),
+      Bet.findByIdAndUpdate(createdOtherBets[0]._id, {
+        $push: { comments: createdComments[2]._id }
+      })
+    ]);
 
-    await Bet.findByIdAndUpdate(createdBets[3]._id, {
-      $push: { comments: { $each: [createdComments[3]._id, createdComments[4]._id] } }
-    });
-
-    await Bet.findByIdAndUpdate(createdBets[5]._id, {
-      $push: { comments: { $each: [createdComments[5]._id, createdComments[6]._id] } }
-    });
-
-    await Bet.findByIdAndUpdate(createdBets[4]._id, {
-      $push: { comments: { $each: [createdComments[7]._id, createdComments[8]._id] } }
-    });
-
-    await Bet.findByIdAndUpdate(createdBets[6]._id, {
-      $push: { comments: { $each: [createdComments[9]._id, createdComments[10]._id] } }
-    });
-    
     // Create chat rooms
     logger.info('Creating chat rooms...');
     const chats = [
       {
-        name: 'NBA Bettors',
+        name: 'NBA Discussion',
         participants: [
-          createdUsers[0]._id, 
-          createdUsers[1]._id, 
-          createdUsers[2]._id,
-          createdUsers[6]._id // stats_master
+          hershelT._id,
+          createdUsers[0]._id,
+          createdUsers[1]._id,
+          createdUsers[4]._id
         ],
         isGroupChat: true,
-        admin: createdUsers[0]._id
+        admin: hershelT._id
       },
       {
-        name: 'Premier League Tips',
-        participants: [
-          createdUsers[7]._id, // soccer_expert
-          createdUsers[4]._id, // vegas_insider
-          createdUsers[5]._id // parlay_queen
-        ],
-        isGroupChat: true,
-        admin: createdUsers[7]._id
-      },
-      {
-        name: 'VIP Picks',
-        participants: [
-          createdUsers[4]._id, // vegas_insider
-          createdUsers[5]._id, // parlay_queen
-          createdUsers[6]._id, // stats_master
-          createdUsers[7]._id  // soccer_expert
-        ],
-        isGroupChat: true,
-        admin: createdUsers[4]._id
-      },
-      {
-        participants: [createdUsers[0]._id, createdUsers[1]._id],
-        isGroupChat: false
-      },
-      {
-        participants: [createdUsers[4]._id, createdUsers[7]._id],
+        participants: [hershelT._id, createdUsers[4]._id],
         isGroupChat: false
       }
     ];
 
     const createdChats = await Chat.create(chats);
 
-    // Create messages in chats
+    // Create messages
     logger.info('Creating messages...');
     const messages = [
       {
+        sender: hershelT._id,
+        content: 'What do you all think about the Nuggets spread tonight?',
+        chat: createdChats[0]._id
+      },
+      {
         sender: createdUsers[0]._id,
-        content: 'Hey everyone, what do you think about the Lakers game tonight?',
+        content: 'I really like it. Home court advantage will be huge.',
         chat: createdChats[0]._id
       },
       {
-        sender: createdUsers[1]._id,
-        content: 'I think they\'ll cover the spread easily',
-        chat: createdChats[0]._id
-      },
-      {
-        sender: createdUsers[6]._id,
-        content: 'According to my models, Lakers have a 65% chance to cover',
-        chat: createdChats[0]._id
-      },
-      {
-        sender: createdUsers[7]._id,
-        content: 'Manchester City vs Arsenal this weekend - who\'s betting?',
+        sender: hershelT._id,
+        content: 'Hey, got any good MLB picks today?',
         chat: createdChats[1]._id
       },
       {
         sender: createdUsers[4]._id,
-        content: 'City at home is almost automatic. Adding to my card.',
+        content: 'Yankees looking strong, check my latest post',
         chat: createdChats[1]._id
-      },
-      {
-        sender: createdUsers[4]._id,
-        content: 'New VIP pick posted - check the analysis in the thread',
-        chat: createdChats[2]._id
-      },
-      {
-        sender: createdUsers[6]._id,
-        content: 'The stats support this pick 100%. Great find!',
-        chat: createdChats[2]._id
-      },
-      {
-        sender: createdUsers[0]._id,
-        content: 'Hey Sarah, want to ride my Lakers parlay?',
-        chat: createdChats[3]._id
-      },
-      {
-        sender: createdUsers[1]._id,
-        content: 'Sure, I\'ll join you on that one!',
-        chat: createdChats[3]._id
-      },
-      {
-        sender: createdUsers[4]._id,
-        content: 'Got some insider info on the Premier League matches',
-        chat: createdChats[4]._id
-      },
-      {
-        sender: createdUsers[7]._id,
-        content: 'Perfect timing, I was just analyzing those games',
-        chat: createdChats[4]._id
       }
     ];
     
     await Message.insertMany(messages);
     
-    // Update bets with likes and rides
+    // Add likes and rides to HershelT's bets
     logger.info('Setting up bet interactions...');
     
-    // Popular NBA bet with multiple interactions
-    await Bet.findByIdAndUpdate(createdBets[0]._id, {
+    // NBA Finals Parlay interactions
+    await Bet.findByIdAndUpdate(createdHershelBets[0]._id, {
       $push: {
-        likes: [createdUsers[1]._id, createdUsers[2]._id, createdUsers[6]._id],
-        riders: [createdUsers[1]._id, createdUsers[5]._id]
+        likes: [createdUsers[0]._id, createdUsers[1]._id, createdUsers[4]._id],
+        riders: [createdUsers[0]._id, createdUsers[4]._id]
       },
       $inc: { ridesCount: 2, likesCount: 3 }
     });
     
-    // NFL bet with medium engagement
-    await Bet.findByIdAndUpdate(createdBets[1]._id, {
+    // MLB Value Pick interactions
+    await Bet.findByIdAndUpdate(createdHershelBets[1]._id, {
       $push: {
-        likes: [createdUsers[0]._id, createdUsers[4]._id],
-        riders: [createdUsers[0]._id, createdUsers[2]._id, createdUsers[3]._id]
+        likes: [createdUsers[1]._id, createdUsers[4]._id],
+        riders: [createdUsers[1]._id]
       },
-      $inc: { ridesCount: 3, likesCount: 2 }
+      $inc: { ridesCount: 1, likesCount: 2 }
     });
 
-    // Premier League bet with high engagement
-    await Bet.findByIdAndUpdate(createdBets[3]._id, {
-      $push: {
-        likes: [createdUsers[4]._id, createdUsers[5]._id, createdUsers[6]._id, createdUsers[7]._id],
-        riders: [createdUsers[5]._id, createdUsers[6]._id, createdUsers[7]._id]
-      },
-      $inc: { ridesCount: 3, likesCount: 4 }
-    });
-
-    // NBA Player Props with medium engagement
-    await Bet.findByIdAndUpdate(createdBets[5]._id, {
-      $push: {
-        likes: [createdUsers[1]._id, createdUsers[3]._id, createdUsers[6]._id],
-        riders: [createdUsers[1]._id, createdUsers[6]._id]
-      },
-      $inc: { ridesCount: 2, likesCount: 3 }
-    });
-
-    // UFC bet with high engagement
-    await Bet.findByIdAndUpdate(createdBets[6]._id, {
-      $push: {
-        likes: [createdUsers[0]._id, createdUsers[2]._id, createdUsers[4]._id, createdUsers[5]._id],
-        riders: [createdUsers[2]._id, createdUsers[4]._id, createdUsers[5]._id]
-      },
-      $inc: { ridesCount: 3, likesCount: 4 }
-    });
-    
     logger.info('✅ Database seeded successfully!');
-    logger.info(`Created ${createdUsers.length} users`);
-    logger.info(`Created ${createdBets.length} bets`);
+    logger.info(`Created ${createdUsers.length + 1} users (including HershelT)`);
+    logger.info(`Created ${allBets.length} bets`);
     logger.info(`Created ${createdComments.length} comments`);
     
     // Disconnect from database
