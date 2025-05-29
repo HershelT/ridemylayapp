@@ -36,9 +36,10 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
 
     // Setup message listener
     const messageCleanup = socketService.onMessageReceived((message) => {
-      if (message.chat === chat._id) {
+      if (message.chat === chat._id && message.sender._id !== user._id) {
         setMessages(prev => [...prev, message]);
         scrollToBottom();
+        // Mark message as read since we're in the chat
         socketService.markMessagesAsRead(chat._id);
       }
     });
@@ -91,18 +92,22 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
     if (!newMessage.trim()) return;
 
     try {
+      // Send the message to the server
       const response = await messageAPI.sendMessage({
         chatId: chat._id,
         content: newMessage
       });
 
-      // Send through socket
+      // Add the new message to the local state immediately
+      const newMsg = response.data.message;
+      setMessages(prev => [...prev, newMsg]);
+      
+      // Send through socket for real-time updates to other users
       socketService.sendChatMessage({
-        ...response.data.message,
+        ...newMsg,
         chat: chat._id
       });
 
-      setMessages([...messages, response.data.message]);
       setNewMessage('');
       scrollToBottom();
 

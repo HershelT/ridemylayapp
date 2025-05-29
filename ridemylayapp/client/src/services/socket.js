@@ -118,7 +118,7 @@ const emitBetInteraction = (betId, type, data) => {
 const onMessageReceived = (callback) => {
   const s = getSocket();
   if (s) {
-    s.on('message_received', callback);
+    s.on('message_received', callback); // Make sure this matches the server event
   }
   return () => {
     if (s) {
@@ -248,7 +248,7 @@ const disconnectSocket = () => {
 const sendChatMessage = (message) => {
   const socket = getSocket();
   if (socket) {
-    socket.emit('new message', message);
+    socket.emit('new_message', message); // Changed from 'new message' to 'new_message'
   }
 };
 
@@ -312,7 +312,8 @@ const socketService = {
   subscribeToChatTyping,
   emitTyping,
   emitBetInteraction,
-  onUserStatsUpdate
+  onUserStatsUpdate,
+  sendChatMessage
 };
 
 export default socketService;

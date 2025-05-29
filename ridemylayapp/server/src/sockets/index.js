@@ -108,16 +108,17 @@ const setupSocketIO = (server) => {
     });    // Handle new message
     socket.on('new_message', async (message) => {
       try {
-        // Broadcast to all users in the chat room
-        io.to(`chat:${message.chat}`).emit('message_received', message);
+        // Broadcast to all users in the chat room except sender
+        socket.to(`chat:${message.chat}`).emit('message_received', message);
 
         // Get chat details to create notifications
         const chat = await Chat.findById(message.chat).populate('users');
         
-        // Create notifications for offline users and send to online users
-        await Promise.all(chat.users
+        // Create notifications for other users in the chat
+        const notificationPromises = chat.users
           .filter(user => user._id.toString() !== socket.user.id)
           .map(async (user) => {
+            // Create notification
             const notification = await Notification.create({
               recipient: user._id,
               sender: socket.user.id,
@@ -129,31 +130,51 @@ const setupSocketIO = (server) => {
               entityId: chat._id,
               metadata: {
                 messageId: message._id,
-                preview: message.content.substring(0, 50)
+                preview: message.content.substring(0, 50),
+                chatName: chat.name,
+                isGroupChat: chat.isGroupChat
               }
             });
 
-            // If user is online, send notification in real-time
+            // Send notification in real-time if user is online
             if (activeUsers.has(user._id.toString())) {
               io.to(`user:${user._id}`).emit('new_notification', notification);
             }
-          }));
+
+            return notification;
+          });
+
+        await Promise.all(notificationPromises);
       } catch (error) {
         logger.error(`Error handling new message: ${error.message}`);
         socket.emit('message_error', 'Failed to process message');
       }
-      message.chat.users.forEach((userId) => {
-        if (userId.toString() !== socket.user.id && activeUsers.has(userId.toString())) {
-          io.to(`user:${userId}`).emit('new_notification', {
-            type: 'message',
-            chatId: message.chat._id,
-            senderId: socket.user.id,
-            senderName: socket.user.username,
-            message: message.content
-          });
-        }
-      });
-    });    // Handle typing indication
+    });
+
+    // Handle marking messages as read
+    socket.on('read_messages', async (chatId) => {
+      try {
+        await Message.updateMany(
+          {
+            chat: chatId,
+            'readBy.userId': { $ne: socket.user.id }
+          },
+          {
+            $addToSet: { readBy: { userId: socket.user.id, readAt: new Date() } }
+          }
+        );
+
+        // Notify other users that messages have been read
+        socket.to(`chat:${chatId}`).emit('messages_read', {
+          chatId,
+          userId: socket.user.id
+        });
+      } catch (error) {
+        logger.error(`Error marking messages as read: ${error.message}`);
+      }
+    });
+
+    // Handle typing indication
     socket.on('typing', ({ chatId, isTyping }) => {
       socket.to(`chat:${chatId}`).emit('user_typing', {
         userId: socket.user.id,
