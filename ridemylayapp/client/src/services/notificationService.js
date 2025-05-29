@@ -15,11 +15,19 @@ export const subscribeToNotifications = (callback) => {    return socketService.
 };
 
 export const handleNewNotification = (notification) => {
-  // First check if we should show the notification (not if we're in the chat already)
-  if (notification.type === 'message' && 
-      document.hasFocus() && 
-      window.location.pathname.includes(`/chat/${notification.entityId}`)) {
-    return; // Don't show notification if we're already in the chat
+  // Ensure we have all required data
+  if (!notification || !notification.sender) {
+    console.warn('Invalid notification received:', notification);
+    return;
+  }
+
+  // First check if we should show the notification
+  const isInChat = window.location.pathname.includes(`/messages`);
+  const isActiveTab = document.hasFocus();
+  const shouldNotify = !(isInChat && isActiveTab);
+
+  if (!shouldNotify) {
+    return; // Don't show notification if we're in the active chat
   }
 
   // Request permission if not granted
@@ -33,10 +41,16 @@ export const handleNewNotification = (notification) => {
       ? `New message from ${notification.sender.username}`
       : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
 
-    const notification = new Notification(title, {
+    const browserNotification = new Notification(title, {
       body: notification.content,
-      icon: notification.sender.profilePicture,
+      icon: notification.sender.avatarUrl,
       tag: `${notification.type}-${notification.entityId}`, // Prevent duplicate notifications
+      data: { 
+        type: notification.type,
+        entityId: notification.entityId,
+        senderId: notification.sender._id
+      },
+      requireInteraction: true, // Keep notification until user interacts with it
       icon: '/favicon.ico' // Add your app icon path
     });
   }

@@ -145,11 +145,15 @@ const sendChatMessage = (message) => {
 const onMessageReceived = (callback) => {
   const s = getSocket();
   if (s) {
-    s.on('message_received', callback);  // Now matches server's emit event
+    // Listen for direct message updates
+    s.on('message_received', callback);
+    // Listen for message notifications
+    s.on('message_notification', callback);
   }
   return () => {
     if (s) {
       s.off('message_received', callback);
+      s.off('message_notification', callback);
     }
   };
 };

@@ -105,57 +105,82 @@ const setupSocketIO = (server) => {
     socket.on('leave_chat', (chatId) => {
       socket.leave(`chat:${chatId}`);
       logger.info(`User ${socket.user.username} left chat room: ${chatId}`);
-    });    // Handle new message    socket.on('new_message', async (message) => {
+    });    // Handle new message    
+    socket.on('new_message', async function handleNewMessage(message) {
       try {
-        // Broadcast to all users in the chat room except sender
-        socket.to(`chat:${message.chat}`).emit('message_received', message);
-
-        // Get chat details to create notifications
-        const chat = await Chat.findById(message.chat)
-          .populate('users')
-          .populate('latestMessage');
+        logger.info(`Processing new message from ${socket.user.username} in chat ${message.chat}`);
         
-        // Create notifications for other users in the chat
+        // Get chat details to create notifications first
+        const chat = await Chat.findById(message.chat)
+          .populate('users', 'username avatarUrl')
+          .populate('latestMessage');
+
+        if (!chat) {
+          throw new Error('Chat not found');
+        }
+
+        // Broadcast to all users in the chat room except sender
+        const messageWithSender = {
+          ...message,
+          sender: {
+            _id: socket.user.id,
+            username: socket.user.username
+          }
+        };
+        socket.to(`chat:${message.chat}`).emit('message_received', messageWithSender);
+          // Create notifications for other users in the chat
         const notificationPromises = chat.users
           .filter(user => user._id.toString() !== socket.user.id)
           .map(async (user) => {
-            // Create notification with rich preview
-            const notification = await Notification.create({
-              recipient: user._id,
-              sender: socket.user.id,
-              type: 'message',
-              content: chat.isGroupChat 
-                ? `New message in ${chat.name}` 
-                : `New message from ${socket.user.username}`,
-              entityType: 'chat',
-              entityId: chat._id,
-              metadata: {
-                messageId: message._id,
-                preview: message.content.substring(0, 50),
-                chatName: chat.name,
-                isGroupChat: chat.isGroupChat
-              }
-            });              // Send notification to all tabs/windows of the recipient
-              const recipientId = user._id.toString();
-              const recipientSocketIds = Array.from(io.sockets.sockets.values())
-                .filter(s => s.user && s.user.id === recipientId)
-                .map(s => s.id);
-
-              // Emit to all connected sockets for this user
-              recipientSocketIds.forEach(socketId => {
-                io.to(socketId).emit('new_notification', {
-                  ...notification.toObject(),
-                  sender: {
-                    ...socket.user,
-                    _id: socket.user.id // Ensure consistent ID format
-                  }
-                });
+            try {
+              logger.info(`Creating notification for user ${user._id}`);
+              
+              // Create notification with rich preview
+              const notification = await Notification.create({
+                recipient: user._id,
+                sender: socket.user.id,
+                type: 'message',
+                content: message.content.substring(0, 100), // Include message preview
+                entityType: 'chat',
+                entityId: chat._id,
+                metadata: {
+                  messageId: message._id,
+                  chatName: chat.name || 'Direct Message',
+                  isGroupChat: chat.isGroupChat || false,
+                  messageType: message.type || 'text',
+                  senderUsername: socket.user.username
+                }
               });
 
+              // Find all socket connections for this recipient
+              const recipientSockets = Array.from(io.sockets.sockets.values())
+                .filter(s => s.user && s.user.id === user._id.toString());              if (recipientSockets.length > 0) {
+                // User is online in at least one tab/window
+                const notificationData = {
+                  ...notification.toObject(),
+                  sender: {
+                    _id: socket.user.id,
+                    username: socket.user.username
+                  }
+                };
+
+                // Emit to all of user's connected sockets
+                recipientSockets.forEach(recipientSocket => {
+                  recipientSocket.emit('new_notification', notificationData);
+                  recipientSocket.emit('message_notification', messageWithSender);
+                });
+              }
+
+              logger.info(`Notification created and sent to user ${user._id}`);
               return notification;
+            } catch (error) {
+              logger.error(`Error creating notification for user ${user._id}: ${error.message}`);
+              return null;
+            }
           });
 
         const notifications = await Promise.all(notificationPromises);
+        const validNotifications = notifications.filter(n => n !== null);
       } catch (error) {
         logger.error(`Error handling new message: ${error.message}`);
         socket.emit('message_error', 'Failed to process message');
