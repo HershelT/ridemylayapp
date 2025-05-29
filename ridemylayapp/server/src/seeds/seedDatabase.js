@@ -62,17 +62,6 @@ const users = [
         streak: 9
     },
     {
-        username: 'bet_scientist',
-        email: 'bet_scientist@example.com',
-        password: 'password123',
-        name: 'Emma Reynolds',
-        bio: '📊 Data-driven bettor | Statistical modeling | Sports analytics researcher',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=bet_scientist',
-        isVerified: true,
-        role: 'user',
-        streak: 7
-    },
-    {
         username: 'hockey_king',
         email: 'hockey_king@example.com',
         password: 'password123',
@@ -82,6 +71,29 @@ const users = [
         isVerified: true,
         role: 'user',
         streak: 4
+    },
+    {
+        username: 'prop_master',
+        email: 'prop_master@example.com',
+        password: 'password123',
+        name: 'Sophia Garcia',
+        bio: '🎯 Player prop specialist | Deep statistical analysis | Fantasy sports background',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=prop_master',
+        isVerified: true,
+        role: 'user',
+        streak: 6
+    },
+    
+    {
+        username: 'bet_scientist',
+        email: 'bet_scientist@example.com',
+        password: 'password123',
+        name: 'Emma Reynolds',
+        bio: '📊 Data-driven bettor | Statistical modeling | Sports analytics researcher',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=bet_scientist',
+        isVerified: true,
+        role: 'user',
+        streak: 7
     },
     {
         username: 'underdog_hunter',
@@ -95,159 +107,93 @@ const users = [
         streak: -1
     },
     {
-        username: 'prop_master',
-        email: 'prop_master@example.com',
+        username: 'john_bettor',
+        email: 'john@example.com',
         password: 'password123',
-        name: 'Sophia Garcia',
-        bio: '🎯 Player prop specialist | Deep statistical analysis | Fantasy sports background',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=prop_master',
+        name: 'John Smith',
+        bio: 'Sports betting enthusiast with a knack for NFL parlays',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=john_bettor',
         isVerified: true,
         role: 'user',
-        streak: 6
+        streak: 3
     },
     {
-        username: 'basketball_guru',
-        email: 'basketball_guru@example.com',
+        username: 'sarah_wins',
+        email: 'sarah@example.com',
         password: 'password123',
-        name: 'James Thompson',
-        bio: '🏀 NBA analytics expert | Former college player | 72% win rate on basketball picks',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=basketball_guru',
+        name: 'Sarah Johnson',
+        bio: 'NBA specialist. Follow for daily basketball picks!',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=sarah_wins',
         isVerified: true,
         role: 'user',
-        streak: 9
+        streak: 5
     },
     {
-        username: 'bet_scientist',
-        email: 'bet_scientist@example.com',
+        username: 'mike_bets',
+        email: 'mike@example.com',
         password: 'password123',
-        name: 'Emma Reynolds',
-        bio: '📊 Data-driven bettor | Statistical modeling | Sports analytics researcher',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=bet_scientist',
+        name: 'Mike Wilson',
+        bio: 'MLB and NHL picks. 60% win rate lifetime.',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=mike_bets',
         isVerified: true,
         role: 'user',
-        streak: 7
+        streak: -2
     },
     {
-        username: 'hockey_king',
-        email: 'hockey_king@example.com',
+        username: 'admin_user',
+        email: 'admin@example.com',
+        password: 'adminpass123',
+        name: 'Admin User',
+        bio: 'Site administrator',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=admin_user',
+        isVerified: true,
+        role: 'admin',
+        streak: 0
+    },
+    {
+        username: 'vegas_insider',
+        email: 'vegas@example.com',
         password: 'password123',
-        name: 'Alex Petrov',
-        bio: '🏒 NHL betting specialist | 10+ years following hockey | Canadian market expert',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hockey_king',
+        name: 'Tom Vegas',
+        bio: '🎲 Professional Sports Bettor | 15 years experience | VIP picks available',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=vegas_insider',
+        isVerified: true,
+        role: 'user',
+        streak: 8
+    },
+    {
+        username: 'parlay_queen',
+        email: 'ashley@example.com',
+        password: 'password123',
+        name: 'Ashley Parker',
+        bio: '👑 Parlay Specialist | 70% hit rate on 3+ leg parlays',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=parlay_queen',
         isVerified: true,
         role: 'user',
         streak: 4
     },
     {
-        username: 'underdog_hunter',
-        email: 'underdog@example.com',
+        username: 'stats_master',
+        email: 'david@example.com',
         password: 'password123',
-        name: 'Marcus Johnson',
-        bio: '🐕 Specializing in underdog picks | Finding value in plus money lines',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=underdog_hunter',
+        name: 'David Chen',
+        bio: '📊 Data Analyst | Sports Betting Analytics | Mathematical approach to betting',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=stats_master',
         isVerified: true,
         role: 'user',
-        streak: -1
+        streak: 2
     },
     {
-        username: 'prop_master',
-        email: 'prop_master@example.com',
+        username: 'soccer_expert',
+        email: 'maria@example.com',
         password: 'password123',
-        name: 'Sophia Garcia',
-        bio: '🎯 Player prop specialist | Deep statistical analysis | Fantasy sports background',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=prop_master',
+        name: 'Maria Rodriguez',
+        bio: '⚽ European Soccer Specialist | Premier League & La Liga Expert',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=soccer_expert',
         isVerified: true,
         role: 'user',
         streak: 6
-    },
-  {
-    username: 'john_bettor',
-    email: 'john@example.com',
-    password: 'password123',
-    name: 'John Smith',
-    bio: 'Sports betting enthusiast with a knack for NFL parlays',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=john_bettor',
-    isVerified: true,
-    role: 'user',
-    streak: 3
-  },
-  {
-    username: 'sarah_wins',
-    email: 'sarah@example.com',
-    password: 'password123',
-    name: 'Sarah Johnson',
-    bio: 'NBA specialist. Follow for daily basketball picks!',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=sarah_wins',
-    isVerified: true,
-    role: 'user',
-    streak: 5
-  },
-  {
-    username: 'mike_bets',
-    email: 'mike@example.com',
-    password: 'password123',
-    name: 'Mike Wilson',
-    bio: 'MLB and NHL picks. 60% win rate lifetime.',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=mike_bets',
-    isVerified: true,
-    role: 'user',
-    streak: -2
-  },
-  {
-    username: 'admin_user',
-    email: 'admin@example.com',
-    password: 'adminpass123',
-    name: 'Admin User',
-    bio: 'Site administrator',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=admin_user',
-    isVerified: true,
-    role: 'admin',
-    streak: 0
-  },
-  {
-    username: 'vegas_insider',
-    email: 'vegas@example.com',
-    password: 'password123',
-    name: 'Tom Vegas',
-    bio: '🎲 Professional Sports Bettor | 15 years experience | VIP picks available',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=vegas_insider',
-    isVerified: true,
-    role: 'user',
-    streak: 8
-  },
-  {
-    username: 'parlay_queen',
-    email: 'ashley@example.com',
-    password: 'password123',
-    name: 'Ashley Parker',
-    bio: '👑 Parlay Specialist | 70% hit rate on 3+ leg parlays',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=parlay_queen',
-    isVerified: true,
-    role: 'user',
-    streak: 4
-  },
-  {
-    username: 'stats_master',
-    email: 'david@example.com',
-    password: 'password123',
-    name: 'David Chen',
-    bio: '📊 Data Analyst | Sports Betting Analytics | Mathematical approach to betting',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=stats_master',
-    isVerified: true,
-    role: 'user',
-    streak: 2
-  },
-  {
-    username: 'soccer_expert',
-    email: 'maria@example.com',
-    password: 'password123',
-    name: 'Maria Rodriguez',
-    bio: '⚽ European Soccer Specialist | Premier League & La Liga Expert',
-    profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=soccer_expert',
-    isVerified: true,
-    role: 'user',
-    streak: 6
-  }
+    }
 ];
 
 // HershelT's pre-existing bets
@@ -508,42 +454,42 @@ const seedDatabase = async () => {
   try {
     await connectDB();
 
-    // Get existing HershelT user or create if doesn't exist
-    logger.info('Finding or creating HershelT user...');
-    let hershelT = await User.findOne({ username: 'hershelt' });
-    if (!hershelT) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('your-secure-password', salt);
-      hershelT = await User.create({
-        username: 'hershelt',
-        email: 'hershel@example.com',
-        passwordHash: hashedPassword,
-        name: 'Hershel T',
-        bio: '🎲 Sports betting enthusiast | Analytics-driven picks | Building RideMyLay',
-        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hershelt',
-        isVerified: true,
-        role: 'admin',
-        streak: 7
-      });
-    }
-
-    // Clear existing data except HershelT
+    
+    // Clear existing data and HershelT
     logger.info('Clearing existing database data...');
     await Promise.all([
-      User.deleteMany({ username: { $ne: 'hershelt' } }),      
+      User.deleteMany({ }),      
       Bet.deleteMany({}),
       BettingSite.deleteMany({}),
       Chat.deleteMany({}),
       Message.deleteMany({}),
       Comment.deleteMany({})
     ]);
+
+    // Create HershelT user always
+    logger.info('Creating HershelT user...');
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(process.env.PASSWORD, salt);
+    hershelT = await User.create({
+      username: 'hershelt',
+      email: process.env.EMAIL,
+      passwordHash: hashedPassword,
+      name: 'Hershel Thomas',
+      bio: '🎲 Sports betting enthusiast | Analytics-driven picks | Building RideMyLay',
+      profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hershelt',
+      isVerified: true,
+      role: 'admin',
+      streak: 7
+    });
     
     // Seed betting sites
     logger.info('Seeding betting sites...');
     const createdSites = await BettingSite.insertMany(bettingSites);
     
     // Create HershelT's bets
-    logger.info('Creating HershelT\'s bets...');    const hersheltBetData = hershelBets.map(bet => {
+    logger.info('Creating HershelT\'s bets...');    
+    const hersheltBetData = hershelBets.map(bet => {
       // Map selections to legs if they exist
       const legs = bet.selections || bet.legs;
       const { selections, ...betWithoutSelections } = bet;
