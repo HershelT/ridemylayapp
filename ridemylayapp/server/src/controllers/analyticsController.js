@@ -24,7 +24,7 @@ exports.getUserAnalytics = async (req, res, next) => {
       }
       userId = user._id;
     }    // Convert userId to ObjectId if it's a string
-    userId = mongoose.Types.ObjectId(userId);
+    userId = new mongoose.Types.ObjectId(userId);
 
     // Get total bets and wins for win rate
     const totalBets = await Bet.countDocuments({ userId });
