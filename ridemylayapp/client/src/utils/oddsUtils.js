@@ -28,27 +28,41 @@ export const convertAmericanToDecimal = (americanOdds) => {
 export const calculateParlayOdds = (legs) => {
   if (!legs?.length) return 0;
   
+  // Validate all legs have valid odds first
+  const validLegs = legs.filter(leg => leg.odds && leg.odds.trim() !== '' && leg.odds !== '-' && leg.odds !== '+');
+  if (validLegs.length === 0) return 0;
+  if (validLegs.length < legs.length) return 0; // Don't calculate if any leg is invalid
+  
   // Convert all legs to decimal and multiply
-  const decimalOdds = legs.reduce((acc, leg) => {
+  const decimalOdds = validLegs.reduce((acc, leg) => {
     const legOdds = parseAmericanOdds(leg.odds);
     if (!legOdds) return acc;
     const decimal = convertAmericanToDecimal(legOdds);
-    return acc * decimal;
+    return decimal ? acc * decimal : acc;
   }, 1);
 
-  // Convert back to American odds
+  // Convert back to American odds with proper rounding
   if (decimalOdds <= 1) return 0;
   if (decimalOdds >= 2) {
-    return Math.round((decimalOdds - 1) * 100);
+    const americanOdds = (decimalOdds - 1) * 100;
+    return Math.round(americanOdds);
   }
-  return Math.round(-100 / (decimalOdds - 1));
+  const americanOdds = -100 / (decimalOdds - 1);
+  return Math.round(americanOdds);
 };
 
 export const calculateWinnings = (stake, odds) => {
   if (!odds || isNaN(stake) || stake <= 0) return 0;
+  
+  // Convert odds to decimal format
   const decimalOdds = convertAmericanToDecimal(odds);
   if (!decimalOdds) return 0;
-  return Number((stake * (decimalOdds - 1)).toFixed(2));
+  
+  // Calculate winnings with more precision
+  const winnings = stake * (decimalOdds - 1);
+  
+  // Return formatted to 2 decimal places
+  return Number(Math.round(winnings * 100) / 100);
 };
 
 export const calculateImpliedProbability = (odds) => {

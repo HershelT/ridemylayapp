@@ -304,21 +304,35 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-      // Validate required fields are present
+    
+    // Validate required fields are present
     if (!formData.stake || formData.legs.some(leg => !leg.odds || !leg.team)) {
       toast.error('Please fill in all required fields');
       return;
-    }try {
-      const parsedStake = parseFloat(formData.stake);
-      const parsedOdds = parseAmericanOdds(formData.odds);
-      
-      // Validate the odds
-      if (!validateOdds(formData.odds)) {
-        toast.error('Odds value is outside reasonable limits');
+    }
+    
+    try {
+      const parsedStake = Math.round(parseFloat(formData.stake) * 100) / 100;
+      if (isNaN(parsedStake) || parsedStake <= 0) {
+        toast.error('Please enter a valid stake amount');
+        return;
+      }
+
+      // For single bets use the leg odds directly, for parlays calculate the total
+      let finalOdds;
+      if (formData.legs.length === 1) {
+        finalOdds = parseAmericanOdds(formData.legs[0].odds);
+      } else {
+        finalOdds = calculateParlayOdds(formData.legs);
+      }
+
+      // Validate the final odds
+      if (!finalOdds || !validateOdds(finalOdds.toString())) {
+        toast.error('Final odds value is outside reasonable limits');
         return;
       }
       
-      // For parlays, validate each leg
+      // Validate individual leg odds for parlays
       if (formData.legs.length > 1) {
         const invalidLeg = formData.legs.find(leg => !validateOdds(leg.odds));
         if (invalidLeg) {
@@ -327,13 +341,13 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
         }
       }
       
-      // Calculate winnings
-      const calculatedWinnings = calculateWinnings(parsedStake, parsedOdds);
+      // Calculate potential winnings using the final odds
+      const calculatedWinnings = calculateWinnings(parsedStake, finalOdds);
       
       const betPayload = {
         ...formData,
         stake: parsedStake,
-        odds: parsedOdds,
+        odds: finalOdds,
         potentialWinnings: calculatedWinnings,
         legs: formData.legs.map(leg => ({
           ...leg,
@@ -341,17 +355,22 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
         }))
       };
 
-      // Validate the parsed values
+      // Final validation of the payload
       if (isNaN(betPayload.odds) || betPayload.legs.some(leg => isNaN(leg.odds))) {
-        toast.error('Invalid odds value');
+        toast.error('Invalid odds value detected');
         return;
-      }      const response = await betAPI.createBet(betPayload);
+      }
+
+      setLoading(true);
+      const response = await betAPI.createBet(betPayload);
       const newBet = response.data;
       toast.success('Bet created successfully');
       navigate('/bets');
     } catch (error) {
       console.error('Error creating bet:', error);
-      toast.error('Failed to create bet');
+      toast.error(error.response?.data?.message || 'Failed to create bet');
+    } finally {
+      setLoading(false);
     }
   };
   
