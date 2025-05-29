@@ -7,16 +7,23 @@ const logger = require('../utils/logger');
  * @route   GET /api/users/:username
  * @access  Public
  */
-exports.getUserProfile = async (req, res, next) => {
-  try {    let user;
-    // Check if it's a valid MongoDB ID
-    if (req.params.username.match(/^[0-9a-fA-F]{24}$/)) {
-      user = await User.findById(req.params.username).populate('betCount');
+exports.getUserProfile = async (req, res, next) => {  
+    try {    
+        let user;
+      // Check if it's the current user ("me" route)
+    if (req.params.username === 'me' && req.user) {
+      user = await User.findById(req.user.id)
+        .populate('betCount');
+    }
+    // If not "me", check if it's a valid MongoDB ID
+    else if (req.params.username.match(/^[0-9a-fA-F]{24}$/)) {
+      user = await User.findById(req.params.username)
+        .populate('betCount');
     } 
-
     // If not found by ID or not a valid ID, try username
     if (!user) {
-      user = await User.findOne({ username: req.params.username }).populate('betCount');
+      user = await User.findOne({ username: req.params.username })
+        .populate('betCount');
     }
 
     if (!user) {
@@ -25,21 +32,39 @@ exports.getUserProfile = async (req, res, next) => {
         error: 'User not found' 
       });
     }    // Get user stats
-    const betsCount = await Bet.countDocuments({ userId: user._id });
-    const wonBetsCount = await Bet.countDocuments({ 
-      userId: user._id, 
-      status: 'won' 
-    });
-    
-    const userStats = {
-      betsCount,
-      wonBetsCount,
-      winRate: betsCount > 0 ? (wonBetsCount / betsCount) * 100 : 0
-    };
+    // Always use aggregate to get stats for consistency
+    const [stats] = await Bet.aggregate([
+      { $match: { userId: user._id } },
+      { 
+        $group: {
+          _id: null,
+          betsCount: { $sum: 1 },
+          wonBetsCount: { 
+            $sum: { $cond: [{ $eq: ['$status', 'won'] }, 1, 0] } 
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          betsCount: 1,
+          wonBetsCount: 1,
+          winRate: {
+            $cond: [
+              { $eq: ['$betsCount', 0] },
+              0,
+              { $multiply: [{ $divide: ['$wonBetsCount', '$betsCount'] }, 100] }
+            ]
+          }
+        }
+      }
+    ]) || { betsCount: 0, wonBetsCount: 0, winRate: 0 };
+
+    const userStats = stats;
 
     // If user doesn't have betCount populated, add it manually
     if (user && !user.betCount) {
-      user.betCount = betsCount;
+      user.betCount = stats.betsCount;
     }
 
     // Add isFollowing field if we have an authenticated user

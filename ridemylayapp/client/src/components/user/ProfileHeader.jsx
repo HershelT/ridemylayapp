@@ -88,7 +88,7 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
             }
           </div>            <div className="flex space-x-4 text-sm mb-3">
             <div>
-              <span className="font-bold">{user?.betCount || user?.stats?.betsCount || 0}</span> Bets
+              <span className="font-bold">{user?.stats?.betsCount || user?.betCount || 0}</span> Bets
             </div>
             {isOwnProfile ? (
               <>

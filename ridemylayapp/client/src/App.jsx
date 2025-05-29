@@ -72,7 +72,8 @@ const App = () => {
             <Route path="/post" element={isAuthenticated ? <Post /> : <Navigate to="/login" />} />
             <Route path="/messages" element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} /> 
             <Route path="/leaderboard" element={isAuthenticated ? <Leaderboard /> : <Navigate to="/login" />} />
-            <Route path="/profile/:userId?" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
+            <Route path="/profile" element={isAuthenticated ? <Navigate to="/profile/me" /> : <Navigate to="/login" />} />
+            <Route path="/profile/:userId" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
             <Route path="/bets/:id" element={isAuthenticated ? <BetDetails /> : <Navigate to="/login" />} />
           </Routes>
         </main>
