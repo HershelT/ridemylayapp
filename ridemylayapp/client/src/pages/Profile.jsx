@@ -230,20 +230,34 @@ const Profile = () => {
             <h3 className="text-lg font-bold mb-3">Sport Breakdown</h3>
             <div className="space-y-2">
               {analytics.sportBreakdown.map(sport => (
-                <div key={sport.sport} className="flex items-center justify-between">
+                <div key={sport.sport} className="flex items-center justify-between space-x-4">
                   <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>{sport.sport}</div>
-                      <div className="text-right">{sport.winRate.toFixed(1)}%</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-medium capitalize">{sport.sport}</div>
+                      <div className="text-right font-semibold">
+                        <span className={sport.winRate >= 50 ? 'text-green-500' : 'text-red-500'}>
+                          {sport.winRate.toFixed(1)}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full mt-1">
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div 
-                        className="h-full bg-green-500 rounded-full"
-                        style={{ width: `${sport.winRate}%` }}
+                        className={`h-full transition-all duration-500 rounded-full ${
+                          sport.winRate >= 60 ? 'bg-green-500' :
+                          sport.winRate >= 50 ? 'bg-green-400' :
+                          sport.winRate >= 40 ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ 
+                          width: `${Math.max(Math.min(sport.winRate, 100), 0)}%`,
+                          transition: 'width 1s ease-in-out'
+                        }}
                       />
                     </div>
                   </div>
-                  <div className="w-16 text-right text-sm text-gray-500">{sport.betsCount} bets</div>
+                  <div className="w-20 text-right text-sm text-gray-500 dark:text-gray-400 font-medium">
+                    {sport.betsCount} {sport.betsCount === 1 ? 'bet' : 'bets'}
+                  </div>
                 </div>
               ))}
             </div>
