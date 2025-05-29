@@ -50,6 +50,116 @@ const bettingSites = [
 ];
 
 const users = [
+    {
+        username: 'basketball_guru',
+        email: 'basketball_guru@example.com',
+        password: 'password123',
+        name: 'James Thompson',
+        bio: '🏀 NBA analytics expert | Former college player | 72% win rate on basketball picks',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=basketball_guru',
+        isVerified: true,
+        role: 'user',
+        streak: 9
+    },
+    {
+        username: 'bet_scientist',
+        email: 'bet_scientist@example.com',
+        password: 'password123',
+        name: 'Emma Reynolds',
+        bio: '📊 Data-driven bettor | Statistical modeling | Sports analytics researcher',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=bet_scientist',
+        isVerified: true,
+        role: 'user',
+        streak: 7
+    },
+    {
+        username: 'hockey_king',
+        email: 'hockey_king@example.com',
+        password: 'password123',
+        name: 'Alex Petrov',
+        bio: '🏒 NHL betting specialist | 10+ years following hockey | Canadian market expert',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hockey_king',
+        isVerified: true,
+        role: 'user',
+        streak: 4
+    },
+    {
+        username: 'underdog_hunter',
+        email: 'underdog@example.com',
+        password: 'password123',
+        name: 'Marcus Johnson',
+        bio: '🐕 Specializing in underdog picks | Finding value in plus money lines',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=underdog_hunter',
+        isVerified: true,
+        role: 'user',
+        streak: -1
+    },
+    {
+        username: 'prop_master',
+        email: 'prop_master@example.com',
+        password: 'password123',
+        name: 'Sophia Garcia',
+        bio: '🎯 Player prop specialist | Deep statistical analysis | Fantasy sports background',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=prop_master',
+        isVerified: true,
+        role: 'user',
+        streak: 6
+    },
+    {
+        username: 'basketball_guru',
+        email: 'basketball_guru@example.com',
+        password: 'password123',
+        name: 'James Thompson',
+        bio: '🏀 NBA analytics expert | Former college player | 72% win rate on basketball picks',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=basketball_guru',
+        isVerified: true,
+        role: 'user',
+        streak: 9
+    },
+    {
+        username: 'bet_scientist',
+        email: 'bet_scientist@example.com',
+        password: 'password123',
+        name: 'Emma Reynolds',
+        bio: '📊 Data-driven bettor | Statistical modeling | Sports analytics researcher',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=bet_scientist',
+        isVerified: true,
+        role: 'user',
+        streak: 7
+    },
+    {
+        username: 'hockey_king',
+        email: 'hockey_king@example.com',
+        password: 'password123',
+        name: 'Alex Petrov',
+        bio: '🏒 NHL betting specialist | 10+ years following hockey | Canadian market expert',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hockey_king',
+        isVerified: true,
+        role: 'user',
+        streak: 4
+    },
+    {
+        username: 'underdog_hunter',
+        email: 'underdog@example.com',
+        password: 'password123',
+        name: 'Marcus Johnson',
+        bio: '🐕 Specializing in underdog picks | Finding value in plus money lines',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=underdog_hunter',
+        isVerified: true,
+        role: 'user',
+        streak: -1
+    },
+    {
+        username: 'prop_master',
+        email: 'prop_master@example.com',
+        password: 'password123',
+        name: 'Sophia Garcia',
+        bio: '🎯 Player prop specialist | Deep statistical analysis | Fantasy sports background',
+        profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=prop_master',
+        isVerified: true,
+        role: 'user',
+        streak: 6
+    },
   {
     username: 'john_bettor',
     email: 'john@example.com',
@@ -221,6 +331,141 @@ const betTemplates = [
     visibility: "public"
   },
   {
+        title: 'NHL Stanley Cup Pick',
+        description: 'Tampa Bay looking dominant in this matchup. Strong goaltending gives them the edge.',
+        type: 'single',
+        stake: 75,
+        selections: [{
+            game: "Tampa Bay Lightning vs New York Rangers",
+            pick: "Lightning ML",
+            odds: -130,
+            status: "won",
+            sport: "hockey",
+            team: "Tampa Bay Lightning",
+            betType: "moneyline"
+        }],
+        status: "won",
+        visibility: "public"
+    },
+    {
+        title: 'MLB Home Run Props',
+        description: 'Judge and Ohtani both homering tonight. Power hitters against vulnerable pitching.',
+        type: 'parlay',
+        stake: 25,
+        selections: [
+            {
+                game: "Yankees vs Red Sox",
+                pick: "Aaron Judge to hit a HR",
+                odds: 275,
+                status: "won",
+                sport: "baseball",
+                team: "Aaron Judge",
+                betType: "player prop"
+            },
+            {
+                game: "Angels vs Mariners",
+                pick: "Shohei Ohtani to hit a HR",
+                odds: 300,
+                status: "lost",
+                sport: "baseball",
+                team: "Shohei Ohtani",
+                betType: "player prop"
+            }
+        ],
+        status: "lost",
+        visibility: "public"
+    },
+    {
+        title: 'NBA Player Props Parlay',
+        description: 'Focusing on rebounds tonight - both players facing teams weak on the glass.',
+        type: 'parlay',
+        stake: 50,
+        selections: [
+            {
+                game: "Bucks vs 76ers",
+                pick: "Giannis Over 12.5 Rebounds",
+                odds: -115,
+                status: "won",
+                sport: "basketball",
+                team: "Giannis Antetokounmpo",
+                betType: "over"
+            },
+            {
+                game: "Timberwolves vs Nuggets",
+                pick: "Rudy Gobert Over 11.5 Rebounds",
+                odds: -125,
+                status: "won",
+                sport: "basketball",
+                team: "Rudy Gobert",
+                betType: "over"
+            }
+        ],
+        status: "won",
+        visibility: "public"
+    },
+    {
+        title: 'NFL Underdog Special',
+        description: 'Dolphins getting too many points here. They match up well against this defense.',
+        type: 'single',
+        stake: 100,
+        selections: [{
+            game: "Miami Dolphins vs Buffalo Bills",
+            pick: "Dolphins +7.5",
+            odds: -110,
+            status: "won",
+            sport: "football",
+            team: "Miami Dolphins",
+            betType: "spread"
+        }],
+        status: "won",
+        visibility: "public"
+    },
+    {
+        title: 'Premier League Goals Parlay',
+        description: 'Both teams have been scoring freely while conceding regularly. Goals galore expected!',
+        type: 'parlay',
+        stake: 40,
+        selections: [
+            {
+                game: "Liverpool vs Manchester City",
+                pick: "Over 3.5 Goals",
+                odds: 140,
+                status: "won",
+                sport: "soccer",
+                team: "Liverpool vs Man City",
+                betType: "over/under"
+            },
+            {
+                game: "Arsenal vs Chelsea",
+                pick: "Both Teams to Score",
+                odds: -130,
+                status: "won",
+                sport: "soccer",
+                team: "Arsenal vs Chelsea",
+                betType: "both teams to score"
+            }
+        ],
+        status: "won",
+        visibility: "public"
+    },
+    {
+        title: 'Tennis Grand Slam Pick',
+        description: 'Djokovic in top form heading into this match. Experience gives him the edge.',
+        type: 'single',
+        stake: 200,
+        selections: [{
+            game: "Novak Djokovic vs Carlos Alcaraz",
+            pick: "Djokovic ML",
+            odds: -150,
+            status: "lost",
+            sport: "tennis",
+            team: "Novak Djokovic",
+            betType: "moneyline"
+        }],
+        status: "lost",
+        visibility: "public"
+    },
+  {
     title: 'NFL Sunday Special',
     description: 'Chiefs + Bills + Packers ML Parlay',
     type: 'parlay',
@@ -285,8 +530,8 @@ const seedDatabase = async () => {
     // Clear existing data except HershelT
     logger.info('Clearing existing database data...');
     await Promise.all([
-      User.deleteMany({ username: { $ne: 'hershelt' } }),
-      Bet.deleteMany({ userId: { $ne: hershelT._id } }),
+      User.deleteMany({ username: { $ne: 'hershelt' } }),      
+      Bet.deleteMany({}),
       BettingSite.deleteMany({}),
       Chat.deleteMany({}),
       Message.deleteMany({}),
@@ -358,11 +603,17 @@ const seedDatabase = async () => {
 
     // Create bets for other users
     logger.info('Creating bets for other users...');
-    const otherBetsData = betTemplates.map((bet, index) => ({
-      ...bet,
-      userId: createdUsers[index % createdUsers.length]._id,
-      bettingSiteId: createdSites[index % createdSites.length]._id
-    }));
+    const otherBetsData = betTemplates.map(bet => {
+        // Map selections to legs if they exist
+        const legs = bet.selections || bet.legs;
+        const { selections, ...betWithoutSelections } = bet;
+        return {
+            ...betWithoutSelections,
+            legs: legs,
+            userId: createdUsers[Math.floor(Math.random() * createdUsers.length)]._id,
+            bettingSiteId: createdSites[Math.floor(Math.random() * createdSites.length)]._id
+        };
+    });
     
     const createdOtherBets = await Promise.all(
       otherBetsData.map(bet => Bet.create(bet))
