@@ -31,10 +31,8 @@ const BetSchema = new mongoose.Schema(
           enum: ['won', 'lost', 'push', 'pending'],
           default: 'pending'
         }
-      }
-    ],    odds: {
+      }    ],    odds: {
       type: Number,
-      required: [true, 'Please provide total odds'],
       validate: {
         validator: function(v) {
           // Allow reasonable American odds range (-10000 to +10000)
@@ -50,8 +48,7 @@ const BetSchema = new mongoose.Schema(
       max: [1000000, 'Stake cannot exceed 1,000,000']
     },
     potentialWinnings: {
-      type: Number,
-      required: [true, 'Please provide potential winnings']
+      type: Number
     },
     status: {
       type: String,
@@ -125,5 +122,45 @@ BetSchema.index({ status: 1 });
 
 // Index for searching bets by sport
 BetSchema.index({ sport: 1 });
+
+// Calculate odds and potential winnings before saving
+BetSchema.pre('save', function(next) {
+  if (this.isModified('legs') || this.isModified('stake')) {
+    // Convert odds to numbers
+    const parsedLegs = this.legs.map(leg => ({
+      ...leg,
+      odds: typeof leg.odds === 'string' ? parseInt(leg.odds) : leg.odds
+    }));
+
+    // Calculate total odds
+    if (parsedLegs.length === 1) {
+      this.odds = parsedLegs[0].odds;
+    } else {
+      // Convert all legs to decimal and multiply
+      const decimalOdds = parsedLegs.reduce((acc, leg) => {
+        const decimal = leg.odds > 0
+          ? (leg.odds / 100) + 1
+          : (100 / Math.abs(leg.odds)) + 1;
+        return acc * decimal;
+      }, 1);
+
+      // Convert back to American odds
+      if (decimalOdds <= 1) this.odds = 0;
+      else if (decimalOdds >= 2) {
+        this.odds = Math.round((decimalOdds - 1) * 100);
+      } else {
+        this.odds = Math.round(-100 / (decimalOdds - 1));
+      }
+    }
+
+    // Calculate potential winnings
+    const decimalOdds = this.odds > 0
+      ? (this.odds / 100) + 1
+      : (100 / Math.abs(this.odds)) + 1;
+
+    this.potentialWinnings = Number(Math.round(this.stake * (decimalOdds - 1) * 100) / 100);
+  }
+  next();
+});
 
 module.exports = mongoose.model('Bet', BetSchema);
