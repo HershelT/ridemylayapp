@@ -458,7 +458,7 @@ const seedDatabase = async () => {
     // Clear existing data and HershelT
     logger.info('Clearing existing database data...');
     await Promise.all([
-      User.deleteMany({ }),      
+      User.deleteMany({}),      
       Bet.deleteMany({}),
       BettingSite.deleteMany({}),
       Chat.deleteMany({}),
@@ -467,14 +467,14 @@ const seedDatabase = async () => {
     ]);
 
     // Create HershelT user always
-    logger.info('Creating HershelT user...');
+    logger.info('Creating HershelT user...');      
+    const email = process.env.EMAIL || 'hershel@example.com'; // Use environment variable or default email
+    const password = process.env.PASSWORD || 'defaultPassword123'; // Use environment variable or default password
     
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(process.env.PASSWORD, salt);
     hershelT = await User.create({
       username: 'hershelt',
-      email: process.env.EMAIL,
-      passwordHash: hashedPassword,
+      email: email,
+      passwordHash: password, // Will be hashed by pre-save middleware
       name: 'Hershel Thomas',
       bio: '🎲 Sports betting enthusiast | Analytics-driven picks | Building RideMyLay',
       profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hershelt',
@@ -482,6 +482,8 @@ const seedDatabase = async () => {
       role: 'admin',
       streak: 7
     });
+
+    logger.info(`Created HershelT user with ID: ${hershelT._id}, Username: hershelt`);
     
     // Seed betting sites
     logger.info('Seeding betting sites...');
@@ -507,13 +509,10 @@ const seedDatabase = async () => {
     );
 
     // Seed other users with hashed passwords
-    logger.info('Seeding other users...');
-    const userPromises = users.map(async (user) => {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(user.password, salt);
+    logger.info('Seeding other users...');    const userPromises = users.map(async (user) => {
       return {
         ...user,
-        passwordHash: hashedPassword,
+        passwordHash: user.password, // Will be hashed by pre-save middleware
         password: undefined,
         preferredBettingSites: [createdSites[Math.floor(Math.random() * createdSites.length)]._id]
       };

@@ -26,15 +26,10 @@ const Login = () => {  const [formData, setFormData] = useState({
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-  
-  const handleSubmit = async (e) => {
+    const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    const result = await login({ emailOrUsername, password });
-    
-    if (result.success) {
-      navigate('/');
-    }
+    await login({ emailOrUsername, password });
+    // Remove navigation here since useEffect will handle it
   };
     return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">
