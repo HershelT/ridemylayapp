@@ -157,4 +157,30 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * @desc    Get replies to a comment
+ * @route   GET /api/comments/:id/replies
+ * @access  Public
+ */
+router.get('/:id/replies', async (req, res, next) => {
+  try {
+    const commentId = req.params.id;
+
+    // Find all replies to this comment
+    const replies = await Comment.find({ parentId: commentId })
+      .sort('-createdAt')
+      .populate('userId', 'username avatarUrl verified')
+      .populate('replyToUserId', 'username avatarUrl verified');
+
+    res.status(200).json({
+      success: true,
+      count: replies.length,
+      replies
+    });
+  } catch (error) {
+    logger.error(`Get comment replies error for ID ${req.params.id}:`, error);
+    next(error);
+  }
+});
+
 module.exports = router;

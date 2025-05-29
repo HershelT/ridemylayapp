@@ -175,16 +175,16 @@ const BetDetails = () => {  const { id } = useParams();
       setActionLoading(prev => ({ ...prev, share: false }));
     }
   };
-    // Handle adding a comment
-  const handleAddComment = async (betId, content, parentId) => {
+  // Handle adding a comment
+  const handleAddComment = async (betId, content, parentId, replyToUsername, replyToUserId) => {
     if (!user) {
       toast.error('Please log in to comment');
       return;
     }
     
     try {
-      // Add the comment - this already updates the local state
-      const newComment = await addComment(betId, content, parentId);
+      // Add the comment with reply information if provided
+      const newComment = await addComment(betId, content, parentId, replyToUsername, replyToUserId);
       
       if (!newComment) {
         toast.error('Failed to add comment');

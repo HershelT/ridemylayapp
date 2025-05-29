@@ -20,8 +20,19 @@ const CommentList = ({
     
     setIsSubmitting(true);
     try {
-      // Use await to ensure we handle errors properly
-      await onAddComment(betId, newComment, replyTo?._id);
+      // Send reply information along with the comment
+      if (replyTo) {
+        await onAddComment(
+          betId, 
+          newComment, 
+          replyTo._id, 
+          replyTo.user?.username, 
+          replyTo.user?._id
+        );
+      } else {
+        await onAddComment(betId, newComment);
+      }
+      
       setNewComment('');
       setReplyTo(null);
     } catch (error) {
@@ -98,18 +109,38 @@ const CommentList = ({
         <div className="py-4 text-center text-gray-500 dark:text-gray-400">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500 mx-auto mb-2"></div>
           Loading comments...
-        </div>
-      ) : comments && comments.length > 0 ? (
-        <div className="space-y-1">
-          {[...comments].map((comment) => (
-            <Comment
-              key={comment._id}
-              comment={comment}
-              currentUserId={currentUserId}
-              onLike={onLikeComment}
-              onReply={handleReply}
-              onDelete={onDeleteComment}
-            />
+        </div>      ) : comments && comments.length > 0 ? (
+        <div className="space-y-4">
+          {/* Filter for top-level comments only - those without a parentId */}
+          {[...comments].filter(comment => !comment.parentId).map((comment) => (
+            <div key={comment._id} className="comment-thread">
+              <Comment
+                comment={comment}
+                currentUserId={currentUserId}
+                onLike={onLikeComment}
+                onReply={handleReply}
+                onDelete={onDeleteComment}
+              />
+              
+              {/* Display replies to this comment */}
+              {comments.filter(reply => reply.parentId === comment._id).length > 0 && (
+                <div className="ml-8 mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-3">
+                  {comments
+                    .filter(reply => reply.parentId === comment._id)
+                    .map(reply => (
+                      <Comment
+                        key={reply._id}
+                        comment={reply}
+                        currentUserId={currentUserId}
+                        onLike={onLikeComment}
+                        onReply={handleReply}
+                        onDelete={onDeleteComment}
+                      />
+                    ))
+                  }
+                </div>
+              )}
+            </div>
           ))}
         </div>
       ) : (

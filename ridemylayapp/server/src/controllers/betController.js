@@ -303,27 +303,50 @@ exports.toggleLike = async (req, res, next) => {
 exports.getBetComments = async (req, res, next) => {
   try {
     const {
-      page = 1,
-      limit = 10,
       sort = '-createdAt'
     } = req.query;
-
-    // Pagination
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
 
     // Get all comments for this bet
     const comments = await Comment.find({ 
       betId: req.params.id
     })
       .sort(sort)
-      .populate('userId', 'username avatarUrl verified');
+      .populate('userId', 'username avatarUrl verified')
+      .populate('replyToUserId', 'username avatarUrl verified');
+
+    // Organize comments into threads
+    // Top-level comments (no parentId) come first, followed by their replies
+    const topLevelComments = comments.filter(c => !c.parentId);
+    const replies = comments.filter(c => c.parentId);
+
+    // Create a map for faster lookup
+    const commentMap = {};
+    comments.forEach(comment => {
+      commentMap[comment._id] = {
+        ...comment.toObject(),
+        replies: []
+      };
+    });
+
+    // Attach replies to their parent comments
+    replies.forEach(reply => {
+      const parentId = reply.parentId.toString();
+      if (commentMap[parentId]) {
+        commentMap[parentId].replies.push(reply);
+      }
+    });
+
+    // Prepare the final response - include organized comments
+    const organizedComments = topLevelComments.map(comment => ({
+      ...comment.toObject(),
+      replies: commentMap[comment._id]?.replies || []
+    }));
 
     res.status(200).json({
       success: true,
       count: comments.length,
-      comments
+      comments,
+      organizedComments
     });
   } catch (error) {
     logger.error(`Get comments error for bet ID ${req.params.id}:`, error);
@@ -338,7 +361,7 @@ exports.getBetComments = async (req, res, next) => {
  */
 exports.addComment = async (req, res, next) => {
   try {
-    const { content, parentId } = req.body;
+    const { content, parentId, replyToUsername, replyToUserId } = req.body;
 
     // Find bet
     const bet = await Bet.findById(req.params.id);
@@ -348,12 +371,16 @@ exports.addComment = async (req, res, next) => {
         success: false,
         error: 'Bet not found'
       });
-    }    // Create comment
+    }    
+    
+    // Create comment with reply information if provided
     const comment = await Comment.create({
       userId: req.user.id,
       betId: req.params.id,
       content,
-      parentId
+      parentId,
+      replyToUsername,
+      replyToUserId
     });
 
     // Add comment to bet's comments array

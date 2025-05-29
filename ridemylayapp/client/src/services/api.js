@@ -75,11 +75,10 @@ export const betAPI = {
   updateBet: (betId, betData) => api.put(`/bets/${betId}`, betData),
   deleteBet: (betId) => api.delete(`/bets/${betId}`),
   updateBetStatus: (betId, statusData) => api.put(`/bets/${betId}/status`, statusData),
-  toggleLike: (betId) => api.put(`/bets/${betId}/like`),
-  getBetComments: (betId, page = 1, limit = 10) => 
+  toggleLike: (betId) => api.put(`/bets/${betId}/like`),  getBetComments: (betId, page = 1, limit = 10) => 
     api.get(`/bets/${betId}/comments`, { params: { page, limit } }),
-  addComment: (betId, content, parentId) => 
-    api.post(`/bets/${betId}/comments`, { content, parentId }),
+  addComment: (betId, content, parentId, replyToUsername, replyToUserId) => 
+    api.post(`/bets/${betId}/comments`, { content, parentId, replyToUsername, replyToUserId }),
   toggleRide: (betId) => api.put(`/bets/${betId}/ride`),
   toggleHedge: (betId) => api.put(`/bets/${betId}/hedge`),
   shareBet: (betId, platform) => api.post(`/bets/${betId}/share`, { platform }),
@@ -93,6 +92,7 @@ export const commentAPI = {
   updateComment: (commentId, content) => api.put(`/comments/${commentId}`, { content }),
   deleteComment: (commentId) => api.delete(`/comments/${commentId}`),
   likeComment: (commentId) => api.put(`/comments/${commentId}/like`),
+  getCommentReplies: (commentId) => api.get(`/comments/${commentId}/replies`),
 };
 
 // Betting Sites API calls

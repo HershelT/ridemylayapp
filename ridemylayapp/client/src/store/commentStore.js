@@ -28,8 +28,7 @@ const useCommentStore = create(
         const serverComments = response.data.comments || [];
         
         console.log("Received comments from server:", serverComments);
-        
-        // Map server comments to handle MongoDB extended JSON format
+          // Map server comments to handle MongoDB extended JSON format
         const mappedComments = serverComments.map(comment => {
           const userId = comment.userId?._id || comment.userId?.$oid || comment.userId;
           const user = comment.userId?.username ? comment.userId : comment.user;
@@ -39,6 +38,9 @@ const useCommentStore = create(
             content: comment.content,
             userId: userId,
             betId: comment.betId?.$oid || comment.betId,
+            parentId: comment.parentId?.$oid || comment.parentId || null,
+            replyToUsername: comment.replyToUsername || null,
+            replyToUserId: comment.replyToUserId?.$oid || comment.replyToUserId || null,
             likes: comment.likes?.map(like => like.$oid || like) || [],
             createdAt: comment.createdAt?.$date?.$numberLong 
               ? new Date(parseInt(comment.createdAt.$date.$numberLong)).toISOString()
@@ -79,7 +81,7 @@ const useCommentStore = create(
         return [];
       }
     },    // Add a new comment      
-    addComment: async (betId, content, parentId = null) => {
+    addComment: async (betId, content, parentId = null, replyToUsername = null, replyToUserId = null) => {
       const currentUser = useAuthStore.getState().user;
       if (!currentUser) {
         throw new Error('User must be logged in to comment');
@@ -96,6 +98,8 @@ const useCommentStore = create(
         createdAt: new Date().toISOString(),
         likes: [],
         parentId: parentId || null,  // Ensure null for top-level comments
+        replyToUsername,
+        replyToUserId,
         isTemp: true,
         user: {  // Include populated user data in the same format as server
           _id: currentUser._id,
@@ -113,11 +117,15 @@ const useCommentStore = create(
             : [tempComment],
         },
       }));      
-      
-      try {      
+        try {      
         // Make the actual API call
-        console.log("Sending comment to server:", { content, parentId });
-        const response = await commentAPI.addComment(betId, { content, parentId });
+        console.log("Sending comment to server:", { content, parentId, replyToUsername, replyToUserId });
+        const response = await commentAPI.addComment(betId, { 
+          content, 
+          parentId,
+          replyToUsername,
+          replyToUserId
+        });
         console.log("Server response:", response.data);
         
         const serverComment = response.data.comment;
@@ -125,13 +133,15 @@ const useCommentStore = create(
         // Transform the server response to match our format
         const userId = serverComment.userId?._id || serverComment.userId?.$oid || serverComment.userId;
         const user = serverComment.userId?.username ? serverComment.userId : serverComment.user;
-        
-        const newComment = {
+          const newComment = {
           _id: serverComment._id?.$oid || serverComment._id,
           content: serverComment.content,
           userId: userId,
           betId: serverComment.betId?.$oid || serverComment.betId,
           likes: serverComment.likes?.map(like => like.$oid || like) || [],
+          parentId: serverComment.parentId || null,
+          replyToUsername: serverComment.replyToUsername || null,
+          replyToUserId: serverComment.replyToUserId || null,
           createdAt: serverComment.createdAt?.$date?.$numberLong 
             ? new Date(parseInt(serverComment.createdAt.$date.$numberLong)).toISOString()
             : serverComment.createdAt,

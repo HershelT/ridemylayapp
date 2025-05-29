@@ -21,10 +21,18 @@ const CommentSchema = new mongoose.Schema(
     likes: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
-    }],
-    parentId: {
+    }],    parentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Comment'
+    },
+    replyToUsername: {
+      type: String,
+      default: null
+    },
+    replyToUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     },
     isEdited: {
       type: Boolean,
