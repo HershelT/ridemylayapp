@@ -30,8 +30,9 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
       }
     };
 
-    // Join chat room
+    // Join chat room and subscribe to notifications
     socketService.joinChatRoom(chat._id);
+    socketService.subscribeToNotifications();
     fetchMessages();
 
     // Setup message listener
@@ -41,6 +42,14 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
         scrollToBottom();
         // Mark message as read since we're in the chat
         socketService.markMessagesAsRead(chat._id);
+      }
+    });
+
+    // Setup notification listener
+    const notificationCleanup = socketService.onNewNotification((notification) => {
+      if (notification.entityType === 'chat' && notification.entityId === chat._id) {
+        // Chat notifications will be handled by the notification system
+        console.log('New chat notification received:', notification);
       }
     });
 
@@ -61,9 +70,10 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
     return () => {
       socketService.leaveChatRoom(chat._id);
       messageCleanup();
+      notificationCleanup();
       typingCleanup();
     };
-  }, [chat._id]);
+  }, [chat._id, user._id]);
 
   // Scroll to bottom when messages change
   const scrollToBottom = () => {

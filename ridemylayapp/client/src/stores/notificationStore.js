@@ -7,6 +7,35 @@ const useNotificationStore = create((set, get) => ({
   loading: true,
   error: null,
 
+  init: () => {
+    // Listen for notifications_init event
+    window.addEventListener('notifications_init', (event) => {
+      const notifications = event.detail;
+      set({ notifications, loading: false });
+    });
+
+    // Listen for new_notification event
+    window.addEventListener('new_notification', (event) => {
+      const notification = event.detail;
+      set(state => ({
+        notifications: [notification, ...state.notifications],
+        unreadCount: state.unreadCount + 1
+      }));
+
+      // Show browser notification
+      if (Notification.permission === 'granted') {
+        const title = notification.type === 'message' 
+          ? `New message from ${notification.sender.username}`
+          : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
+
+        new Notification(title, {
+          body: notification.content,
+          icon: '/favicon.ico'
+        });
+      }
+    });
+  },
+
   fetchNotifications: async () => {
     set({ loading: true });
     try {

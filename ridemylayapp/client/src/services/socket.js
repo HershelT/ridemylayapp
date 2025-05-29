@@ -68,7 +68,24 @@ const createSocket = () => {
 // Get or create socket instance
 const getSocket = () => {
   if (!socket) {
-    return createSocket();
+    socket = createSocket();
+    
+    // Set up global socket event listeners
+    if (socket) {
+      socket.on('notifications_init', (notifications) => {
+        // This will be handled by the notification store
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('notifications_init', { detail: notifications }));
+        }
+      });
+
+      socket.on('new_notification', (notification) => {
+        // This will be handled by the notification store
+        if (window.dispatchEvent) {
+          window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
+        }
+      });
+    }
   }
   return socket;
 };
@@ -102,6 +119,25 @@ const markMessagesAsRead = (chatId) => {
   }
 };
 
+const sendChatMessage = (message) => {
+  const s = getSocket();
+  if (s) {
+    s.emit('new_message', message);
+  }
+};
+
+const onMessageReceived = (callback) => {
+  const s = getSocket();
+  if (s) {
+    s.on('message_received', callback);  // Now matches server's emit event
+  }
+  return () => {
+    if (s) {
+      s.off('message_received', callback);
+    }
+  };
+};
+
 // Bet events
 const emitBetInteraction = (betId, type, data) => {
   const s = getSocket();
@@ -115,18 +151,6 @@ const emitBetInteraction = (betId, type, data) => {
 };
 
 // Add listeners for socket events
-const onMessageReceived = (callback) => {
-  const s = getSocket();
-  if (s) {
-    s.on('message_received', callback); // Make sure this matches the server event
-  }
-  return () => {
-    if (s) {
-      s.off('message_received', callback);
-    }
-  };
-};
-
 const onUserTyping = (callback) => {
   const s = getSocket();
   if (s) {
@@ -244,13 +268,6 @@ const disconnectSocket = () => {
   }
 };
 
-
-const sendChatMessage = (message) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.emit('new_message', message); // Changed from 'new message' to 'new_message'
-  }
-};
 
 const subscribeToMessages = (callback) => {
   const socket = getSocket();

@@ -1,28 +1,24 @@
 import React, { useEffect } from 'react';
 import { BsBell } from 'react-icons/bs';
 import useNotificationStore from '../../stores/notificationStore';
-import { subscribeToNotifications } from '../../services/notificationService';
+import socketService from '../../services/socket';
 
 const NotificationBadge = () => {
-  const { unreadCount, fetchUnreadCount, addNotification } = useNotificationStore();
+  const { unreadCount, fetchUnreadCount, init } = useNotificationStore();
 
   useEffect(() => {
+    // Initialize notification listener
+    init();
+    // Subscribe to notifications via socket
+    socketService.subscribeToNotifications();
+    // Fetch initial unread count
     fetchUnreadCount();
-
-    // Subscribe to new notifications
-    const unsubscribe = subscribeToNotifications((notification) => {
-      addNotification(notification);
-    });
 
     // Request notification permission if not granted
     if (Notification.permission === 'default') {
       Notification.requestPermission();
     }
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+  }, [init, fetchUnreadCount]);
 
   return (
     <div className="relative">
