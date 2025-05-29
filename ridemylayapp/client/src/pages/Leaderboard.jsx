@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { userAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
 
 const Leaderboard = () => {
   const navigate = useNavigate();
@@ -30,22 +31,22 @@ const Leaderboard = () => {
       if (!response?.data?.leaderboard) {
         throw new Error('Invalid leaderboard data received');
       }
-        const formattedData = response.data.leaderboard.map((user, index) => {
-        // Get the following state from auth store as source of truth
-        const isFollowingFromStore = useAuthStore.getState().isFollowingUser(user._id);
-        
-        return {
-          _id: user._id,
-          rank: (page - 1) * 10 + index + 1,
-          username: user.username || 'Unknown User',
-          avatarUrl: user.avatarUrl || '',
-          verified: user.verified || false,
-          winRate: user.winRate ? Math.round(user.winRate) : 0,
-          profitLoss: user.profit || 0,
-          streak: user.streak || 0,
-          following: isFollowingFromStore,
-        };
-      });
+
+      // Get auth store's isFollowingUser function
+      const isFollowingUser = useAuthStore.getState().isFollowingUser;
+      
+      // Format data and initialize follow states from auth store
+      const formattedData = response.data.leaderboard.map((user, index) => ({
+        _id: user._id,
+        rank: (page - 1) * 10 + index + 1,
+        username: user.username || 'Unknown User',
+        avatarUrl: user.avatarUrl || '',
+        verified: user.verified || false,
+        winRate: user.winRate ? Math.round(user.winRate) : 0,
+        profitLoss: user.profit || 0,
+        streak: user.streak || 0,
+        following: isFollowingUser(user._id),
+      }));
 
       setLeaderboardData(formattedData);
       setTotalPages(response.data.pages);
@@ -56,42 +57,32 @@ const Leaderboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-  const handleFollowToggle = async (username) => {
+  };  const handleFollowToggle = async (username) => {
     try {
       const userToUpdate = leaderboardData.find(u => u.username === username);
       if (!userToUpdate) return;
 
-      // Call API first - let the auth store handle the state
-      const response = await userAPI.toggleFollow(username);
+      // Call the auth store action to handle the follow/unfollow
+      const response = await useAuthStore.getState().followUser(username);
       
-      // Update local state based on auth store's state
-      setLeaderboardData(prevData => 
-        prevData.map(user => {
-          if (user.username === username) {
-            return { 
-              ...user, 
-              following: useAuthStore.getState().isFollowingUser(user._id)
-            };
-          }
-          return user;
-        })
-      );
-
-      // If we're in the friends view and unfollowing, we need to refresh the data
-      if (leaderboardType === 'friends' && !newFollowState) {
-        // Remove the unfollowed user from the friends view immediately
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update follow status');
+      }
+      
+      // Handle the response
+      if (leaderboardType === 'friends' && !response.isFollowing) {
+        // If unfollowing in friends view, remove the user immediately
         setLeaderboardData(prevData => prevData.filter(user => user.username !== username));
-        // Then refresh the data to get updated rankings, but with a small delay
+        // Then refresh the data to get updated rankings, but with a delay
         setTimeout(() => fetchLeaderboardData(), 500);
       } else {
-        // For other views, just update the local state with the server response
+        // Update the follow status in the local state
         setLeaderboardData(prevData => 
           prevData.map(user => {
             if (user.username === username) {
               return { 
                 ...user, 
-                following: response.data.isFollowing 
+                following: response.isFollowing 
               };
             }
             return user;
@@ -99,17 +90,8 @@ const Leaderboard = () => {
         );
       }
     } catch (error) {
-      // Revert optimistic update on error
-      setLeaderboardData(prevData => 
-        prevData.map(user => {
-          if (user.username === username) {
-            return { ...user, following: !user.following };
-          }
-          return user;
-        })
-      );
       console.error('Error toggling follow:', error);
-      toast.error('Failed to update follow status');
+      toast.error(error.message || 'Failed to update follow status');
     }
   };
 

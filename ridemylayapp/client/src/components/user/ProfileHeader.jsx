@@ -6,7 +6,8 @@ import useAuthStore from '../../store/authStore';
 const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
   const [showEditModal, setShowEditModal] = useState(false);
   const followUser = useAuthStore(state => state.followUser);
-  const isFollowing = user?._id ? useAuthStore(state => state.isFollowingUser(user._id)) : false;
+  const isFollowingUser = useAuthStore(state => state.isFollowingUser);
+  const isFollowing = !!user?._id && isFollowingUser(user._id);
 
   // Update follower count when user prop changes
   useEffect(() => {
