@@ -54,11 +54,15 @@ exports.register = async (req, res, next) => {
  * @access  Public
  */
 exports.login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
+  try {    const { emailOrUsername, password } = req.body;
 
-    // Check if user exists
-    const user = await User.findOne({ email }).select('+passwordHash');
+    // Check if user exists by email or username
+    const user = await User.findOne({
+      $or: [
+        { email: emailOrUsername.toLowerCase() },
+        { username: emailOrUsername }
+      ]
+    }).select('+passwordHash');
 
     if (!user) {
       return res.status(401).json({ 

@@ -3,13 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaExclamationCircle } from 'react-icons/fa';
 import useAuthStore from '../store/authStore';
 
-const Login = () => {
-  const [formData, setFormData] = useState({
-    email: '',
+const Login = () => {  const [formData, setFormData] = useState({
+    emailOrUsername: '',
     password: '',
   });
   
-  const { email, password } = formData;
+  const { emailOrUsername, password } = formData;
   const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
   const navigate = useNavigate();
   
@@ -31,7 +30,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const result = await login({ email, password });
+    const result = await login({ emailOrUsername, password });
     
     if (result.success) {
       navigate('/');
@@ -64,17 +63,16 @@ const Login = () => {
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <FaEnvelope className="h-5 w-5 text-gray-500" />
-              </div>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+              </div>              <input
+                id="emailOrUsername"
+                name="emailOrUsername"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
+                value={emailOrUsername}
                 onChange={handleChange}
                 className="appearance-none rounded-none relative block w-full px-3 py-3 pl-10 border border-gray-700 bg-gray-700/50 placeholder-gray-500 text-gray-100 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
+                placeholder="Email or Username"
               />
             </div>
             <div className="relative">
