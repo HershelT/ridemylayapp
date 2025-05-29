@@ -172,7 +172,7 @@ const Leaderboard = () => {
         ) : leaderboardData.length === 0 ? (
           <div className="text-center py-8">No data found for the selected filters.</div>
         ) : (
-          <>            <div className="grid grid-cols-12 py-2 px-4 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-600 dark:text-gray-300 text-sm">
+          <>            <div className="grid grid-cols-12 py-2 px-4 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-700 dark:text-gray-200 text-sm">
               <div className="col-span-1">#</div>
               <div className="col-span-5">User</div>
               <div className="col-span-2 text-center">Win Rate</div>
