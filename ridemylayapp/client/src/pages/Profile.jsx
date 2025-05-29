@@ -27,8 +27,8 @@ const Profile = () => {
         return;
       }
 
-      // For analytics tab, only fetch if it's own profile and we have a target
-      if (tab === 'analytics' && isOwnProfile && target) {
+      // For analytics tab, fetch if we have a target
+      if (tab === 'analytics' && target) {
         const analyticsResponse = await userAPI.getUserAnalytics(target);
         if (analyticsResponse.data.analytics) {
           setAnalytics(analyticsResponse.data.analytics);
@@ -51,12 +51,13 @@ const Profile = () => {
             });
             
             setLikes(likesResponse.data.bets || []);
+            setActiveTab(tab);
           } catch (error) {
             console.error('Error fetching liked bets:', error);
             setLikes([]);
             setError('Failed to load liked bets');
           }
-          break;
+          return; // Return here to prevent setActiveTab being called twice
           
         default:
           throw new Error('Invalid tab selection');
@@ -190,7 +191,7 @@ const Profile = () => {
       );
     }
 
-    if (activeTab === 'analytics' && isOwnProfile) {
+    if (activeTab === 'analytics') {
       if (!analytics) {
         return (
           <div className="text-center py-8 text-gray-500">
@@ -308,18 +309,16 @@ const Profile = () => {
           >
             Likes
           </button>
-          {isOwnProfile && (
-            <button
-              className={`px-4 py-2 font-medium ${
-                activeTab === 'analytics' 
-                  ? 'text-blue-600 border-b-2 border-blue-600' 
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => fetchTabData('analytics')}
-            >
-              Analytics
-            </button>
-          )}
+          <button
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'analytics' 
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => fetchTabData('analytics')}
+          >
+            Analytics
+          </button>
         </div>
         
         {renderTabContent()}
