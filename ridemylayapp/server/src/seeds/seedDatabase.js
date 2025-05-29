@@ -338,7 +338,7 @@ const seedDatabase = async () => {
     // Clear existing data
     logger.info('Clearing existing database data...');
     await Promise.all([
-      User.deleteMany({}),
+      User.deleteMany({ username: { $ne: 'hershelt' } }),
       Bet.deleteMany({}),
       BettingSite.deleteMany({}),
       Chat.deleteMany({}),

@@ -166,24 +166,35 @@ const BetCard = ({ bet }) => {
         </Link>
         
         <div className="ml-auto text-right">
-          <div className="flex items-center justify-end">            <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden">
-              <img
-                src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
-                alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.target.src = '/assets/images/placeholder-logo.png';
-                  e.target.onerror = null;
-                }}
-              />
-            </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{bet.bettingSite?.name || 'Betting Site'}</span>
-          </div>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {new Date(bet.timestamp).toLocaleDateString()}
-          </span>
+            <Link to={`${bet.websiteUrl || bet.bettingSiteId?.websiteUrl || bet.bettingSite?.websiteUrl || '#'}`}>
+                <div className="flex items-center justify-end">            <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden">
+                    <img
+                        src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
+                        alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                        e.target.src = '/assets/images/placeholder-logo.png';
+                        e.target.onerror = null;
+                        }}
+                    />
+                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} </span>
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(bet.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    })} 
+                    {` • ${new Date(bet.createdAt).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    })}`}
+                </span>
+            </Link>
         </div>
       </div>
+        
       
       {/* Bet Details */}
       <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mb-3">
