@@ -8,10 +8,16 @@ const logger = require('../utils/logger');
  * @access  Public
  */
 exports.getUserProfile = async (req, res, next) => {
-  try {
-    const user = await User.findOne({ 
-      username: req.params.username 
-    });
+  try {    let user;
+    // Check if it's a valid MongoDB ID
+    if (req.params.username.match(/^[0-9a-fA-F]{24}$/)) {
+      user = await User.findById(req.params.username);
+    } 
+
+    // If not found by ID or not a valid ID, try username
+    if (!user) {
+      user = await User.findOne({ username: req.params.username });
+    }
 
     if (!user) {
       return res.status(404).json({ 

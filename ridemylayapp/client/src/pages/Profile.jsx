@@ -20,6 +20,7 @@ const Profile = () => {
     setError(null);
 
     try {
+      // Get user profile data
       const userResponse = !userId || userId === 'me' 
         ? await authAPI.getCurrentUser()
         : await userAPI.getProfile(userId);
@@ -28,18 +29,20 @@ const Profile = () => {
         throw new Error('User not found');
       }
       
-      setUser(userResponse.data.user);
-      setIsOwnProfile(!userId || userId === 'me' || userId === userResponse.data.user._id);
+      const isOwn = !userId || userId === 'me' || userId === userResponse.data.user._id;
       
-      // Load initial tab data only after we have the user
-      await fetchTabData(activeTab, userResponse.data.user._id);
+      setUser(userResponse.data.user);
+      setIsOwnProfile(isOwn);
+      
+      // Now that we have user data, load initial tab data
+      await fetchTabData(activeTab);
     } catch (error) {
       console.error('Error fetching user data:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
-  }, [userId, activeTab]);
+  }, [userId, activeTab, fetchTabData]);
 
   useEffect(() => {
     fetchUserData();
@@ -50,10 +53,29 @@ const Profile = () => {
 
     try {
       // Determine the target user identifier
-      // If no userId or it's 'me', use 'me', otherwise use the user's username
-      const target = !userId || userId === 'me' ? 'me' : user?.username;
-      if (!target) {
+      // If no userId or it's 'me', use 'me', otherwise use the stored user info
+      const target = !userId || userId === 'me' 
+        ? 'me' 
+        : user?.username;
+
+      // If we don't have a target yet and we're not loading the profile, throw an error
+      if (!target && !loading) {
         throw new Error('No user information available');
+      }
+
+      // For analytics tab, only fetch if it's own profile and we have a target
+      if (tab === 'analytics' && isOwnProfile && target) {
+        const analyticsResponse = await userAPI.getUserAnalytics(target);
+        if (analyticsResponse.data.analytics) {
+          setAnalytics(analyticsResponse.data.analytics);
+        }
+        setActiveTab(tab);
+        return;
+      }
+
+      // For other tabs, we need a valid target
+      if (!target) {
+        return;
       }
 
       switch (tab) {
@@ -71,15 +93,6 @@ const Profile = () => {
           }
           break;
           
-        case 'analytics':
-          if (isOwnProfile) {
-            const analyticsResponse = await userAPI.getUserAnalytics(target);
-            if (analyticsResponse.data.analytics) {
-              setAnalytics(analyticsResponse.data.analytics);
-            }
-          }
-          break;
-          
         default:
           throw new Error('Invalid tab selection');
       }
@@ -91,7 +104,7 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  }, [userId, user?.username, isOwnProfile]);
+  }, [userId, user?.username, isOwnProfile, loading]);
 
   if (loading) {
     return (
