@@ -42,10 +42,10 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
       onLike(_id);
     }
   };
-
   const handleReply = () => {
     if (onReply) {
-      onReply(_id);
+      // Pass the entire comment object instead of just the ID
+      onReply(comment);
     }
     setShowOptions(false);
   };

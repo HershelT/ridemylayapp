@@ -31,11 +31,18 @@ const CommentList = ({
       setIsSubmitting(false);
     }
   };
-  
-  const handleReply = (comment) => {
-    setReplyTo(comment);
-    // Focus the comment input field
-    document.getElementById('comment-input').focus();
+    const handleReply = (comment) => {
+    // Ensure the comment has a valid user object before setting as replyTo
+    if (comment && comment.content) {
+      // Make sure user property is always defined with at least an empty object
+      const safeComment = {
+        ...comment,
+        user: comment.user || { username: 'Anonymous' }
+      };
+      setReplyTo(safeComment);
+      // Focus the comment input field
+      document.getElementById('comment-input')?.focus();
+    }
   };
   
   return (
@@ -46,10 +53,9 @@ const CommentList = ({
       
       {/* Comment form */}
       <form onSubmit={handleSubmit} className="mb-4">
-        <div className="relative">
-          {replyTo && (
+        <div className="relative">          {replyTo && (
             <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 text-xs px-3 py-1 rounded-t-md border-t border-x border-blue-200 dark:border-blue-800">
-              Replying to <span className="font-semibold">@{replyTo.user.username}</span>
+              Replying to <span className="font-semibold">@{replyTo.user?.username || 'Anonymous'}</span>
               <button 
                 type="button"
                 onClick={() => setReplyTo(null)}
