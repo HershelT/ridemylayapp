@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus, FaMinus, FaTimes } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
 import { betAPI, bettingSiteAPI } from '../../services/api';
 
@@ -177,8 +178,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     
     calculateWinnings();
   }, [formData.stake, formData.odds]);
-  
-  // Handle form input changes
+    // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -186,7 +186,49 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
       [name]: value
     }));
   };
-  
+
+  // Handle odds input changes
+  const handleOddsChange = (e) => {
+    const value = e.target.value;
+    // Allow empty string, minus sign, or valid number
+    if (value === '' || value === '-' || /^-?\d+$/.test(value)) {
+      // Normalize the value:
+      // 1. Preserve single minus sign at start
+      // 2. Remove leading zeros while keeping minus sign if present
+      const normalizedValue = value === '' || value === '-' 
+        ? value 
+        : value.replace(/^(-)?0+/, '$1');
+      
+      setFormData(prev => ({
+        ...prev,
+        odds: normalizedValue
+      }));
+    }
+  };
+
+  // Handle leg odds changes
+  const handleLegOddsChange = (index, value) => {
+    // Allow empty string, minus sign, or valid number
+    if (value === '' || value === '-' || /^-?\d+$/.test(value)) {
+      // Normalize the value:
+      // 1. Preserve single minus sign at start
+      // 2. Remove leading zeros while keeping minus sign if present
+      const normalizedValue = value === '' || value === '-' 
+        ? value 
+        : value.replace(/^(-)?0+/, '$1');
+      
+      const updatedLegs = [...formData.legs];
+      updatedLegs[index] = {
+        ...updatedLegs[index],
+        odds: normalizedValue
+      };
+      setFormData(prev => ({
+        ...prev,
+        legs: updatedLegs
+      }));
+    }
+  };
+
   // Handle leg changes
   const handleLegChange = (index, field, value) => {
     const updatedLegs = [...formData.legs];
@@ -222,76 +264,39 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
     
+    // Validate required fields are present
+    if (!formData.stake || !formData.odds || formData.legs.some(leg => !leg.odds)) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     try {
-      // Validate form
-      if (!formData.title || !formData.stake || !formData.odds || !formData.sport || !formData.bettingSiteId) {
-        throw new Error('Please fill in all required fields');
-      }
-      
-      // Validate legs
-      for (const leg of formData.legs) {
-        if (!leg.team || !leg.betType || !leg.odds) {
-          throw new Error('Please fill in all leg details');
-        }
-      }
-      
+      // Parse odds and stake values just before submission
       const betPayload = {
         ...formData,
         stake: parseFloat(formData.stake),
-        odds: parseFloat(formData.odds),
+        // Convert string odds to number, preserving negative values
+        odds: formData.odds === '-' ? null : Number(formData.odds),
         potentialWinnings: potentialWinnings,
         legs: formData.legs.map(leg => ({
           ...leg,
-          odds: parseFloat(leg.odds)
+          // Convert string odds to number for each leg, preserving negative values
+          odds: leg.odds === '-' ? null : Number(leg.odds)
         }))
       };
-      
-      let response;
-      
-      if (isEditing && existingBet) {
-        // Update existing bet
-        response = await betAPI.updateBet(existingBet._id, betPayload);      } else if (isRiding && existingBet) {
-        // Create a new bet as a ride of an existing bet
-        response = await betAPI.createBet({
-          ...betPayload,
-          isRide: true,
-          originalBetId: existingBet._id
-        });
-      } else if (isHedging && existingBet) {
-        // Create a new bet as a hedge of an existing bet
-        const hedgeCalc = calculateHedge(existingBet.stake, existingBet.odds);
-        
-        if (!hedgeCalc) {
-          throw new Error('Failed to calculate hedge values');
-        }
 
-        response = await betAPI.createBet({
-          ...betPayload,
-          isHedge: true,
-          originalBetId: existingBet._id,
-          stake: parseFloat(hedgeCalc.recommendedStake),
-          odds: hedgeCalc.effectiveOdds
-        });
-      } else {
-        // Create a new bet
-        response = await betAPI.createBet(betPayload);
-      }
-      
-      // Navigate to the created/updated bet page
-      if (response.data && (response.data.bet || response.data._id)) {
-        const betId = response.data.bet?._id || response.data._id;
-        navigate(`/bets/${betId}`);
-      } else {
-        throw new Error('Failed to create/update bet');
-      }
-      navigate(`/bets/${response.data.bet._id}`);
+      // Validate the parsed values
+      if (isNaN(betPayload.odds) || betPayload.legs.some(leg => isNaN(leg.odds))) {
+        toast.error('Invalid odds value');
+        return;
+      }      const response = await betAPI.createBet(betPayload);
+      const newBet = response.data;
+      toast.success('Bet created successfully');
+      navigate('/bets');
     } catch (error) {
-      setError(error.response?.data?.message || error.message || 'Failed to create bet');
-    } finally {
-      setLoading(false);
+      console.error('Error creating bet:', error);
+      toast.error('Failed to create bet');
     }
   };
   
@@ -426,16 +431,15 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                 required
               />
             </div>
-            
-            <div>
+              <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Total Odds*
               </label>
               <input
-                type="number"
+                type="text"
                 name="odds"
                 value={formData.odds}
-                onChange={handleChange}
+                onChange={handleOddsChange}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                 placeholder="E.g., -110, +150"
                 required
@@ -547,14 +551,13 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                     </select>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div>                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Odds*
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       value={leg.odds}
-                      onChange={(e) => handleLegChange(index, 'odds', e.target.value)}
+                      onChange={(e) => handleLegOddsChange(index, e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                       placeholder="E.g., -110, +150"
                       required
