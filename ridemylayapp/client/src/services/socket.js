@@ -33,6 +33,8 @@ const createSocket = () => {
       reconnectAttempts = 0;
       // Resubscribe to notifications on reconnect
       socket.emit('subscribe_notifications');
+      // Dispatch event to notify components of reconnection
+      window.dispatchEvent(new CustomEvent('socket_reconnected'));
     });
     
     socket.on('disconnect', (reason) => {
@@ -63,12 +65,22 @@ const createSocket = () => {
       console.error('Socket error:', error);
     });
     
-    // Set up global socket event listeners for notifications
+  // Set up global socket event listeners for notifications
     socket.on('notifications_init', (notifications) => {
       if (window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent('notifications_init', { detail: notifications }));
       }
+      // Store the last sync timestamp to handle cross-tab sync
+      localStorage.setItem('lastNotificationSync', Date.now().toString());
     });
+
+    // Handle broadcast channel for cross-tab notification sync
+    const notificationChannel = new BroadcastChannel('notifications');
+    notificationChannel.onmessage = (event) => {
+      if (event.data.type === 'notification_received' || event.data.type === 'notification_read') {
+        socket.emit('subscribe_notifications'); // Re-fetch notifications
+      }
+    };
 
     socket.on('new_notification', (notification) => {
       if (window.dispatchEvent) {

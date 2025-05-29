@@ -105,20 +105,21 @@ const setupSocketIO = (server) => {
     socket.on('leave_chat', (chatId) => {
       socket.leave(`chat:${chatId}`);
       logger.info(`User ${socket.user.username} left chat room: ${chatId}`);
-    });    // Handle new message
-    socket.on('new_message', async (message) => {
+    });    // Handle new message    socket.on('new_message', async (message) => {
       try {
         // Broadcast to all users in the chat room except sender
         socket.to(`chat:${message.chat}`).emit('message_received', message);
 
         // Get chat details to create notifications
-        const chat = await Chat.findById(message.chat).populate('users');
+        const chat = await Chat.findById(message.chat)
+          .populate('users')
+          .populate('latestMessage');
         
         // Create notifications for other users in the chat
         const notificationPromises = chat.users
           .filter(user => user._id.toString() !== socket.user.id)
           .map(async (user) => {
-            // Create notification
+            // Create notification with rich preview
             const notification = await Notification.create({
               recipient: user._id,
               sender: socket.user.id,
@@ -134,17 +135,27 @@ const setupSocketIO = (server) => {
                 chatName: chat.name,
                 isGroupChat: chat.isGroupChat
               }
-            });
+            });              // Send notification to all tabs/windows of the recipient
+              const recipientId = user._id.toString();
+              const recipientSocketIds = Array.from(io.sockets.sockets.values())
+                .filter(s => s.user && s.user.id === recipientId)
+                .map(s => s.id);
 
-            // Send notification in real-time if user is online
-            if (activeUsers.has(user._id.toString())) {
-              io.to(`user:${user._id}`).emit('new_notification', notification);
-            }
+              // Emit to all connected sockets for this user
+              recipientSocketIds.forEach(socketId => {
+                io.to(socketId).emit('new_notification', {
+                  ...notification.toObject(),
+                  sender: {
+                    ...socket.user,
+                    _id: socket.user.id // Ensure consistent ID format
+                  }
+                });
+              });
 
-            return notification;
+              return notification;
           });
 
-        await Promise.all(notificationPromises);
+        const notifications = await Promise.all(notificationPromises);
       } catch (error) {
         logger.error(`Error handling new message: ${error.message}`);
         socket.emit('message_error', 'Failed to process message');

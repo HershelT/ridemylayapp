@@ -19,30 +19,41 @@ const Header = ({ toggleTheme }) => {
     }
   };  // Fetch initial unread count and set up socket listeners
   React.useEffect(() => {
-    if (user) {  // Only fetch and listen if user is logged in
-      fetchUnreadCount();
+    // Initial notification count fetch
+    fetchUnreadCount();
 
-      // Set up message event listeners using the socket service
+    if (user) {
+      // Listen for new messages
       const cleanup = socketService.onMessageReceived((data) => {
-        if (data.sender !== user._id) {  // Only increment if message is not from current user
+        if (data.sender._id !== user._id) {  // Only increment if message is not from current user
           incrementUnreadCount();
         }
       });
 
-      // Set up socket listener for message read events
+      // Listen for message read events
       const socket = socketService.getSocket();
       if (socket) {
         socket.on('messages_read', (data) => {
-          if (data.readBy === user._id) {
-            fetchUnreadCount();
+          if (data.userId === user._id) {
+            fetchUnreadCount(); // Refresh count when messages are marked as read
           }
         });
+
+        // Listen for socket reconnection
+        window.addEventListener('socket_reconnected', fetchUnreadCount);
       }
+
+      // Listen for new notifications
+      const notificationCleanup = socketService.onNewNotification(() => {
+        fetchUnreadCount(); // Refresh count for new notifications
+      });
 
       return () => {
         cleanup(); // Clean up message received listener
+        notificationCleanup(); // Clean up notification listener
+        window.removeEventListener('socket_reconnected', fetchUnreadCount);
         if (socket) {
-          socket.off('messages_read'); // Clean up message read listener
+          socket.off('messages_read');
         }
       };
     }

@@ -15,14 +15,28 @@ export const subscribeToNotifications = (callback) => {    return socketService.
 };
 
 export const handleNewNotification = (notification) => {
+  // First check if we should show the notification (not if we're in the chat already)
+  if (notification.type === 'message' && 
+      document.hasFocus() && 
+      window.location.pathname.includes(`/chat/${notification.entityId}`)) {
+    return; // Don't show notification if we're already in the chat
+  }
+
+  // Request permission if not granted
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
   // Show browser notification if permission is granted
   if (Notification.permission === 'granted') {
     const title = notification.type === 'message' 
       ? `New message from ${notification.sender.username}`
       : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
 
-    new Notification(title, {
+    const notification = new Notification(title, {
       body: notification.content,
+      icon: notification.sender.profilePicture,
+      tag: `${notification.type}-${notification.entityId}`, // Prevent duplicate notifications
       icon: '/favicon.ico' // Add your app icon path
     });
   }
