@@ -67,9 +67,12 @@ const Profile = () => {
         const response = await betAPI.getLikedBets(target);
         if (response.data.bets) {
           setLikes(response.data.bets);
+        }      } else if (tab === 'analytics' && isOwnProfile) {
+        const target = !userId || userId === 'me' ? 'me' : user?.username;
+        if (!target) {
+          throw new Error('No user information available');
         }
-      } else if (tab === 'analytics' && isOwnProfile) {
-        const response = await userAPI.getUserAnalytics(targetUserId);
+        const response = await userAPI.getUserAnalytics(target);
         if (response.data.analytics) {
           setAnalytics(response.data.analytics);
         }
