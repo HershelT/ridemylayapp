@@ -580,19 +580,126 @@ const seedDatabase = async () => {
     });
     
     const createdOtherBets = await Promise.all(
-      otherBetsData.map(bet => Bet.create(bet))
+        otherBetsData.map(bet => Bet.create(bet))
     );
 
-    // Update all users' bet stats
-    const userBets = {};
-    [...createdHershelBets, ...createdOtherBets].forEach(bet => {
-      if (!userBets[bet.userId]) {
-        userBets[bet.userId] = {
-          betsCount: 0,
-          wonCount: 0,
-          lostCount: 0,
-          pendingCount: 0
-        };
+    const allBets = [...createdHershelBets, ...createdOtherBets];
+    
+    // Create comments
+    logger.info('Creating comments...');
+    const commentsData = [
+      {
+        userId: createdUsers[0]._id,
+        betId: createdHershelBets[0]._id,
+        content: 'Great analysis on this Nuggets game! Tailing 🔥'
+      },
+      {
+        userId: createdUsers[1]._id,
+        betId: createdHershelBets[0]._id,
+        content: 'This parlay hit perfectly. Your NBA picks are solid!'
+      },
+      {
+        userId: hershelT._id,
+        betId: createdOtherBets[0]._id,
+        content: 'Love this Lakers play. LeBron has been unstoppable lately.'
       }
-      userBets[bet.userId].betsCount++;
-      if
+    ];
+    
+    const createdComments = await Comment.insertMany(commentsData);
+    
+    // Add comments to bets
+    await Promise.all([
+      Bet.findByIdAndUpdate(createdHershelBets[0]._id, {
+        $push: { comments: { $each: [createdComments[0]._id, createdComments[1]._id] } }
+      }),
+      Bet.findByIdAndUpdate(createdOtherBets[0]._id, {
+        $push: { comments: createdComments[2]._id }
+      })
+    ]);
+
+    // Create chat rooms
+    logger.info('Creating chat rooms...');
+    const chats = [
+      {
+        name: 'NBA Discussion',
+        participants: [
+          hershelT._id,
+          createdUsers[0]._id,
+          createdUsers[1]._id,
+          createdUsers[4]._id
+        ],
+        isGroupChat: true,
+        admin: hershelT._id
+      },
+      {
+        participants: [hershelT._id, createdUsers[4]._id],
+        isGroupChat: false
+      }
+    ];
+
+    const createdChats = await Chat.create(chats);
+
+    // Create messages
+    logger.info('Creating messages...');
+    const messages = [
+      {
+        sender: hershelT._id,
+        content: 'What do you all think about the Nuggets spread tonight?',
+        chat: createdChats[0]._id
+      },
+      {
+        sender: createdUsers[0]._id,
+        content: 'I really like it. Home court advantage will be huge.',
+        chat: createdChats[0]._id
+      },
+      {
+        sender: hershelT._id,
+        content: 'Hey, got any good MLB picks today?',
+        chat: createdChats[1]._id
+      },
+      {
+        sender: createdUsers[4]._id,
+        content: 'Yankees looking strong, check my latest post',
+        chat: createdChats[1]._id
+      }
+    ];
+    
+    await Message.insertMany(messages);
+    
+    // Add likes and rides to HershelT's bets
+    logger.info('Setting up bet interactions...');
+    
+    // NBA Finals Parlay interactions
+    await Bet.findByIdAndUpdate(createdHershelBets[0]._id, {
+      $push: {
+        likes: [createdUsers[0]._id, createdUsers[1]._id, createdUsers[4]._id],
+        riders: [createdUsers[0]._id, createdUsers[4]._id]
+      },
+      $inc: { ridesCount: 2, likesCount: 3 }
+    });
+    
+    // MLB Value Pick interactions
+    await Bet.findByIdAndUpdate(createdHershelBets[1]._id, {
+      $push: {
+        likes: [createdUsers[1]._id, createdUsers[4]._id],
+        riders: [createdUsers[1]._id]
+      },
+      $inc: { ridesCount: 1, likesCount: 2 }
+    });
+
+    logger.info('✅ Database seeded successfully!');
+    logger.info(`Created ${createdUsers.length + 1} users (including HershelT)`);
+    logger.info(`Created ${allBets.length} bets`);
+    logger.info(`Created ${createdComments.length} comments`);
+    
+    // Disconnect from database
+    await mongoose.disconnect();
+    
+  } catch (error) {
+    logger.error('Error seeding database:', error);
+  } finally {
+    mongoose.connection.close();
+  }
+};
+
+seedDatabase();
