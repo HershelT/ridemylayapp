@@ -15,7 +15,7 @@ const BetCard = ({ bet }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isLiked, setIsLiked] = useState(bet.likes?.includes(user?._id));
   const [likeCount, setLikeCount] = useState(bet.likes?.length || 0);
-  const isOwner = user && bet.userId && user._id === bet.userId._id;
+  const isOwner = user && bet.userId && user._id === (bet.userId._id || bet.userId); // Handle both populated and unpopulated userId
 
   useEffect(() => {
     // Listen for bet updates

@@ -45,11 +45,16 @@ const Profile = () => {
           }
           break;
             case 'likes':
-          const likesResponse = await betAPI.getAllBets(1, 10, { 
-            likedBy: target === 'me' ? user._id : targetUser._id 
-          });
-          if (likesResponse.data.bets) {
-            setLikes(likesResponse.data.bets);
+          try {
+            const likesResponse = await betAPI.getAllBets(1, 10, { 
+              likedBy: target === 'me' ? user._id : targetUser._id 
+            });
+            
+            setLikes(likesResponse.data.bets || []);
+          } catch (error) {
+            console.error('Error fetching liked bets:', error);
+            setLikes([]);
+            setError('Failed to load liked bets');
           }
           break;
           
@@ -152,6 +157,22 @@ const Profile = () => {
     }
 
     if (activeTab === 'likes') {
+      if (loading) {
+        return (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto"></div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div className="text-center py-8 text-red-500">
+            {error}
+          </div>
+        );
+      }
+
       if (!likes || likes.length === 0) {
         return (
           <div className="text-center py-8 text-gray-500">

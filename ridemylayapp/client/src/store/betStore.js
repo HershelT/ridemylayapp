@@ -291,9 +291,13 @@ const useBetStore = create((set, get) => ({
       set(state => {
         const updatedBets = state.bets.map(bet => 
           bet._id === betId 
-            ? { ...bet, liked: !isLiked, likes: !isLiked 
-                ? [...(bet.likes || []), 'current-user-placeholder'] 
-                : (bet.likes || []).filter(id => id !== 'current-user-placeholder') 
+            ? { 
+                ...bet, 
+                liked: !isLiked, 
+                likes: !isLiked 
+                  ? [...(bet.likes || []), state.user?._id]
+                  : (bet.likes || []).filter(id => id !== state.user?._id),
+                likesCount: (bet.likesCount || bet.likes?.length || 0) + (!isLiked ? 1 : -1)
               } 
             : bet
         );
@@ -304,9 +308,13 @@ const useBetStore = create((set, get) => ({
           if (updatedUserBets[userId].bets) {
             updatedUserBets[userId].bets = updatedUserBets[userId].bets.map(bet => 
               bet._id === betId 
-                ? { ...bet, liked: !isLiked, likes: !isLiked
-                    ? [...(bet.likes || []), 'current-user-placeholder']
-                    : (bet.likes || []).filter(id => id !== 'current-user-placeholder')
+                ? {
+                    ...bet,
+                    liked: !isLiked,
+                    likes: !isLiked
+                      ? [...(bet.likes || []), state.user?._id]
+                      : (bet.likes || []).filter(id => id !== state.user?._id),
+                    likesCount: (bet.likesCount || bet.likes?.length || 0) + (!isLiked ? 1 : -1)
                   }
                 : bet
             );
@@ -317,31 +325,38 @@ const useBetStore = create((set, get) => ({
           bets: updatedBets,
           userBets: updatedUserBets,
           currentBet: state.currentBet?._id === betId 
-            ? { ...state.currentBet, liked: !isLiked, likes: !isLiked
-                ? [...(state.currentBet.likes || []), 'current-user-placeholder']
-                : (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder')
-              } 
+            ? {
+                ...state.currentBet,
+                liked: !isLiked,
+                likes: !isLiked
+                  ? [...(state.currentBet.likes || []), state.user?._id]
+                  : (state.currentBet.likes || []).filter(id => id !== state.user?._id),
+                likesCount: (state.currentBet.likesCount || state.currentBet.likes?.length || 0) + (!isLiked ? 1 : -1)
+              }
             : state.currentBet
         };
       });
-      
+        
       // Make API call
       const response = await betAPI.toggleLike(betId);
       
       if (response.data.success) {
-        // Emit socket event
-        emitBetInteraction('like', betId);
+        // Update was successful
         return { success: true };
       }
-      
+
       // Revert on failure
       set(state => {
         const updatedBets = state.bets.map(bet => 
           bet._id === betId 
-            ? { ...bet, liked: isLiked, likes: isLiked
-                ? [...(bet.likes || []), 'current-user-placeholder']
-                : (bet.likes || []).filter(id => id !== 'current-user-placeholder')
-              } 
+            ? {
+                ...bet,
+                liked: isLiked,
+                likes: isLiked
+                  ? [...(bet.likes || []), state.user?._id]
+                  : (bet.likes || []).filter(id => id !== state.user?._id),
+                likesCount: (bet.likesCount || bet.likes?.length || 0) + (isLiked ? 1 : -1)
+              }
             : bet
         );
         
@@ -351,9 +366,13 @@ const useBetStore = create((set, get) => ({
           if (updatedUserBets[userId].bets) {
             updatedUserBets[userId].bets = updatedUserBets[userId].bets.map(bet => 
               bet._id === betId 
-                ? { ...bet, liked: isLiked, likes: isLiked
-                    ? [...(bet.likes || []), 'current-user-placeholder']
-                    : (bet.likes || []).filter(id => id !== 'current-user-placeholder')
+                ? {
+                    ...bet,
+                    liked: isLiked,
+                    likes: isLiked
+                      ? [...(bet.likes || []), state.user?._id]
+                      : (bet.likes || []).filter(id => id !== state.user?._id),
+                    likesCount: (bet.likesCount || bet.likes?.length || 0) + (isLiked ? 1 : -1)
                   }
                 : bet
             );
@@ -364,15 +383,18 @@ const useBetStore = create((set, get) => ({
           bets: updatedBets,
           userBets: updatedUserBets,
           currentBet: state.currentBet?._id === betId 
-            ? { ...state.currentBet, liked: isLiked, likes: isLiked
-                ? [...(state.currentBet.likes || []), 'current-user-placeholder']
-                : (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder')
-              } 
-            : state.currentBet,
-          error: 'Failed to toggle like'
+            ? {
+                ...state.currentBet,
+                liked: isLiked,
+                likes: isLiked
+                  ? [...(state.currentBet.likes || []), state.user?._id]
+                  : (state.currentBet.likes || []).filter(id => id !== state.user?._id),
+                likesCount: (state.currentBet.likesCount || state.currentBet.likes?.length || 0) + (isLiked ? 1 : -1)
+              }
+            : state.currentBet
         };
       });
-      
+        
       return { success: false, error: 'Failed to toggle like' };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Failed to toggle like' };
