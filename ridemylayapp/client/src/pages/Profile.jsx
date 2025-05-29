@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import ProfileHeader from '../components/user/ProfileHeader';
 import BetCard from '../components/bets/BetCard';
-import { userAPI, betAPI } from '../services/api';
+import { userAPI, betAPI, authAPI } from '../services/api';
 
 const Profile = () => {
   const { userId } = useParams();
@@ -13,12 +13,13 @@ const Profile = () => {
   const [likes, setLikes] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const fetchUserData = useCallback(async () => {
     setLoading(true);
 
     try {
-      const userResponse = await userAPI.getProfile(userId || 'me');
+      const userResponse = !userId || userId === 'me' 
+        ? await authAPI.getCurrentUser()
+        : await userAPI.getProfile(userId);
       setUser(userResponse.data.user);
       setIsOwnProfile(!userId || userId === 'me' || userId === userResponse.data.user._id);
       
@@ -38,9 +39,8 @@ const Profile = () => {
   const fetchTabData = useCallback(async (tab) => {
     setLoading(true);
 
-    try {
-      if (tab === 'bets') {
-        const response = await userAPI.getUserBets(userId || 'me');
+    try {      if (tab === 'bets') {
+        const response = await userAPI.getUserBets(userId || user._id);
         setBets(response.data.bets);
       } else if (tab === 'likes') {
         const response = await betAPI.getLikedBets(userId || 'me');
