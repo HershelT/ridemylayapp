@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import ProfileHeader from '../components/user/ProfileHeader';
 import BetCard from '../components/bets/BetCard';
 import { userAPI, betAPI, authAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 const Profile = () => {
   const { userId } = useParams();
@@ -14,6 +15,19 @@ const Profile = () => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  // Function to handle follow status changes
+  const handleFollowToggle = useCallback((isNowFollowing) => {
+    setUser(prevUser => ({
+      ...prevUser,
+      isFollowing: isNowFollowing,
+      followers: isNowFollowing ? 
+        [...(prevUser.followers || []), 'currentUser'] : 
+        (prevUser.followers || []).filter(f => f !== 'currentUser')
+    }));
+    // No need to refresh the whole profile since we're handling the state update here
+  }, []);
 
   // Define fetchTabData first
   const fetchTabData = useCallback(async (tab, targetUser) => {
@@ -298,7 +312,8 @@ const Profile = () => {
     <div className="container mx-auto px-4 py-6 max-w-4xl">
       <ProfileHeader 
         user={user} 
-        isOwnProfile={isOwnProfile} 
+        isOwnProfile={isOwnProfile}
+        onFollowToggle={handleFollowToggle}
       />
       
       <div className="mt-8">

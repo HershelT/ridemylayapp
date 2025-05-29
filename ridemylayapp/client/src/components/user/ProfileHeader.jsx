@@ -1,19 +1,41 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { userAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
-const ProfileHeader = ({ user, isOwnProfile }) => {
-  const navigate = useNavigate();
+const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
   const [isFollowing, setIsFollowing] = useState(user?.isFollowing || false);
   const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const handleFollow = () => {
-    // Optimistic UI update
-    setIsFollowing(!isFollowing);
-    setFollowerCount(isFollowing ? followerCount - 1 : followerCount + 1);
-    
-    // TODO: Call API to update follow status
-    // api.followUser(user._id, !isFollowing);
+  // Update state when user prop changes
+  useEffect(() => {
+    if (user) {
+      setIsFollowing(user.isFollowing || false);
+      setFollowerCount(user.followers?.length || 0);
+    }
+  }, [user]);
+
+  const handleFollow = async () => {
+    try {
+      // Optimistic UI update
+      const newFollowState = !isFollowing;
+      setIsFollowing(newFollowState);
+      setFollowerCount(prev => newFollowState ? prev + 1 : prev - 1);
+      
+      // Call API to update follow status
+      await userAPI.toggleFollow(user.username);
+      
+      // Notify parent component about the change
+      if (onFollowToggle) {
+        onFollowToggle(newFollowState);
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setIsFollowing(!isFollowing);
+      setFollowerCount(prev => !isFollowing ? prev - 1 : prev + 1);
+      toast.error('Failed to update follow status');
+      console.error('Follow toggle error:', error);
+    }
   };
   
   const handleEditProfile = () => {

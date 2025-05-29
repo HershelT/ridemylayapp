@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { userAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const Leaderboard = () => {
+  const navigate = useNavigate();
   const [leaderboardType, setLeaderboardType] = useState('all');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,19 +68,42 @@ const Leaderboard = () => {
 
   const handleFollowToggle = async (username) => {
     try {
-      await userAPI.toggleFollow(username);
+      // Optimistic UI update
       setLeaderboardData(prevData => 
         prevData.map(user => {
           if (user.username === username) {
-            return { ...user, following: !user.following };
+            const newFollowState = !user.following;
+            return { 
+              ...user, 
+              following: newFollowState
+            };
           }
           return user;
         })
       );
+      
+      // Call API
+      await userAPI.toggleFollow(username);
     } catch (error) {
+      // Revert optimistic update on error
+      setLeaderboardData(prevData => 
+        prevData.map(user => {
+          if (user.username === username) {
+            return { 
+              ...user, 
+              following: !user.following 
+            };
+          }
+          return user;
+        })
+      );
       console.error('Error toggling follow:', error);
       toast.error('Failed to update follow status');
     }
+  };
+
+  const handleUserClick = (username) => {
+    navigate(`/profile/${username}`);
   };
 
   return (
@@ -172,11 +197,17 @@ const Leaderboard = () => {
                   <img 
                     src={user.avatarUrl} 
                     alt={`${user.username}'s avatar`} 
-                    className="w-8 h-8 rounded-full mr-2"
+                    className="w-8 h-8 rounded-full mr-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleUserClick(user.username)}
                   />
                   <div>
                     <div className="flex items-center">
-                      <span className="font-medium">{user.username}</span>
+                      <span 
+                        className="font-medium cursor-pointer hover:text-primary-500 transition-colors"
+                        onClick={() => handleUserClick(user.username)}
+                      >
+                        {user.username}
+                      </span>
                       {user.verified && (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812z" clipRule="evenodd" />
