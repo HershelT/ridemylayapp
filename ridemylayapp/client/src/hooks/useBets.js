@@ -40,15 +40,10 @@ const useBets = () => {
       fetchUserBets(userId);
     }
   }, [userBets, isLoading, fetchUserBets]);
-  
-  // Toggle like
+    // Toggle like
   const toggleLike = useCallback((betId, isLiked) => {
-    if (isLiked) {
-      return unlikeBet(betId);
-    } else {
-      return likeBet(betId);
-    }
-  }, [likeBet, unlikeBet]);
+    return toggleLike(betId, isLiked);
+  }, [toggleLike]);
   return {
     bets,
     getUserBets,

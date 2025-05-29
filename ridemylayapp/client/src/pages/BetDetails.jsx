@@ -58,14 +58,44 @@ const BetDetails = () => {
   
   // Handle like action
   const handleLike = async () => {
-    if (actionLoading.like) return;
+    if (actionLoading.like || !user) return;
     
     setActionLoading(prev => ({ ...prev, like: true }));
     
     try {
+      // Optimistic update
+      const newIsLiked = !bet.likes?.includes(user._id);
+      setBet(prev => ({
+        ...prev,
+        likes: newIsLiked 
+          ? [...(prev.likes || []), user._id]
+          : (prev.likes || []).filter(id => id !== user._id),
+        likesCount: (prev.likesCount || 0) + (newIsLiked ? 1 : -1)
+      }));
+
+      // Make API call
       const response = await betAPI.toggleLike(id);
-      setBet(response.data.bet);
+      
+      if (!response.data.success) {
+        // Revert on failure
+        setBet(prev => ({
+          ...prev,
+          likes: newIsLiked
+            ? (prev.likes || []).filter(id => id !== user._id)
+            : [...(prev.likes || []), user._id],
+          likesCount: (prev.likesCount || 0) + (newIsLiked ? -1 : 1)
+        }));
+      }
     } catch (error) {
+      // Revert optimistic update on error
+      const isCurrentlyLiked = bet.likes?.includes(user._id);
+      setBet(prev => ({
+        ...prev,
+        likes: isCurrentlyLiked
+          ? (prev.likes || []).filter(id => id !== user._id)
+          : [...(prev.likes || []), user._id],
+        likesCount: (prev.likesCount || 0) + (isCurrentlyLiked ? -1 : 1)
+      }));
       console.error('Error liking bet:', error);
     } finally {
       setActionLoading(prev => ({ ...prev, like: false }));

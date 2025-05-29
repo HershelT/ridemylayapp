@@ -8,38 +8,39 @@ import { useAuth } from '../../hooks/useAuth';
 import { useBets } from '../../hooks/useBets';
 
 const BetCard = ({ bet }) => {
-  const [liked, setLiked] = useState(bet.liked || false);
-  const [likeCount, setLikeCount] = useState(bet.likes?.length || 0);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
-  const { toggleLike, deleteBet } = useBets();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { deleteBet } = useBets();
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isLiked, setIsLiked] = useState(bet.likes?.includes(user?._id));
+  const [likeCount, setLikeCount] = useState(bet.likes?.length || 0);
   
   const isOwner = user && bet.userId && user._id === bet.userId._id;
-  
   const handleLike = async () => {
-    // Optimistic UI update
-    setLiked(!liked);
-    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
-    
+    if (!user) return;
+
     try {
-      // Call API to update like status
+      const newIsLiked = !isLiked;
+      
+      // Optimistic update
+      setIsLiked(newIsLiked);
+      setLikeCount(prev => newIsLiked ? prev + 1 : prev - 1);      // Call the API to toggle like status
       const response = await betAPI.toggleLike(bet._id);
       
-      // Update with actual response from server
-      setLiked(response.data.isLiked);
-      setLikeCount(response.data.likes);
-      
-      // Emit socket event for real-time updates
-      emitBetInteraction(bet._id, 'like', {
-        isLiked: response.data.isLiked,
-        likeCount: response.data.likes
-      });
+      if (response.data.success) {
+        // Emit socket event for real-time updates
+        emitBetInteraction(bet._id, newIsLiked ? 'like' : 'unlike', {
+          likeCount: response.data.likes
+        });
+      } else {
+        // Revert on failure
+        setIsLiked(!newIsLiked);
+        setLikeCount(prev => newIsLiked ? prev - 1 : prev + 1);
+      }
     } catch (error) {
       // Revert optimistic update on error
-      setLiked(!liked);
-      setLikeCount(liked ? likeCount + 1 : likeCount - 1);
+      setIsLiked(!isLiked);
+      setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
       console.error('Error toggling like:', error);
     }
   };
@@ -259,10 +260,24 @@ const BetCard = ({ bet }) => {
         <motion.button 
           onClick={handleLike}
           whileTap={{ scale: 1.2 }}
-          className={`flex flex-col items-center justify-center px-3 py-1 ${liked ? 'text-red-500' : 'text-gray-600 dark:text-gray-300 hover:text-red-500'}`}
+          className={`flex flex-col items-center justify-center px-3 py-1 ${
+            isLiked 
+              ? 'text-red-500' 
+              : 'text-gray-600 dark:text-gray-300 hover:text-red-500'
+          }`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill={liked ? 'currentColor' : 'none'} stroke="currentColor">
-            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            className="h-5 w-5" 
+            viewBox="0 0 20 20" 
+            fill={isLiked ? 'currentColor' : 'none'} 
+            stroke="currentColor"
+          >
+            <path 
+              fillRule="evenodd" 
+              d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" 
+              clipRule="evenodd" 
+            />
           </svg>
           <span className="text-xs mt-1">{likeCount}</span>
         </motion.button>

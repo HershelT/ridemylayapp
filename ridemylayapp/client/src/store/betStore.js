@@ -284,26 +284,30 @@ const useBetStore = create((set, get) => ({
       return { success: false, error: error.response?.data?.message || 'Failed to hedge bet' };
     }
   },
-  
-  // Like a bet
-  likeBet: async (betId) => {
+    // Toggle bet like
+  toggleLike: async (betId, isLiked) => {
     try {
       // Optimistic update
       set(state => {
         const updatedBets = state.bets.map(bet => 
           bet._id === betId 
-            ? { ...bet, liked: true, likes: [...(bet.likes || []), 'current-user-placeholder'] } 
+            ? { ...bet, liked: !isLiked, likes: !isLiked 
+                ? [...(bet.likes || []), 'current-user-placeholder'] 
+                : (bet.likes || []).filter(id => id !== 'current-user-placeholder') 
+              } 
             : bet
         );
         
         const updatedUserBets = { ...state.userBets };
         
-        // Update in user bets if present
         Object.keys(updatedUserBets).forEach(userId => {
           if (updatedUserBets[userId].bets) {
             updatedUserBets[userId].bets = updatedUserBets[userId].bets.map(bet => 
               bet._id === betId 
-                ? { ...bet, liked: true, likes: [...(bet.likes || []), 'current-user-placeholder'] } 
+                ? { ...bet, liked: !isLiked, likes: !isLiked
+                    ? [...(bet.likes || []), 'current-user-placeholder']
+                    : (bet.likes || []).filter(id => id !== 'current-user-placeholder')
+                  }
                 : bet
             );
           }
@@ -313,24 +317,31 @@ const useBetStore = create((set, get) => ({
           bets: updatedBets,
           userBets: updatedUserBets,
           currentBet: state.currentBet?._id === betId 
-            ? { ...state.currentBet, liked: true, likes: [...(state.currentBet.likes || []), 'current-user-placeholder'] } 
+            ? { ...state.currentBet, liked: !isLiked, likes: !isLiked
+                ? [...(state.currentBet.likes || []), 'current-user-placeholder']
+                : (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder')
+              } 
             : state.currentBet
         };
       });
       
       // Make API call
-      await betAPI.likeBet(betId);
+      const response = await betAPI.toggleLike(betId);
       
-      // Emit socket event
-      emitBetInteraction('like', betId);
+      if (response.data.success) {
+        // Emit socket event
+        emitBetInteraction('like', betId);
+        return { success: true };
+      }
       
-      return { success: true };
-    } catch (error) {
-      // Revert optimistic update on error
+      // Revert on failure
       set(state => {
         const updatedBets = state.bets.map(bet => 
           bet._id === betId 
-            ? { ...bet, liked: false, likes: (bet.likes || []).filter(id => id !== 'current-user-placeholder') } 
+            ? { ...bet, liked: isLiked, likes: isLiked
+                ? [...(bet.likes || []), 'current-user-placeholder']
+                : (bet.likes || []).filter(id => id !== 'current-user-placeholder')
+              } 
             : bet
         );
         
@@ -340,7 +351,10 @@ const useBetStore = create((set, get) => ({
           if (updatedUserBets[userId].bets) {
             updatedUserBets[userId].bets = updatedUserBets[userId].bets.map(bet => 
               bet._id === betId 
-                ? { ...bet, liked: false, likes: (bet.likes || []).filter(id => id !== 'current-user-placeholder') } 
+                ? { ...bet, liked: isLiked, likes: isLiked
+                    ? [...(bet.likes || []), 'current-user-placeholder']
+                    : (bet.likes || []).filter(id => id !== 'current-user-placeholder')
+                  }
                 : bet
             );
           }
@@ -350,87 +364,18 @@ const useBetStore = create((set, get) => ({
           bets: updatedBets,
           userBets: updatedUserBets,
           currentBet: state.currentBet?._id === betId 
-            ? { ...state.currentBet, liked: false, likes: (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder') } 
+            ? { ...state.currentBet, liked: isLiked, likes: isLiked
+                ? [...(state.currentBet.likes || []), 'current-user-placeholder']
+                : (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder')
+              } 
             : state.currentBet,
-          error: error.response?.data?.message || 'Failed to like bet'
+          error: error.response?.data?.message || 'Failed to toggle like'
         };
       });
       
-      return { success: false, error: error.response?.data?.message || 'Failed to like bet' };
-    }
-  },
-  
-  // Unlike a bet
-  unlikeBet: async (betId) => {
-    try {
-      // Optimistic update
-      set(state => {
-        const updatedBets = state.bets.map(bet => 
-          bet._id === betId 
-            ? { ...bet, liked: false, likes: (bet.likes || []).filter(id => id !== 'current-user-placeholder') } 
-            : bet
-        );
-        
-        const updatedUserBets = { ...state.userBets };
-        
-        Object.keys(updatedUserBets).forEach(userId => {
-          if (updatedUserBets[userId].bets) {
-            updatedUserBets[userId].bets = updatedUserBets[userId].bets.map(bet => 
-              bet._id === betId 
-                ? { ...bet, liked: false, likes: (bet.likes || []).filter(id => id !== 'current-user-placeholder') } 
-                : bet
-            );
-          }
-        });
-        
-        return {
-          bets: updatedBets,
-          userBets: updatedUserBets,
-          currentBet: state.currentBet?._id === betId 
-            ? { ...state.currentBet, liked: false, likes: (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder') } 
-            : state.currentBet
-        };
-      });
-      
-      // Make API call
-      await betAPI.unlikeBet(betId);
-      
-      // Emit socket event
-      emitBetInteraction('unlike', betId);
-      
-      return { success: true };
+      return { success: false, error: 'Failed to toggle like' };
     } catch (error) {
-      // Revert optimistic update on error
-      set(state => {
-        const updatedBets = state.bets.map(bet => 
-          bet._id === betId 
-            ? { ...bet, liked: true, likes: [...(bet.likes || []), 'current-user-placeholder'] } 
-            : bet
-        );
-        
-        const updatedUserBets = { ...state.userBets };
-        
-        Object.keys(updatedUserBets).forEach(userId => {
-          if (updatedUserBets[userId].bets) {
-            updatedUserBets[userId].bets = updatedUserBets[userId].bets.map(bet => 
-              bet._id === betId 
-                ? { ...bet, liked: true, likes: [...(bet.likes || []), 'current-user-placeholder'] } 
-                : bet
-            );
-          }
-        });
-        
-        return {
-          bets: updatedBets,
-          userBets: updatedUserBets,
-          currentBet: state.currentBet?._id === betId 
-            ? { ...state.currentBet, liked: true, likes: [...(state.currentBet.likes || []), 'current-user-placeholder'] } 
-            : state.currentBet,
-          error: error.response?.data?.message || 'Failed to unlike bet'
-        };
-      });
-      
-      return { success: false, error: error.response?.data?.message || 'Failed to unlike bet' };
+      return { success: false, error: error.response?.data?.message || 'Failed to toggle like' };
     }
   },
   
