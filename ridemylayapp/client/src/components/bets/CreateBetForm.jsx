@@ -185,42 +185,46 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
       ...prev,
       [name]: value
     }));
-  };
-
-  // Handle odds input changes
+  };  // Handle odds input changes
   const handleOddsChange = (e) => {
     const value = e.target.value;
-    // Allow empty string, minus sign, or valid number
-    if (value === '' || value === '-' || /^-?\d+$/.test(value)) {
-      // Normalize the value:
-      // 1. Preserve single minus sign at start
-      // 2. Remove leading zeros while keeping minus sign if present
-      const normalizedValue = value === '' || value === '-' 
-        ? value 
-        : value.replace(/^(-)?0+/, '$1');
+    // Allow empty string, minus sign, or valid number for American odds
+    if (value === '' || value === '-' || /^[+-]?\d*$/.test(value)) {
+      // Process the value to ensure proper American odds format
+      let normalizedValue;
+      if (value === '' || value === '-' || value === '+') {
+        normalizedValue = value;
+      } else {
+        // Remove any leading zeros while preserving +/- signs
+        normalizedValue = value
+          .replace(/^(-)?0+/, '$1')    // Remove leading zeros after minus
+          .replace(/^\+0+/, '+');      // Remove leading zeros after plus
+      }
       
       setFormData(prev => ({
         ...prev,
-        odds: normalizedValue
+        odds: normalizedValue || '' // Ensure we never set undefined
       }));
     }
-  };
-
-  // Handle leg odds changes
+  };  // Handle leg odds changes
   const handleLegOddsChange = (index, value) => {
-    // Allow empty string, minus sign, or valid number
-    if (value === '' || value === '-' || /^-?\d+$/.test(value)) {
-      // Normalize the value:
-      // 1. Preserve single minus sign at start
-      // 2. Remove leading zeros while keeping minus sign if present
-      const normalizedValue = value === '' || value === '-' 
-        ? value 
-        : value.replace(/^(-)?0+/, '$1');
+    // Allow empty string, minus sign, plus sign, or valid number for American odds
+    if (value === '' || value === '-' || value === '+' || /^[+-]?\d*$/.test(value)) {
+      // Process the value to ensure proper American odds format
+      let normalizedValue;
+      if (value === '' || value === '-' || value === '+') {
+        normalizedValue = value;
+      } else {
+        // Remove any leading zeros while preserving +/- signs
+        normalizedValue = value
+          .replace(/^(-)?0+/, '$1')    // Remove leading zeros after minus
+          .replace(/^\+0+/, '+');      // Remove leading zeros after plus
+      }
       
       const updatedLegs = [...formData.legs];
       updatedLegs[index] = {
         ...updatedLegs[index],
-        odds: normalizedValue
+        odds: normalizedValue || '' // Ensure we never set undefined
       };
       setFormData(prev => ({
         ...prev,
@@ -272,17 +276,23 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     }
 
     try {
-      // Parse odds and stake values just before submission
+      // Parse odds and stake values just before submission        // Helper function to parse American odds
+      const parseAmericanOdds = (oddsStr) => {
+        if (!oddsStr || oddsStr === '-') return null;
+        // Remove any non-numeric characters except minus sign
+        const cleanOdds = oddsStr.replace(/[^\d-]/g, '');
+        // Convert to number, ensuring we keep the sign
+        return cleanOdds.startsWith('-') ? -parseInt(cleanOdds.slice(1)) : parseInt(cleanOdds);
+      };
+
       const betPayload = {
         ...formData,
         stake: parseFloat(formData.stake),
-        // Convert string odds to number, preserving negative values
-        odds: formData.odds === '-' ? null : Number(formData.odds),
+        odds: parseAmericanOdds(formData.odds),
         potentialWinnings: potentialWinnings,
         legs: formData.legs.map(leg => ({
           ...leg,
-          // Convert string odds to number for each leg, preserving negative values
-          odds: leg.odds === '-' ? null : Number(leg.odds)
+          odds: parseAmericanOdds(leg.odds)
         }))
       };
 
