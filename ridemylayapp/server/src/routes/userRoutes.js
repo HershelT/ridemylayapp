@@ -12,7 +12,7 @@ const { protect } = require('../middleware/auth');
 
 // Public routes
 router.get('/search', searchUsers);
-router.get('/leaderboard', getLeaderboard);
+router.get('/leaderboard', protect, getLeaderboard); // Make it protected to support friend filtering
 router.get('/:username', getUserProfile);
 router.get('/:username/bets', getUserBets);
 

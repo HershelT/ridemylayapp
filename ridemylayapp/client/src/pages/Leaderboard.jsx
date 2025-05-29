@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { userAPI, leaderboardAPI } from '../services/api';
+import { userAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
 const Leaderboard = () => {
-  const [leaderboardType, setLeaderboardType] = useState('country');
+  const [leaderboardType, setLeaderboardType] = useState('all');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week');
@@ -18,11 +18,17 @@ const Leaderboard = () => {
   const fetchLeaderboardData = async () => {
     setLoading(true);
     setError(null);
-
+    
     try {
-      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;      
-      console.log('Fetching leaderboard with timeframe:', timeframe, 'page:', page);
-      const response = await leaderboardAPI.getLeaderboard(timeframe, page);
+      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;
+      
+      console.log('Fetching leaderboard with:', {
+        timeframe,
+        page,
+        type: leaderboardType
+      });
+      
+      const response = await userAPI.getLeaderboard(timeframe, page, 10, leaderboardType);
       console.log('Leaderboard API response:', response.data);
       
       if (!response?.data?.leaderboard) {
@@ -83,16 +89,22 @@ const Leaderboard = () => {
         <div className="w-full mb-2">
           <div className="flex bg-gray-200 dark:bg-gray-700 rounded-md p-1">
             <button 
-              className={`flex-1 py-2 text-center rounded-md ${leaderboardType === 'country' ? 'bg-white dark:bg-gray-800 shadow' : ''}`}
-              onClick={() => setLeaderboardType('country')}
+              className={`flex-1 py-2 text-center rounded-md ${leaderboardType === 'all' ? 'bg-white dark:bg-gray-800 shadow' : ''}`}
+              onClick={() => setLeaderboardType('all')}
             >
-              Country
+              Global
             </button>
             <button 
               className={`flex-1 py-2 text-center rounded-md ${leaderboardType === 'friends' ? 'bg-white dark:bg-gray-800 shadow' : ''}`}
               onClick={() => setLeaderboardType('friends')}
             >
               Friends
+            </button>
+            <button 
+              className={`flex-1 py-2 text-center rounded-md ${leaderboardType === 'country' ? 'bg-white dark:bg-gray-800 shadow' : ''}`}
+              onClick={() => setLeaderboardType('country')}
+            >
+              Country
             </button>
             <button 
               className={`flex-1 py-2 text-center rounded-md ${leaderboardType === 'influencers' ? 'bg-white dark:bg-gray-800 shadow' : ''}`}
@@ -167,7 +179,8 @@ const Leaderboard = () => {
                       <span className="font-medium">{user.username}</span>
                       {user.verified && (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812z" clipRule="evenodd" />
+                          <path d="M7.9 8.6l2.1 2.1 4.1-4.1 1.4 1.4-5.5 5.5-3.5-3.5 1.4-1.4z" />
                         </svg>
                       )}
                     </div>

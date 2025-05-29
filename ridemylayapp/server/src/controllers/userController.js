@@ -232,55 +232,71 @@ exports.searchUsers = async (req, res, next) => {
  * @access  Public
  */
 exports.getLeaderboard = async (req, res, next) => {
-  try {    const { 
+  try {    
+    const { 
       timeframe = 'all',
       page = 1,
-      limit = 10
+      limit = 10,
+      type = 'all'  // 'all', 'friends', 'country', 'influencers'
     } = req.query;
     
     // Convert page and limit to numbers and calculate skip
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
+
+    // Get current user for friend filtering
+    const currentUser = await User.findById(req.user.id);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        error: 'Current user not found'
+      });
+    }
     
     // Build date query based on timeframe
-    const now = new Date();
     const dateQuery = {};
+    const now = new Date();
     
-    if (timeframe === 'day') {
-      const dayAgo = new Date(now);
-      dayAgo.setDate(now.getDate() - 1);
-      dateQuery.createdAt = { $gte: dayAgo };
-    } else if (timeframe === 'week') {
-      const weekAgo = new Date(now);
-      weekAgo.setDate(now.getDate() - 7);
-      dateQuery.createdAt = { $gte: weekAgo };
-    } else if (timeframe === 'month') {
-      const monthAgo = new Date(now);
-      monthAgo.setMonth(now.getMonth() - 1);
-      dateQuery.createdAt = { $gte: monthAgo };
-    } else if (timeframe === 'year') {
-      const yearAgo = new Date(now);
-      yearAgo.setFullYear(now.getFullYear() - 1);
-      dateQuery.createdAt = { $gte: yearAgo };
-    }    // Log the date query for debugging
-    logger.info(`Leaderboard date query: ${JSON.stringify(dateQuery)}`);
-      // First, let's count total bets to debug
-    const totalBets = await Bet.countDocuments();
-    logger.info(`Total bets in database: ${totalBets}`);
+    if (timeframe !== 'all') {
+      if (timeframe === 'day') {
+        const dayAgo = new Date(now);
+        dayAgo.setDate(now.getDate() - 1);
+        dateQuery.createdAt = { $gte: dayAgo };
+      } else if (timeframe === 'week') {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(now.getDate() - 7);
+        dateQuery.createdAt = { $gte: weekAgo };
+      } else if (timeframe === 'month') {
+        const monthAgo = new Date(now);
+        monthAgo.setMonth(now.getMonth() - 1);
+        dateQuery.createdAt = { $gte: monthAgo };
+      } else if (timeframe === 'year') {
+        const yearAgo = new Date(now);
+        yearAgo.setFullYear(now.getFullYear() - 1);
+        dateQuery.createdAt = { $gte: yearAgo };
+      }
+    }
 
-    // Count bets matching our criteria
-    const matchingBets = await Bet.countDocuments({
-      ...(Object.keys(dateQuery).length > 0 ? dateQuery : {}),
-      status: { $in: ['won', 'lost'] }
-    });
-    logger.info(`Matching bets for leaderboard: ${matchingBets}`);    // Aggregate to get user stats with modified pipeline
+    // Prepare match query for aggregation
+    const matchQuery = {
+      status: { $in: ['won', 'lost'] }  // Only include completed bets
+    };
+
+    // Add date filter if exists
+    if (Object.keys(dateQuery).length > 0) {
+      matchQuery.createdAt = dateQuery.createdAt;
+    }
+
+    // Add user filter based on leaderboard type
+    if (type === 'friends') {
+      matchQuery.userId = { $in: currentUser.following };
+    }
+    // Add additional filters for 'country' and 'influencers' types if needed
+
+    // Aggregate to get user stats
     const userStats = await Bet.aggregate([
-      { 
-        $match: { 
-          status: { $in: ['won', 'lost'] } // Only include completed bets
-        } 
-      },
+      { $match: matchQuery },
       { 
         $group: {
           _id: '$userId',
@@ -297,7 +313,8 @@ exports.getLeaderboard = async (req, res, next) => {
           },
           totalStake: { $sum: '$stake' }
         }
-      },      {
+      },      
+      {
         $project: {
           _id: 1,
           totalBets: 1,
@@ -315,42 +332,34 @@ exports.getLeaderboard = async (req, res, next) => {
       { $sort: { profit: -1 } },
       { $skip: skip },
       { $limit: limitNum }
-    ]);    // Log user stats for debugging
-    logger.info(`User stats found: ${JSON.stringify(userStats)}`);
+    ]);
 
-    // Get user details with improved error handling
+    // Get user details
     const userIds = userStats.map(stat => stat._id);
-    logger.info(`Looking up users with IDs: ${userIds.join(', ')}`);
-    
     const users = await User.find({ _id: { $in: userIds } });
-    logger.info(`Found ${users.length} users out of ${userIds.length} IDs`);
 
-    // Combine user details with stats and add detailed logging
-    const leaderboard = [];
-    for (const stat of userStats) {
-        const user = users.find(u => u._id.toString() === stat._id.toString());
-        if (!user) {
-            logger.warn(`User not found for leaderboard stat: ${stat._id}`);
-            continue;
-        }
-        
-        const leaderboardEntry = {
-            _id: stat._id,
-            username: user.username,
-            avatarUrl: user.avatarUrl || '',
-            verified: user.verified || false,
-            totalBets: stat.totalBets || 0,
-            wonBets: stat.wonBets || 0,
-            winRate: stat.winRate || 0,
-            profit: stat.profit || 0,
-            streak: user.streak || 0
-        };
-        
-        logger.info(`Created leaderboard entry: ${JSON.stringify(leaderboardEntry)}`);
-        leaderboard.push(leaderboardEntry);
-    }// Get total count for pagination
+    // Combine user details with stats and format data
+    const leaderboard = userStats.map(stat => {
+      const user = users.find(u => u._id.toString() === stat._id.toString());
+      if (!user) return null;
+      
+      return {
+        _id: stat._id,
+        username: user.username,
+        avatarUrl: user.avatarUrl || '',
+        verified: user.verified || false,
+        totalBets: stat.totalBets || 0,
+        wonBets: stat.wonBets || 0,
+        winRate: stat.winRate || 0,
+        profit: stat.profit || 0,
+        streak: user.streak || 0,
+        isFollowing: currentUser.following.includes(user._id)
+      };
+    }).filter(Boolean);
+
+    // Get total count for pagination
     const totalUsersResult = await Bet.aggregate([
-      { $match: { ...dateQuery, status: { $in: ['won', 'lost'] } } },
+      { $match: matchQuery },
       { 
         $group: {
           _id: '$userId',
@@ -360,23 +369,17 @@ exports.getLeaderboard = async (req, res, next) => {
       { $count: 'total' }
     ]);
 
-    const total = totalUsersResult.length > 0 ? totalUsersResult[0].total : 0;    // Ensure we have valid data before sending response
-    const responseData = {
+    const total = totalUsersResult.length > 0 ? totalUsersResult[0].total : 0;
+
+    res.status(200).json({
       success: true,
       timeframe,
       count: leaderboard.length,
-      total: total || leaderboard.length,
+      total,
       page: pageNum,
-      pages: Math.max(1, Math.ceil((total || leaderboard.length) / limitNum)),
-      leaderboard: leaderboard.map(entry => ({
-        ...entry,
-        winRate: Number(entry.winRate.toFixed(2)),
-        profit: Number(entry.profit.toFixed(2))
-      }))
-    };
-
-    logger.info(`Sending leaderboard response: ${JSON.stringify(responseData)}`);
-    res.status(200).json(responseData);
+      pages: Math.max(1, Math.ceil(total / limitNum)),
+      leaderboard
+    });
   } catch (error) {
     logger.error('Get leaderboard error:', error);
     next(error);

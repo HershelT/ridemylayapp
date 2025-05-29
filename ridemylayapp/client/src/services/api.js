@@ -61,20 +61,21 @@ export const userAPI = {
     return api.get(`/users/${usernameOrId}/bets`, { params: { page, limit, ...filters } });
   },
   toggleFollow: (username) => api.put(`/users/${username}/follow`),
-  search: (query, page = 1, limit = 10) => 
-    api.get('/users/search', { params: { query, page, limit } }),
-  getLeaderboard: (timeframe = 'all', page = 1, limit = 10) => 
-    api.get('/users/leaderboard', { params: { timeframe, page, limit } }),
+  getLeaderboard: (timeframe = 'all', page = 1, limit = 10, type = 'all') => 
+    api.get('/users/leaderboard', { params: { timeframe, page, limit, type } }),
+  searchUsers: (query) => api.get(`/users/search?query=${query}`),
 };
 
-// Bet API calls
+// Bet API calls 
 export const betAPI = {
   getAllBets: (page = 1, limit = 10, filters = {}) => 
-    api.get('/bets', { params: { page, limit, ...filters } }),  getBet: (betId) => api.get(`/bets/${betId}`),
+    api.get('/bets', { params: { page, limit, ...filters } }),
+  getBet: (betId) => api.get(`/bets/${betId}`),
   createBet: (betData) => api.post('/bets', betData),
   updateBet: (betId, betData) => api.put(`/bets/${betId}`, betData),
   deleteBet: (betId) => api.delete(`/bets/${betId}`),
-  updateBetStatus: (betId, statusData) => api.put(`/bets/${betId}/status`, statusData),  toggleLike: (betId) => api.put(`/bets/${betId}/like`),
+  updateBetStatus: (betId, statusData) => api.put(`/bets/${betId}/status`, statusData),
+  toggleLike: (betId) => api.put(`/bets/${betId}/like`),
   getBetComments: (betId, page = 1, limit = 10) => 
     api.get(`/bets/${betId}/comments`, { params: { page, limit } }),
   addComment: (betId, content, parentId) => 
@@ -92,12 +93,6 @@ export const commentAPI = {
   updateComment: (commentId, content) => api.put(`/comments/${commentId}`, { content }),
   deleteComment: (commentId) => api.delete(`/comments/${commentId}`),
   likeComment: (commentId) => api.put(`/comments/${commentId}/like`),
-};
-
-// Leaderboard API calls
-export const leaderboardAPI = {
-  getLeaderboard: (timeframe = 'all', page = 1, limit = 10) => 
-    api.get('/users/leaderboard', { params: { timeframe, page, limit } }),
 };
 
 // Betting Sites API calls
