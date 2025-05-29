@@ -142,12 +142,11 @@ const users = [
 
 // Sample bets (will be populated with user IDs after user creation)
 const betTemplates = [
-  {
-    title: 'NBA Finals Parlay',
+  {    title: 'NBA Finals Parlay',
     description: 'Lakers to win + LeBron over 30 points',
-    odds: -110,
+    odds: 257,
     stake: 50,
-    potentialWinnings: 95.45,
+    potentialWinnings: 128.35,
     sport: 'basketball',
     league: 'NBA',
     status: 'won',
@@ -166,12 +165,11 @@ const betTemplates = [
       }
     ]
   },
-  {
-    title: 'NFL Sunday Special',
+  {    title: 'NFL Sunday Special',
     description: 'Chiefs + Bills + Packers all to win',
-    odds: 500,
+    odds: 275,
     stake: 100,
-    potentialWinnings: 600,
+    potentialWinnings: 275,
     sport: 'football',
     league: 'NFL',
     status: 'lost',
@@ -196,12 +194,11 @@ const betTemplates = [
       }
     ]
   },
-  {
-    title: 'MLB Double Header',
+  {    title: 'MLB Double Header',
     description: 'Yankees and Dodgers both to win',
-    odds: 300,
+    odds: 224,
     stake: 75,
-    potentialWinnings: 225,
+    potentialWinnings: 168.08,
     sport: 'baseball',
     league: 'MLB',
     status: 'won',
@@ -220,12 +217,11 @@ const betTemplates = [
       }
     ]
   },
-  {
-    title: 'Premier League Accumulator',
-    description: 'Manchester City, Arsenal, Liverpool all to win + Over 2.5 goals in each game',
-    odds: 800,
+  {    title: 'Premier League Accumulator',
+    description: 'Manchester City, Arsenal, Liverpool all to win',
+    odds: 379,
     stake: 50,
-    potentialWinnings: 450,
+    potentialWinnings: 189.50,
     sport: 'soccer',
     league: 'Premier League',
     status: 'pending',
@@ -250,12 +246,11 @@ const betTemplates = [
       }
     ]
   },
-  {
-    title: 'NHL Playoff Special',
+  {    title: 'NHL Playoff Special',
     description: 'Bruins to win + Total goals over 5.5',
-    odds: 200,
+    odds: 238,
     stake: 100,
-    potentialWinnings: 300,
+    potentialWinnings: 238,
     sport: 'hockey',
     league: 'NHL',
     status: 'lost',
@@ -274,12 +269,11 @@ const betTemplates = [
       }
     ]
   },
-  {
-    title: 'NBA Player Props Parlay',
+  {    title: 'NBA Player Props Parlay',
     description: 'Curry 25+ points, Jokic triple-double, Tatum 30+ points',
-    odds: 650,
+    odds: 711,
     stake: 50,
-    potentialWinnings: 375,
+    potentialWinnings: 355.50,
     sport: 'basketball',
     league: 'NBA',
     status: 'pending',
@@ -304,12 +298,11 @@ const betTemplates = [
       }
     ]
   },
-  {
-    title: 'UFC Fight Night Parlay',
+  {    title: 'UFC Fight Night Parlay',
     description: 'Main Event + Co-Main Winners',
-    odds: 250,
+    odds: 143,
     stake: 100,
-    potentialWinnings: 350,
+    potentialWinnings: 143,
     sport: 'mma',
     league: 'UFC',
     status: 'won',
