@@ -118,18 +118,17 @@ const BetDetails = () => {  const { id } = useParams();
       setActionLoading(prev => ({ ...prev, ride: false }));
     }
   };
-  
-  // Handle hedge action
+    // Handle hedge action
   const handleHedge = async () => {
-    if (actionLoading.hedge) return;
+    if (actionLoading.hedge || isOwner) return;
     
     setActionLoading(prev => ({ ...prev, hedge: true }));
     
     try {
-      const response = await betAPI.toggleHedge(id);
-      setBet(response.data.bet);
+      // Navigate to the post page with the bet ID as a URL parameter
+      navigate(`/post?hedge=${id}`);
     } catch (error) {
-      console.error('Error hedging bet:', error);
+      console.error('Error initiating hedge:', error);
     } finally {
       setActionLoading(prev => ({ ...prev, hedge: false }));
     }
