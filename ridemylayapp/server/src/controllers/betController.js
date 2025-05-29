@@ -85,15 +85,13 @@ exports.getBets = async (req, res, next) => {
     // Pagination
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Get bets
+    const skip = (pageNum - 1) * limitNum;    // Get bets
     const bets = await Bet.find(query)
       .sort(sort)
       .skip(skip)
       .limit(limitNum)
-      .populate('userId', 'username avatarUrl verified')
-      .populate('bettingSiteId', 'name logoUrl');
+      .populate('userId', 'username avatarUrl verified bio streak')
+      .populate('bettingSiteId', 'name logoUrl websiteUrl');
 
     // Get total count
     const total = await Bet.countDocuments(query);

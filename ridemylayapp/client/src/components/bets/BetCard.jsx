@@ -160,38 +160,55 @@ const BetCard = ({ bet }) => {
               )}
             </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {bet.user?.streak > 0 ? `🔥 ${bet.user.streak} Win Streak` : bet.user?.streak < 0 ? `❄️ ${Math.abs(bet.user.streak)} Loss Streak` : 'No streak'}
+              {bet.userId?.streak > 0 ? `🔥 ${bet.userId?.streak} Win Streak` : bet.userId?.streak < 0 ? `❄️ ${Math.abs(bet.userId?.streak)} Loss Streak` : 'No streak'}
             </span>
           </div>
         </Link>
-        
-        <div className="ml-auto text-right">
-            <Link to={`${bet.websiteUrl || bet.bettingSiteId?.websiteUrl || bet.bettingSite?.websiteUrl || '#'}`}>
-                <div className="flex items-center justify-end">            <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden">
-                    <img
-                        src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
-                        alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                        e.target.src = '/assets/images/placeholder-logo.png';
-                        e.target.onerror = null;
-                        }}
-                    />
+          <div className="ml-auto text-right">          <div className="flex items-center justify-end mb-1">
+                <a 
+                    href={
+                      // Get the betting site from either bettingSiteId or bettingSite object
+                      (bet.bettingSiteId?.websiteUrl || bet.bettingSite?.websiteUrl) ||
+                      // If no direct websiteUrl, try to determine from name
+                      (bet.bettingSiteId?.name || bet.bettingSite?.name)?.toLowerCase().replace(' ', '') ?
+                        `https://${(bet.bettingSiteId?.name || bet.bettingSite?.name).toLowerCase().replace(' ', '')}.com` :
+                        "https://example.com"
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center hover:opacity-80 transition-opacity group"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Track betting site click if needed
+                    }}
+                >
+                    <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden group-hover:opacity-80">
+                        <img
+                            src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
+                            alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                                e.target.src = '/assets/images/placeholder-logo.png';
+                                e.target.onerror = null;
+                            }}
+                        />
                     </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">{bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} </span>
-                </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {new Date(bet.createdAt).toLocaleDateString('en-US', {
+                    <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
+                      {bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'}
+                    </span>
+                </a>
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+                {new Date(bet.createdAt).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
-                    })} 
-                    {` • ${new Date(bet.createdAt).toLocaleTimeString('en-US', {
+                })} 
+                {` • ${new Date(bet.createdAt).toLocaleTimeString('en-US', {
                     hour: '2-digit',
                     minute: '2-digit',
-                    })}`}
-                </span>
-            </Link>
+                })}`}
+            </span>
         </div>
       </div>
         
