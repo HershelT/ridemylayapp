@@ -13,10 +13,16 @@ const BetSchema = new mongoose.Schema(
           type: String,
           required: [true, 'Please provide a team name']
         },
+        sport: {
+          type: String,
+          required: [true, 'Please provide a sport'],
+          enum: ['football', 'basketball', 'baseball', 'hockey', 'soccer', 'tennis', 'golf', 'mma', 'other']
+        },
         betType: {
           type: String,
           required: [true, 'Please provide a bet type']
-        },        odds: {
+        },
+        odds: {
           type: Number,
           required: [true, 'Please provide odds'],
           validate: {
@@ -88,11 +94,6 @@ const BetSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Bet'
     },
-    sport: {
-      type: String,
-      enum: ['football', 'basketball', 'baseball', 'hockey', 'soccer', 'tennis', 'golf', 'mma', 'other'],
-      required: [true, 'Please provide a sport']
-    },
     gameIds: [{
       type: String
     }]
@@ -119,9 +120,6 @@ BetSchema.index({ userId: 1, createdAt: -1 });
 
 // Index for efficient querying of bets by status
 BetSchema.index({ status: 1 });
-
-// Index for searching bets by sport
-BetSchema.index({ sport: 1 });
 
 // Calculate odds and potential winnings before saving
 BetSchema.pre('save', function(next) {

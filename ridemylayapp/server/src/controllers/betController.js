@@ -11,7 +11,8 @@ const logger = require('../utils/logger');
  * @access  Private
  */
 exports.createBet = async (req, res, next) => {
-  try {    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;
+  try {
+    const { legs, stake, bettingSiteId, isRide, isHedge, originalBetId } = req.body;
 
     // Create bet - odds and winnings will be calculated automatically by pre-save middleware
     const bet = await Bet.create({
@@ -19,7 +20,6 @@ exports.createBet = async (req, res, next) => {
       legs,
       stake,
       bettingSiteId,
-      sport,
       isRide,
       isHedge,
       originalBetId
@@ -58,7 +58,7 @@ exports.getBets = async (req, res, next) => {
     // Build query
     const query = {};
 
-    if (sport) query.sport = sport;
+    if (sport) query['legs.sport'] = sport; // Updated to filter on leg sport
     if (status) query.status = status;
     if (userId) query.userId = userId;
     if (likedBy) query.likes = likedBy;

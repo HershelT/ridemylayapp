@@ -244,7 +244,9 @@ const BetCard = ({ bet }) => {
             <div key={index} className="flex justify-between items-center">
               <div>
                 <div className="font-medium">{leg.team}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">{leg.betType}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  {leg.sport.charAt(0).toUpperCase() + leg.sport.slice(1)} • {leg.betType}
+                </div>
               </div>
               <div className="text-right">
                 <div className={`font-medium ${leg.odds > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>

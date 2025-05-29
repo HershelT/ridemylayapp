@@ -43,14 +43,13 @@ exports.getUserAnalytics = async (req, res, next) => {
       }
       totalOdds += bet.odds || 0;
     });
-    const avgOdds = totalBets > 0 ? totalOdds / totalBets : 0;
-
-    // Get sport breakdown
+    const avgOdds = totalBets > 0 ? totalOdds / totalBets : 0;    // Get sport breakdown
     const sportBreakdown = await Bet.aggregate([
       { $match: { userId } },
+      { $unwind: '$legs' },
       { 
         $group: {
-          _id: '$sport',
+          _id: '$legs.sport',
           betsCount: { $sum: 1 },
           wins: { $sum: { $cond: [{ $eq: ['$status', 'won'] }, 1, 0] } }
         }

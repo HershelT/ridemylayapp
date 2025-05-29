@@ -309,7 +309,8 @@ const BetDetails = () => {  const { id } = useParams();
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {bet.title}
               </h1>
-              <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">                <Link 
+              <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
+                <Link 
                   to={`/profile/${bet.userId?.username || bet.user?.username || bet.userId}`}
                   className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
@@ -447,7 +448,7 @@ const BetDetails = () => {  const { id } = useParams();
                         {leg.team}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {leg.betType.charAt(0).toUpperCase() + leg.betType.slice(1)} • {leg.odds > 0 ? `+${leg.odds}` : leg.odds}
+                        {leg.sport.charAt(0).toUpperCase() + leg.sport.slice(1)} • {leg.betType.charAt(0).toUpperCase() + leg.betType.slice(1)} • {leg.odds > 0 ? `+${leg.odds}` : leg.odds}
                       </p>
                     </div>
                     <div>
@@ -474,6 +475,11 @@ const BetDetails = () => {  const { id } = useParams();
                         </span>
                       )}
                     </div>
+                  </div>
+                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {leg.sport.charAt(0).toUpperCase() + leg.sport.slice(1)}
+                    </span>
                   </div>
                 </div>
               ))}

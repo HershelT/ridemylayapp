@@ -23,9 +23,8 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     description: '',
     stake: '',
     odds: '',
-    sport: '',
     bettingSiteId: '',
-    legs: [{ team: '', betType: 'moneyline', odds: '', outcome: 'pending' }]
+    legs: [{ team: '', betType: 'moneyline', odds: '', outcome: 'pending', sport: '' }]
   });
 
   // UI state
@@ -80,12 +79,9 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
         description: '',
         stake: '',
         odds: '',
-        sport: existingBet.sport,
         bettingSiteId: existingBet.bettingSiteId?._id || existingBet.bettingSiteId,
         legs: []
-      };
-
-      if (isEditing) {
+      };      if (isEditing) {
         betData = {
           ...betData,
           title: existingBet.title,
@@ -96,7 +92,8 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
             team: leg.team,
             betType: leg.betType,
             odds: leg.odds.toString(),
-            outcome: leg.outcome
+            outcome: leg.outcome,
+            sport: leg.sport || ''
           }))
         };
       } else if (isRiding) {
@@ -105,12 +102,13 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
           title: `Riding: ${existingBet.title}`,
           description: `Riding ${existingBet.userId?.username}'s bet`,
           stake: '',
-          odds: existingBet.odds.toString(),
+          odds: existingBet.odds.toString(),            
           legs: existingBet.legs.map(leg => ({
             team: leg.team,
             betType: leg.betType,
             odds: leg.odds.toString(),
-            outcome: 'pending'
+            outcome: 'pending',
+            sport: leg.sport || ''
           }))
         };
       } else if (isHedging) {
@@ -124,11 +122,11 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
           description: `Hedging ${existingBet.userId?.username}'s bet`,
           stake: hedgeCalc.recommendedStake,
           odds: (-parseInt(existingBet.odds)).toString(), // Inverse the odds
-          legs: existingBet.legs.map(leg => ({
-            team: leg.team,
+          legs: existingBet.legs.map(leg => ({            team: leg.team,
             betType: leg.betType,
             odds: (-parseInt(leg.odds)).toString(), // Inverse each leg's odds
-            outcome: 'pending'
+            outcome: 'pending',
+            sport: leg.sport || ''
           }))
         };
       }
@@ -200,74 +198,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
       ...prev,
       [name]: value
     }));
-  };  // Handle odds input changes    
-  const handleOddsChange = (e) => {
-    const value = e.target.value;
-    // Allow empty string, +/-, and numbers for American odds
-    if (value === '' || value === '-' || value === '+' || /^[+-]?\d*$/.test(value)) {
-      let normalizedValue = value;
-      
-      if (value !== '' && value !== '-' && value !== '+') {
-        // Remove leading zeros but keep sign
-        if (value.startsWith('-')) {
-          normalizedValue = '-' + value.substring(1).replace(/^0+/, '');
-          if (normalizedValue === '-') normalizedValue = '';
-        } else if (value.startsWith('+')) {
-          normalizedValue = '+' + value.substring(1).replace(/^0+/, '');
-          if (normalizedValue === '+') normalizedValue = '';
-        } else {
-          normalizedValue = value.replace(/^0+/, '');
-        }
-      }
-      
-      // Validate odds within reasonable limits
-      if (normalizedValue && normalizedValue !== '-' && normalizedValue !== '+') {
-        const parsed = parseAmericanOdds(normalizedValue);
-        if (parsed && !validateOdds(normalizedValue)) {
-          toast.error('Odds value is outside reasonable limits (-10000 to +10000)');
-          return;
-        }
-      }
-      
-      setFormData(prev => ({
-        ...prev,
-        odds: normalizedValue
-      }));
-    }
-  };  // Handle leg odds changes  
-  const handleLegOddsChange = (index, value) => {
-    // Allow empty string, +/-, and numbers for American odds
-    if (value === '' || value === '-' || value === '+' || /^[+-]?\d*$/.test(value)) {
-      // Format odds maintaining correct +/- prefix
-      let normalizedValue = value;
-      
-      if (value !== '' && value !== '-' && value !== '+') {
-        // Remove leading zeros but keep sign
-        if (value.startsWith('-')) {
-          // For negative numbers
-          normalizedValue = '-' + value.substring(1).replace(/^0+/, '');
-          if (normalizedValue === '-') normalizedValue = '';
-        } else if (value.startsWith('+')) {
-          // For positive numbers with + sign
-          normalizedValue = '+' + value.substring(1).replace(/^0+/, '');
-          if (normalizedValue === '+') normalizedValue = '';
-        } else {
-          // For positive numbers without + sign
-          normalizedValue = value.replace(/^0+/, '');
-        }
-      }
-      
-      const updatedLegs = [...formData.legs];
-      updatedLegs[index] = {
-        ...updatedLegs[index],
-        odds: normalizedValue
-      };
-      setFormData(prev => ({
-        ...prev,
-        legs: updatedLegs
-      }));
-    }
-  };
+  };      
 
   // Handle leg changes
   const handleLegChange = (index, field, value) => {
@@ -287,7 +218,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
   const addLeg = () => {
     setFormData(prev => ({
       ...prev,
-      legs: [...prev.legs, { team: '', betType: 'moneyline', odds: '', outcome: 'pending' }]
+      legs: [...prev.legs, { team: '', betType: 'moneyline', odds: '', outcome: 'pending', sport: '' }]
     }));
   };
   
@@ -304,10 +235,9 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate required fields are present
-    if (!formData.stake || formData.legs.some(leg => !leg.odds || !leg.team)) {
-      toast.error('Please fill in all required fields');
+      // Validate required fields are present
+    if (!formData.stake || formData.legs.some(leg => !leg.odds || !leg.team || !leg.sport)) {
+      toast.error('Please fill in all required fields (stake, team, sport, and odds)');
       return;
     }
     
@@ -452,26 +382,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                 required
               />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Sport*
-              </label>
-              <select
-                name="sport"
-                value={formData.sport}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
-                required
-              >
-                <option value="">Select a sport</option>
-                {sportOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+  
           </div>
           
           <div>
@@ -598,8 +509,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                     <FaTimes />
                   </button>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Team/Player*
@@ -612,6 +522,25 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                       placeholder="E.g., Kansas City Chiefs"
                       required
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Sport*
+                    </label>
+                    <select
+                      value={leg.sport}
+                      onChange={(e) => handleLegChange(index, 'sport', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                      required
+                    >
+                      <option value="">Select a sport</option>
+                      {sportOptions.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div>
@@ -632,13 +561,14 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                     </select>
                   </div>
                   
-                  <div>                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <div>                    
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Odds*
                     </label>
                     <input
                       type="text"
                       value={leg.odds}
-                      onChange={(e) => handleLegOddsChange(index, e.target.value)}
+                      onChange={(e) => handleLegChange(index, 'odds', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                       placeholder="E.g., -110, +150"
                       required
