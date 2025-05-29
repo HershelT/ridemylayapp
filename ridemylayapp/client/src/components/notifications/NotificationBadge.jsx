@@ -1,24 +1,22 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { BsBell } from 'react-icons/bs';
 import useNotificationStore from '../../stores/notificationStore';
 import socketService from '../../services/socket';
 import { subscribeToNotifications } from '../../services/notificationService';
 
 const NotificationBadge = () => {
-  const { unreadCount, fetchUnreadCount, init } = useNotificationStore();
-  
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
   useEffect(() => {
-    // Initialize notification store and fetch initial count
-    init();
+    // Initial fetch
     fetchUnreadCount();
-
+    
     // Set up periodic refresh of unread count
     const refreshInterval = setInterval(fetchUnreadCount, 30000); // Refresh every 30 seconds
 
     return () => {
       clearInterval(refreshInterval);
     };
-  }, [init, fetchUnreadCount]);
+  }, [fetchUnreadCount]);
 
   return (
     <div className="relative">

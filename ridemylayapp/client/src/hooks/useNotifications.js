@@ -11,13 +11,15 @@ export const useNotifications = () => {
     // Request notification permissions when the hook is first used
     if (Notification.permission === 'default') {
       Notification.requestPermission();
-    }
-
-    // Subscribe to notifications
+    }    // Subscribe to notifications
     const cleanup = socketService.onNewNotification((notification) => {
       // The socket service now handles browser notifications
-      // Just add to store
-      addNotification(notification);
+      // Add to store only if addNotification is available
+      if (typeof addNotification === 'function') {
+        addNotification(notification);
+      } else {
+        console.warn('addNotification is not available in the notification store');
+      }
     });
 
     // Initial subscription

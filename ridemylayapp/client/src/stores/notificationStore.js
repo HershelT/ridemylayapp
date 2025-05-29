@@ -8,21 +8,24 @@ const initialState = {
   error: null
 };
 
-const useNotificationStore = create((set, get) => ({
-  ...initialState,
-  init() {
-    window.addEventListener('notifications_init', (event) => {
-      const notifications = event.detail || [];
-      set({ notifications, loading: false });
-    });
+const useNotificationStore = create((set, get) => {
+  // Initialize event listeners
+  window.addEventListener('notifications_init', (event) => {
+    const notifications = event.detail || [];
+    set({ notifications, loading: false });
+  });
 
-    // Listen for new notifications
-    window.addEventListener('new_notification', (event) => {
-      if (event.detail) {
-        this.addNotification(event.detail);
+  window.addEventListener('new_notification', (event) => {
+    if (event.detail) {
+      const store = get();
+      if (store && typeof store.addNotification === 'function') {
+        store.addNotification(event.detail);
       }
-    });
-  },
+    }
+  });
+
+  return {
+    ...initialState,
 
   async fetchNotifications() {
     set({ loading: true });
@@ -82,8 +85,7 @@ const useNotificationStore = create((set, get) => ({
     } catch (error) {
       set({ error: error.message });
     }
-  },
-  addNotification(notification) {
+  },  addNotification: (notification) => {
     if (!notification || !notification._id) return;
     
     set(state => {
@@ -95,10 +97,10 @@ const useNotificationStore = create((set, get) => ({
 
       return {
         notifications: [notification, ...notifications],
-        unreadCount: state.unreadCount + 1
+        unreadCount: (state.unreadCount || 0) + 1
       };
     });
   }
-}));
+});
 
 export default useNotificationStore;

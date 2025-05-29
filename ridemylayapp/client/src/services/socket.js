@@ -192,6 +192,56 @@ const onBetUpdate = (callback) => {
   };
 };
 
+// // Helper function to handle browser notifications
+// const handleBrowserNotification = (notification) => {
+//   if (!notification || !notification.sender) return;
+
+//   // Check if we should show the notification
+//   const isInChat = window.location.pathname.startsWith('/messages') && 
+//                   notification.entityType === 'chat' && 
+//                   window.location.pathname.includes(notification.entityId);
+//   const isActiveTab = document.hasFocus();
+  
+//   // Don't show notification if we're in the active chat
+//   if (isInChat && isActiveTab) return;
+
+//   // Request permission if not granted
+//   if (Notification.permission === 'default') {
+//     Notification.requestPermission();
+//   }
+
+//   // Show browser notification if permission is granted
+//   if (Notification.permission === 'granted') {
+//     const title = notification.type === 'message' 
+//       ? `New message from ${notification.sender.username}`
+//       : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
+
+//     const browserNotification = new Notification(title, {
+//       body: notification.content,
+//       icon: notification.sender.avatarUrl || '/favicon.ico',
+//       tag: `${notification.type}-${notification.entityId}`,
+//       requireInteraction: true
+//     });
+
+//     browserNotification.onclick = () => {
+//       window.focus();
+//       switch (notification.entityType) {
+//         case 'chat':
+//           window.location.href = `/messages/${notification.entityId}`;
+//           break;
+//         case 'bet':
+//           window.location.href = `/bets/${notification.entityId}`;
+//           break;
+//         case 'user':
+//           window.location.href = `/profile/${notification.entityId}`;
+//           break;
+//         default:
+//           window.location.href = '/';
+//       }
+//     };
+//   }
+// };
+
 const onNewNotification = (callback) => {
   const s = getSocket();
   let cleanupFunctions = [];
@@ -202,7 +252,9 @@ const onNewNotification = (callback) => {
       // Trigger the browser notification
       handleBrowserNotification(notification);
       // Call the provided callback
-      callback(notification);
+      if (callback && typeof callback === 'function') {
+        callback(notification);
+      }
     };
 
     s.on('new_notification', handleNewNotification);
@@ -210,7 +262,9 @@ const onNewNotification = (callback) => {
 
     // Listen for notification updates (e.g., marking as read)
     s.on('notification_updated', (notification) => {
-      callback(notification, 'update');
+      if (callback && typeof callback === 'function') {
+        callback(notification, 'update');
+      }
     });
     cleanupFunctions.push(() => s.off('notification_updated'));
 
