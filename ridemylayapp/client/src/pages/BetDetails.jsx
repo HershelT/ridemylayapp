@@ -568,11 +568,6 @@ const BetDetails = () => {  const { id } = useParams();
           onDeleteComment={handleDeleteComment}
           loading={commentsLoading}
         />
-        {comments[id]?.length === 0 && !loading && (
-          <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-            No comments yet. Be the first to comment!
-          </div>
-        )}
       </div>
     </div>
   );

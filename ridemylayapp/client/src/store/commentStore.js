@@ -23,18 +23,25 @@ const useCommentStore = create(
       set((state) => ({
         loading: true,
         error: null,
-      }));
-
-      try {
+      }));      try {
         const response = await commentAPI.getComments(betId);
+        const serverComments = response.data.comments;
         
-        set((state) => ({
-          comments: {
-            ...state.comments,
-            [betId]: response.data.comments,
-          },
-          loading: false,
-        }));
+        set((state) => {
+          const existingComments = state.comments[betId] || [];
+          // Preserve any temporary comments that aren't in the server response yet
+          const tempComments = existingComments.filter(comment => 
+            comment.isTemp && !serverComments.find(sc => sc.content === comment.content)
+          );
+          
+          return {
+            comments: {
+              ...state.comments,
+              [betId]: [...tempComments, ...serverComments],
+            },
+            loading: false,
+          };
+        });
         
         return response.data.comments;
       } catch (error) {
@@ -77,21 +84,26 @@ const useCommentStore = create(
             ? [tempComment, ...state.comments[betId]]
             : [tempComment],
         },
-      }));
-
+      }));      
       try {      // Make the actual API call
         const response = await commentAPI.addComment(betId, { content, parentId });
         const newComment = response.data.comment;
         
-        // Replace the temporary comment with the real one
-        set((state) => ({
-          comments: {
-            ...state.comments,
-            [betId]: state.comments[betId].map(comment => 
-              comment._id === tempId ? newComment : comment
-            ),
-          },
-        }));
+        // Replace the temporary comment with the real one and ensure it stays
+        set((state) => {
+          const existingComments = state.comments[betId] || [];
+          const otherComments = existingComments.filter(comment => comment._id !== tempId);
+          
+          return {
+            comments: {
+              ...state.comments,
+              [betId]: [newComment, ...otherComments],
+            },
+          };
+        });
+        
+        // Prevent immediate getComments from overwriting
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         return newComment;
       } catch (error) {
