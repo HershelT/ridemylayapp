@@ -45,8 +45,8 @@ const Profile = () => {
           }
           break;
           
-        case 'likes':
-          const likesResponse = await betAPI.getLikedBets(target);
+        case 'likes':          
+            const likesResponse = await userAPI.getUserBets(target, 1, 10, { isLiked: true });
           if (likesResponse.data.bets) {
             setLikes(likesResponse.data.bets);
           }
