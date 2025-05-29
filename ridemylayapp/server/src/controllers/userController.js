@@ -11,12 +11,12 @@ exports.getUserProfile = async (req, res, next) => {
   try {    let user;
     // Check if it's a valid MongoDB ID
     if (req.params.username.match(/^[0-9a-fA-F]{24}$/)) {
-      user = await User.findById(req.params.username);
+      user = await User.findById(req.params.username).populate('betCount');
     } 
 
     // If not found by ID or not a valid ID, try username
     if (!user) {
-      user = await User.findOne({ username: req.params.username });
+      user = await User.findOne({ username: req.params.username }).populate('betCount');
     }
 
     if (!user) {
@@ -36,6 +36,11 @@ exports.getUserProfile = async (req, res, next) => {
       wonBetsCount,
       winRate: betsCount > 0 ? (wonBetsCount / betsCount) * 100 : 0
     };
+
+    // If user doesn't have betCount populated, add it manually
+    if (user && !user.betCount) {
+      user.betCount = betsCount;
+    }
 
     // Add isFollowing field if we have an authenticated user
     let isFollowing = false;
