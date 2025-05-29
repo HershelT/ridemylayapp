@@ -60,14 +60,15 @@ const Leaderboard = () => {
   };  const handleFollowToggle = async (username) => {
     try {
       const userToUpdate = leaderboardData.find(u => u.username === username);
-      if (!userToUpdate) return;
-
-      // Call the auth store action to handle the follow/unfollow
+      if (!userToUpdate) return;      // Call the auth store action to handle the follow/unfollow
       const response = await useAuthStore.getState().followUser(username);
       
       if (!response.success) {
         throw new Error(response.error || 'Failed to update follow status');
       }
+      
+      // Show success toast
+      toast.success(response.isFollowing ? 'Started following user' : 'Unfollowed user');
       
       // Handle the response
       if (leaderboardType === 'friends' && !response.isFollowing) {

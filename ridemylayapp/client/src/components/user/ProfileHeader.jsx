@@ -27,13 +27,15 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
       
       // Call the global store action to follow/unfollow
       const result = await followUser(user.username);
-      
-      // Validate the result
+        // Validate the result
       if (!result.success) {
         // Revert follower count if the action failed
         setFollowerCount(originalCount);
         throw new Error(result.error || 'Failed to update follow status');
       }
+
+      // Show success toast
+      toast.success(result.isFollowing ? 'Started following user' : 'Unfollowed user');
       
       // Notify parent component about the change
       if (onFollowToggle) {
