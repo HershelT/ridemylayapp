@@ -24,22 +24,11 @@ const Header = ({ toggleTheme }) => {
   // Fetch initial unread count and set up socket listeners
   React.useEffect(() => {
     // Initial notification count fetch
-    fetchUnreadCount();
-
-    if (user) {
-      // Listen for new messages and notifications
+    fetchUnreadCount();    if (user) {
+      // Listen for new messages
       const messageCleanup = socketService.onMessageReceived((data) => {
         if (data.sender._id !== user._id) {  // Only increment if message is not from current user
           incrementUnreadCount();
-          // Show notification if not in the chat
-          if (!window.location.pathname.includes('/messages')) {
-            handleNewNotification({
-              type: 'message',
-              sender: data.sender,
-              content: data.content,
-              entityId: data.chat
-            });
-          }
         }
       });
 

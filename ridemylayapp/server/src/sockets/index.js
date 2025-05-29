@@ -162,12 +162,12 @@ const setupSocketIO = (server) => {
                     _id: socket.user.id,
                     username: socket.user.username
                   }
-                };
-
-                // Emit to all of user's connected sockets
+                };                // Emit to all of user's connected sockets
                 recipientSockets.forEach(recipientSocket => {
-                  recipientSocket.emit('new_notification', notificationData);
-                  recipientSocket.emit('message_notification', messageWithSender);
+                  // Only send notification if user is not in the chat
+                  if (!recipientSocket.rooms.has(`chat:${message.chat}`)) {
+                    recipientSocket.emit('new_notification', notificationData);
+                  }
                 });
               }
 
