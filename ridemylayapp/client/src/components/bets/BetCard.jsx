@@ -166,12 +166,17 @@ const BetCard = ({ bet }) => {
         </Link>
         
         <div className="ml-auto text-right">
-          <div className="flex items-center justify-end">
-            <img 
-              src={bet.bettingSite?.logoUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZTVlN2ViIi8+PC9zdmc+'} 
-              alt="Betting Site" 
-              className="w-5 h-5 mr-1"
-            />
+          <div className="flex items-center justify-end">            <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden">
+              <img
+                src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
+                alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.target.src = '/assets/images/placeholder-logo.png';
+                  e.target.onerror = null;
+                }}
+              />
+            </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">{bet.bettingSite?.name || 'Betting Site'}</span>
           </div>
           <span className="text-xs text-gray-500 dark:text-gray-400">

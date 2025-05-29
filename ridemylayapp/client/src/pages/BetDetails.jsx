@@ -486,12 +486,17 @@ const BetDetails = () => {  const { id } = useParams();
             <div className="mt-6 flex items-center">
               <p className="text-sm text-gray-500 dark:text-gray-400 mr-2">Placed on:</p>
               <div className="flex items-center">
-                {bet.bettingSite.logo && (
-                  <img 
-                    src={bet.bettingSite.logo} 
-                    alt={bet.bettingSite.name} 
-                    className="h-5 w-5 mr-1 rounded"
-                  />
+                {bet.bettingSite.logo && (                  <div className="h-5 w-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden">
+                    <img 
+                      src={bet.bettingSite.logo || bet.bettingSite.logoUrl || '/assets/images/placeholder-logo.png'} 
+                      alt={bet.bettingSite.name} 
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = '/assets/images/placeholder-logo.png';
+                        e.target.onerror = null;
+                      }}
+                    />
+                  </div>
                 )}
                 <span className="text-sm font-medium text-gray-900 dark:text-white">
                   {bet.bettingSite.name}
