@@ -55,6 +55,7 @@ exports.getBets = async (req, res, next) => {
       sport, 
       status, 
       userId, 
+      likedBy,
       following,
       isRide,
       isHedge,
@@ -69,6 +70,7 @@ exports.getBets = async (req, res, next) => {
     if (sport) query.sport = sport;
     if (status) query.status = status;
     if (userId) query.userId = userId;
+    if (likedBy) query.likes = likedBy;
     if (isRide === 'true') query.isRide = true;
     if (isHedge === 'true') query.isHedge = true;
 
