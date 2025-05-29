@@ -16,10 +16,15 @@ const BetSchema = new mongoose.Schema(
         betType: {
           type: String,
           required: [true, 'Please provide a bet type']
-        },
-        odds: {
+        },        odds: {
           type: Number,
-          required: [true, 'Please provide odds']
+          required: [true, 'Please provide odds'],
+          validate: {
+            validator: function(v) {
+              return v >= -10000 && v <= 10000;
+            },
+            message: props => `${props.value} is not a valid American odds value for leg!`
+          }
         },
         outcome: {
           type: String,
@@ -27,15 +32,22 @@ const BetSchema = new mongoose.Schema(
           default: 'pending'
         }
       }
-    ],
-    odds: {
+    ],    odds: {
       type: Number,
-      required: [true, 'Please provide total odds']
+      required: [true, 'Please provide total odds'],
+      validate: {
+        validator: function(v) {
+          // Allow reasonable American odds range (-10000 to +10000)
+          return v >= -10000 && v <= 10000;
+        },
+        message: props => `${props.value} is not a valid American odds value!`
+      }
     },
     stake: {
       type: Number,
       required: [true, 'Please provide a stake amount'],
-      min: [0.01, 'Stake must be greater than 0']
+      min: [0.01, 'Stake must be greater than 0'],
+      max: [1000000, 'Stake cannot exceed 1,000,000']
     },
     potentialWinnings: {
       type: Number,

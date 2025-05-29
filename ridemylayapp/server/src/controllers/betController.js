@@ -12,13 +12,37 @@ const logger = require('../utils/logger');
  */
 exports.createBet = async (req, res, next) => {
   try {
-    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;
+    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;    // Calculate total odds and potential winnings using proper parlay calculations
+    let totalOdds;
+    let potentialWinnings;
 
-    // Calculate total odds from legs
-    const totalOdds = legs.reduce((acc, leg) => acc * leg.odds, 1);
+    if (legs.length === 1) {
+      // Single bet - use leg odds directly
+      totalOdds = legs[0].odds;
+      // Calculate potential winnings - for positive odds: (stake * odds/100), for negative odds: (stake * 100/|odds|)
+      potentialWinnings = totalOdds > 0 
+        ? stake * (totalOdds / 100)
+        : stake * (100 / Math.abs(totalOdds));
+    } else {
+      // Parlay bet - convert to decimal, multiply, then convert back to American
+      const decimalProduct = legs.reduce((acc, leg) => {
+        const decimal = leg.odds > 0 
+          ? (leg.odds / 100) + 1 
+          : (100 / Math.abs(leg.odds)) + 1;
+        return acc * decimal;
+      }, 1);
+
+      // Convert final decimal odds back to American
+      totalOdds = decimalProduct >= 2
+        ? Math.round((decimalProduct - 1) * 100)
+        : Math.round(-100 / (decimalProduct - 1));
+
+      // Calculate potential winnings from decimal odds
+      potentialWinnings = stake * (decimalProduct - 1);
+    }
     
-    // Calculate potential winnings
-    const potentialWinnings = stake * totalOdds;
+    // Round potential winnings to 2 decimal places
+    potentialWinnings = Math.round(potentialWinnings * 100) / 100;
 
     // Create bet
     const bet = await Bet.create({
