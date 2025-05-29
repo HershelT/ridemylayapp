@@ -4,8 +4,11 @@ import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
 import useAuth from '../../hooks/useAuth';
 import FollowModal from './FollowModal';
+import socketService from '../../services/socket';
 
-const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
+const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
+  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
+  const [betCount, setBetCount] = useState(user?.stats?.betsCount || user?.betCount || 0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFollowModal, setShowFollowModal] = useState(false);
   const [modalType, setModalType] = useState(null); // 'followers' or 'following'
@@ -14,12 +17,28 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
   const isFollowing = !!user?._id && isFollowingUser(user._id);
   const { logout } = useAuth();
 
-  // Update follower count when user prop changes
+  // Update counts when user prop changes
   useEffect(() => {
     if (user) {
       setFollowerCount(user.followers?.length || 0);
+      setBetCount(user?.stats?.betsCount || user?.betCount || 0);
     }
   }, [user]);
+
+  // Socket listener for real-time updates
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const cleanup = socketService.onUserStatsUpdate((update) => {
+      if (update.userId === user._id && (update.type === 'bet_created' || update.type === 'bet_deleted')) {
+        // Update bet count based on the action
+        setBetCount(prev => update.type === 'bet_created' ? prev + 1 : prev - 1);
+      }
+    });
+
+    return cleanup;
+  }, [user?._id]);
+
   const handleFollow = async () => {
     if (!user?.username) return;
 
@@ -32,7 +51,7 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
       
       // Call the global store action to follow/unfollow
       const result = await followUser(user.username);
-        // Validate the result
+      // Validate the result
       if (!result.success) {
         // Revert follower count if the action failed
         setFollowerCount(originalCount);
@@ -86,9 +105,11 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
               <span className="text-red-500">❄️ {Math.abs(user.streak)} Loss Streak</span> : 
               'No active streak'
             }
-          </div>            <div className="flex space-x-4 text-sm mb-3">
+          </div>
+
+          <div className="flex space-x-4 text-sm mb-3">
             <div>
-              <span className="font-bold">{user?.stats?.betsCount || user?.betCount || 0}</span> Bets
+              <span className="font-bold">{betCount}</span> Bets
             </div>
             {isOwnProfile ? (
               <>

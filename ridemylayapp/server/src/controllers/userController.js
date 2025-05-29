@@ -31,8 +31,9 @@ exports.getUserProfile = async (req, res, next) => {
         success: false, 
         error: 'User not found' 
       });
-    }    // Get user stats
-    // Always use aggregate to get stats for consistency
+    }
+
+    // Get user stats consistently using aggregation
     const [stats] = await Bet.aggregate([
       { $match: { userId: user._id } },
       { 
@@ -60,13 +61,6 @@ exports.getUserProfile = async (req, res, next) => {
       }
     ]) || { betsCount: 0, wonBetsCount: 0, winRate: 0 };
 
-    const userStats = stats;
-
-    // If user doesn't have betCount populated, add it manually
-    if (user && !user.betCount) {
-      user.betCount = stats.betsCount;
-    }
-
     // Add isFollowing field if we have an authenticated user
     let isFollowing = false;
     if (req.user) {
@@ -84,7 +78,7 @@ exports.getUserProfile = async (req, res, next) => {
     res.status(200).json({
       success: true,
       user,
-      stats: userStats
+      stats
     });
   } catch (error) {
     logger.error(`Get user profile error for username ${req.params.username}:`, error);

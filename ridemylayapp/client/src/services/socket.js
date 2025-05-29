@@ -208,6 +208,16 @@ const onUserStatusChange = (callback) => {
   };
 };
 
+// User stats events
+const onUserStatsUpdate = (callback) => {
+  const s = getSocket();
+  if (!s) return () => {};
+  
+  s.on('user_stats_update', callback);
+  return () => {
+    s.off('user_stats_update', callback);
+  };
+};
 
 // Notification events
 const subscribeToNotifications = () => {
@@ -234,20 +244,6 @@ const disconnectSocket = () => {
   }
 };
 
-// Chat event emitters
-const joinChat = (chatId) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.emit('join chat', chatId);
-  }
-};
-
-const leaveChat = (chatId) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.emit('leave chat', chatId);
-  }
-};
 
 const sendChatMessage = (message) => {
   const socket = getSocket();
@@ -300,7 +296,6 @@ const socketService = {
   createSocket,
   joinChatRoom,
   leaveChatRoom,
-  sendChatMessage,
   typingInChat,
   markMessagesAsRead,
   subscribeToBetUpdates,
@@ -316,7 +311,8 @@ const socketService = {
   subscribeToMessages,
   subscribeToChatTyping,
   emitTyping,
-  emitBetInteraction
+  emitBetInteraction,
+  onUserStatsUpdate
 };
 
 export default socketService;

@@ -25,6 +25,14 @@ exports.createBet = async (req, res, next) => {
       originalBetId
     });
 
+    // Emit socket event for bet count update
+    if (req.io) {
+      req.io.emit('user_stats_update', {
+        userId: req.user.id,
+        type: 'bet_created'
+      });
+    }
+
     res.status(201).json({
       success: true,
       bet
@@ -456,6 +464,14 @@ exports.deleteBet = async (req, res, next) => {
 
     // Delete the bet
     await bet.deleteOne();
+
+    // Emit socket event for bet count update
+    if (req.io) {
+      req.io.emit('user_stats_update', {
+        userId: req.user.id,
+        type: 'bet_deleted'
+      });
+    }
 
     res.status(200).json({
       success: true,
