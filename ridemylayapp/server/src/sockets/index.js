@@ -155,12 +155,11 @@ const setupSocketIO = (server) => {
     socket.on('read_messages', async (chatId) => {
       try {
         await Message.updateMany(
-          {
-            chat: chatId,
-            'readBy.userId': { $ne: socket.user.id }
+          {            chat: chatId,
+            readBy: { $ne: socket.user.id }
           },
           {
-            $addToSet: { readBy: { userId: socket.user.id, readAt: new Date() } }
+            $addToSet: { readBy: socket.user.id }
           }
         );
 

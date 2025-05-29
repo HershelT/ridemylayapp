@@ -7,6 +7,8 @@ const RECONNECT_DELAY = 2000;
 
 // Create and initialize socket instance
 const createSocket = () => {
+  if (socket) return socket; // Return existing socket if it exists
+  
   const token = localStorage.getItem('token');
   
   if (!token) {
@@ -22,12 +24,15 @@ const createSocket = () => {
       reconnectionDelay: RECONNECT_DELAY,
       reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
       transports: ['websocket'],
+      autoConnect: false // We'll connect manually
     });
     
     // Connection event handlers
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
       reconnectAttempts = 0;
+      // Resubscribe to notifications on reconnect
+      socket.emit('subscribe_notifications');
     });
     
     socket.on('disconnect', (reason) => {
@@ -58,6 +63,22 @@ const createSocket = () => {
       console.error('Socket error:', error);
     });
     
+    // Set up global socket event listeners for notifications
+    socket.on('notifications_init', (notifications) => {
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('notifications_init', { detail: notifications }));
+      }
+    });
+
+    socket.on('new_notification', (notification) => {
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
+      }
+    });
+
+    // Connect the socket
+    socket.connect();
+    
     return socket;
   } catch (error) {
     console.error('Error creating socket:', error);
@@ -67,25 +88,8 @@ const createSocket = () => {
 
 // Get or create socket instance
 const getSocket = () => {
-  if (!socket) {
+  if (!socket || !socket.connected) {
     socket = createSocket();
-    
-    // Set up global socket event listeners
-    if (socket) {
-      socket.on('notifications_init', (notifications) => {
-        // This will be handled by the notification store
-        if (window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent('notifications_init', { detail: notifications }));
-        }
-      });
-
-      socket.on('new_notification', (notification) => {
-        // This will be handled by the notification store
-        if (window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
-        }
-      });
-    }
   }
   return socket;
 };
@@ -246,8 +250,13 @@ const onUserStatsUpdate = (callback) => {
 // Notification events
 const subscribeToNotifications = () => {
   const s = getSocket();
-  if (s) {
+  if (s && s.connected) {
     s.emit('subscribe_notifications');
+  } else if (s) {
+    // If socket exists but not connected, wait for connection then subscribe
+    s.once('connect', () => {
+      s.emit('subscribe_notifications');
+    });
   }
 };
 

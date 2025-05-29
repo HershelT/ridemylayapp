@@ -7,10 +7,19 @@ const NotificationBadge = () => {
   const { unreadCount, fetchUnreadCount, init } = useNotificationStore();
 
   useEffect(() => {
-    // Initialize notification listener
+    // Initialize notification listener and store
     init();
+    
     // Subscribe to notifications via socket
-    socketService.subscribeToNotifications();
+    const socket = socketService.getSocket();
+    if (socket) {
+      // Subscribe to notifications on mount and reconnect
+      socketService.subscribeToNotifications();
+      socket.on('connect', () => {
+        socketService.subscribeToNotifications();
+      });
+    }
+
     // Fetch initial unread count
     fetchUnreadCount();
 
@@ -18,6 +27,13 @@ const NotificationBadge = () => {
     if (Notification.permission === 'default') {
       Notification.requestPermission();
     }
+
+    // Cleanup
+    return () => {
+      if (socket) {
+        socket.off('connect');
+      }
+    };
   }, [init, fetchUnreadCount]);
 
   return (
