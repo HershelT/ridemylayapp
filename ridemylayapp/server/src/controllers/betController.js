@@ -1,6 +1,8 @@
 const Bet = require('../models/Bet');
 const User = require('../models/User');
 const Comment = require('../models/Comment');
+const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
 /**
@@ -227,7 +229,9 @@ exports.toggleLike = async (req, res, next) => {
     // Check if user already liked the bet
     const index = bet.likes.findIndex(
       id => id.toString() === req.user.id
-    );    // Toggle like
+    );
+
+    // Toggle like
     if (index === -1) {
       // Add like
       bet.likes.push(req.user.id);
@@ -243,23 +247,45 @@ exports.toggleLike = async (req, res, next) => {
           entityId: bet._id,
           metadata: { interactionType: 'like' }
         });
-
-        // Send real-time notification if user is online
-        if (req.io && activeUsers.has(bet.userId.toString())) {
+        
+        if (req.io) {
           req.io.to(`user:${bet.userId}`).emit('new_notification', notification);
+          
+          // Emit socket event for real-time updates
+          req.io.emit('bet_update', {
+            betId: bet._id,
+            userId: req.user.id,
+            type: 'like',
+            data: { 
+              likes: bet.likes,
+              likesCount: bet.likes.length 
+            }
+          });
         }
       }
     } else {
       // Remove like
       bet.likes.splice(index, 1);
+
+      if (req.io) {
+        // Emit socket event for real-time updates
+        req.io.emit('bet_update', {
+          betId: bet._id,
+          userId: req.user.id,
+          type: 'unlike',
+          data: { 
+            likes: bet.likes,
+            likesCount: bet.likes.length 
+          }
+        });
+      }
     }
 
     await bet.save();
 
     res.status(200).json({
       success: true,
-      likes: bet.likes.length,
-      isLiked: index === -1
+      bet
     });
   } catch (error) {
     logger.error(`Toggle like error for bet ID ${req.params.id}:`, error);
