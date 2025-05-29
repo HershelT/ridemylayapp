@@ -1,5 +1,5 @@
 import api from './api';
-import { onNewNotification } from './socket';
+import socketService from './socket';
 
 export const notificationAPI = {
   getNotifications: () => api.get('/notifications'),
@@ -9,8 +9,7 @@ export const notificationAPI = {
   deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`)
 };
 
-export const subscribeToNotifications = (callback) => {
-  return onNewNotification((notification) => {
+export const subscribeToNotifications = (callback) => {    return socketService.onNewNotification((notification) => {
     callback(notification);
   });
 };

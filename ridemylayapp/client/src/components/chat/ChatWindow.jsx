@@ -4,15 +4,7 @@ import { format } from 'date-fns';
 import { messageAPI } from '../../services/chatApi';
 import useAuthStore from '../../store/authStore';
 import { getInitials } from '../../utils/formatters';
-import { 
-  joinChatRoom, 
-  leaveChatRoom, 
-  sendChatMessage, 
-  typingInChat, 
-  markMessagesAsRead,
-  onMessageReceived,
-  onUserTyping
-} from '../../services/socket';
+import socketService from '../../services/socket';
 
 const ChatWindow = ({ chat, onBack, isMobileView }) => {
   const { user } = useAuthStore();
@@ -39,20 +31,20 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
     };
 
     // Join chat room
-    joinChatRoom(chat._id);
+    socketService.joinChatRoom(chat._id);
     fetchMessages();
 
     // Setup message listener
-    const messageCleanup = onMessageReceived((message) => {
+    const messageCleanup = socketService.onMessageReceived((message) => {
       if (message.chat === chat._id) {
         setMessages(prev => [...prev, message]);
         scrollToBottom();
-        markMessagesAsRead(chat._id);
+        socketService.markMessagesAsRead(chat._id);
       }
     });
 
     // Setup typing listener
-    const typingCleanup = onUserTyping(({ chatId, isTyping, username }) => {
+    const typingCleanup = socketService.onUserTyping(({ chatId, isTyping, username }) => {
       if (chatId === chat._id) {
         setTypingUsers(prev => {
           if (isTyping) {
@@ -66,7 +58,7 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
 
     // Cleanup function
     return () => {
-      leaveChatRoom(chat._id);
+      socketService.leaveChatRoom(chat._id);
       messageCleanup();
       typingCleanup();
     };
@@ -80,7 +72,7 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
   const typingTimeoutRef = useRef(null);
   const handleTyping = () => {
     if (!typingTimeoutRef.current) {
-      typingInChat(chat._id, true);
+      socketService.typingInChat(chat._id, true);
     }
     
     // Clear previous timeout
@@ -88,7 +80,7 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
     
     // Set new timeout
     typingTimeoutRef.current = setTimeout(() => {
-      typingInChat(chat._id, false);
+      socketService.typingInChat(chat._id, false);
       typingTimeoutRef.current = null;
     }, 2000);
   };
@@ -105,7 +97,7 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
       });
 
       // Send through socket
-      sendChatMessage({
+      socketService.sendChatMessage({
         ...response.data.message,
         chat: chat._id
       });
@@ -117,7 +109,7 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
       // Clear typing state
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
-        typingInChat(chat._id, false);
+        socketService.typingInChat(chat._id, false);
         typingTimeoutRef.current = null;
       }
     } catch (error) {

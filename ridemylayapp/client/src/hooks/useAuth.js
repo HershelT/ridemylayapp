@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store';
-import { disconnectSocket, initializeSocket } from '../services/socket';
+import socketService from '../services/socket';
 
 const useAuth = () => {
   const { 
@@ -24,22 +24,20 @@ const useAuth = () => {
     }
   }, [token, user, isLoading, loadUser]);
   
-  useEffect(() => {
-    // Initialize socket connection when authenticated
+  useEffect(() => {    // Initialize socket connection when authenticated
     if (isAuthenticated && token) {
-      initializeSocket();
+      socketService.createSocket();
     }
     
     // Cleanup socket on unmount or logout
     return () => {
       if (!isAuthenticated) {
-        disconnectSocket();
+        socketService.disconnectSocket();
       }
     };
   }, [isAuthenticated, token]);
-  
-  const handleLogout = () => {
-    disconnectSocket();
+    const handleLogout = () => {
+    socketService.disconnectSocket();
     logout();
   };
   

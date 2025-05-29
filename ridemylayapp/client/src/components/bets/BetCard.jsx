@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { FaEllipsisH, FaEdit, FaTrash, FaHeart } from 'react-icons/fa';
 import { GiRaceCar } from 'react-icons/gi';
 import { betAPI } from '../../services/api';
-import { emitBetInteraction, onBetUpdate } from '../../services/socket';
+import socketService from '../../services/socket';
 import { useAuth } from '../../hooks/useAuth';
 import { useBets } from '../../hooks/useBets';
 
@@ -28,7 +28,7 @@ const BetCard = ({ bet }) => {
 
   useEffect(() => {
     // Listen for bet updates
-    const cleanup = onBetUpdate((update) => {      if (update.betId === bet._id) {
+    const cleanup = socketService.onBetUpdate((update) => {      if (update.betId === bet._id) {
         if (update.type === 'like' || update.type === 'unlike') {
           setLikeCount(update.data.likes.length); // Use the actual length of likes array
           setIsLiked(update.data.likes.includes(user?._id));
@@ -71,7 +71,7 @@ const BetCard = ({ bet }) => {
       navigate(`/post?ride=${bet._id}`);
       
       // Emit socket event for analytics
-      emitBetInteraction(bet._id, 'ride', {});
+      socketService.emitBetInteraction(bet._id, 'ride', {});
     } catch (error) {
       console.error('Error initiating ride:', error);
     }
@@ -83,7 +83,7 @@ const BetCard = ({ bet }) => {
       navigate(`/post?hedge=${bet._id}`);
       
       // Emit socket event for analytics
-      emitBetInteraction(bet._id, 'hedge', {});
+      socketService.emitBetInteraction(bet._id, 'hedge', {});
     } catch (error) {
       console.error('Error initiating hedge:', error);
     }
@@ -115,7 +115,7 @@ const BetCard = ({ bet }) => {
       }
       
       // Emit socket event for analytics
-      emitBetInteraction(bet._id, 'share', { platform });
+      socketService.emitBetInteraction(bet._id, 'share', { platform });
       
       // Close modal
       setShowShareModal(false);

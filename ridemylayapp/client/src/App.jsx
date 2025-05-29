@@ -21,7 +21,7 @@ import Header from './components/common/Header';
 import TabBar from './components/common/TabBar';
 
 // Services
-import { initializeSocket } from './services/socket';
+import socketService from './services/socket';
 
 // Store
 import useAuthStore from './store/authStore';
@@ -38,7 +38,7 @@ const App = () => {
 
     // Initialize socket connection if user is authenticated
     if (token) {
-      initializeSocket();
+      socketService.createSocket();
     }
 
     // Load user data if token exists
