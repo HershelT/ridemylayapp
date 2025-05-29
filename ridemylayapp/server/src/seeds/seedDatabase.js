@@ -147,18 +147,23 @@ const hershelBets = [
     stake: 100,
     title: "NBA Finals Parlay Special",
     description: "Heat vs Nuggets Game 1 parlay. Feeling confident about these picks! 🏀",
-    selections: [
-      {
+    selections: [      {
         game: "Miami Heat vs Denver Nuggets",
         pick: "Nuggets -8.5",
         odds: -110,
-        status: "won"
+        status: "won",
+        sport: "basketball",
+        team: "Denver Nuggets",
+        betType: "spread"
       },
       {
         game: "Miami Heat vs Denver Nuggets",
         pick: "Over 219.5",
         odds: -105,
-        status: "won"
+        status: "won",
+        sport: "basketball",
+        team: "Heat vs Nuggets",
+        betType: "over/under"
       }
     ],
     status: "won",
@@ -170,12 +175,14 @@ const hershelBets = [
     stake: 50,
     title: "MLB Value Pick",
     description: "Yankees looking strong tonight. Great value at these odds! ⚾",
-    selections: [
-      {
+    selections: [      {
         game: "New York Yankees vs Boston Red Sox",
         pick: "Yankees ML",
         odds: -150,
-        status: "won"
+        status: "won",
+        sport: "baseball",
+        team: "New York Yankees",
+        betType: "moneyline"
       }
     ],
     status: "won",
@@ -191,18 +198,23 @@ const betTemplates = [
     description: 'Lakers to win + LeBron over 30 points',
     type: 'parlay',
     stake: 50,
-    selections: [
-      {
+    selections: [      {
         game: "Lakers vs Heat",
         pick: "Lakers ML",
         odds: -110,
-        status: "won"
+        status: "won",
+        sport: "basketball",
+        team: "Los Angeles Lakers",
+        betType: "moneyline"
       },
       {
         game: "Lakers vs Heat",
         pick: "LeBron James Over 30.5 Points",
         odds: -115,
-        status: "won"
+        status: "won",
+        sport: "basketball",
+        team: "LeBron James",
+        betType: "over"
       }
     ],
     status: "won",
@@ -213,24 +225,32 @@ const betTemplates = [
     description: 'Chiefs + Bills + Packers ML Parlay',
     type: 'parlay',
     stake: 100,
-    selections: [
-      {
+    selections: [      {
         game: "Chiefs vs Raiders",
         pick: "Chiefs ML",
         odds: -150,
-        status: "won"
+        status: "won",
+        sport: "football",
+        team: "Kansas City Chiefs",
+        betType: "moneyline"
       },
       {
         game: "Bills vs Jets",
         pick: "Bills ML",
         odds: -200,
-        status: "won"
+        status: "won",
+        sport: "football",
+        team: "Buffalo Bills",
+        betType: "moneyline"
       },
       {
         game: "Packers vs Bears",
         pick: "Packers ML",
         odds: 120,
-        status: "lost"
+        status: "lost",
+        sport: "football",
+        team: "Green Bay Packers",
+        betType: "moneyline"
       }
     ],
     status: "lost",
@@ -278,12 +298,19 @@ const seedDatabase = async () => {
     const createdSites = await BettingSite.insertMany(bettingSites);
     
     // Create HershelT's bets
-    logger.info('Creating HershelT\'s bets...');
-    const hersheltBetData = hershelBets.map(bet => ({
-      ...bet,
-      userId: hershelT._id,
-      bettingSiteId: createdSites[Math.floor(Math.random() * createdSites.length)]._id
-    }));
+    logger.info('Creating HershelT\'s bets...');    const hersheltBetData = hershelBets.map(bet => {
+      // Map selections to legs if they exist
+      const legs = bet.selections || bet.legs;
+      const { selections, ...betWithoutSelections } = bet;
+      
+      return {
+        ...betWithoutSelections,
+        legs: legs,
+        userId: hershelT._id,
+        bettingSiteId: createdSites[Math.floor(Math.random() * createdSites.length)]._id
+      };
+    });
+    
     const createdHershelBets = await Promise.all(
       hersheltBetData.map(bet => Bet.create(bet))
     );

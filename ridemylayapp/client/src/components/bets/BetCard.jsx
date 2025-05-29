@@ -243,9 +243,8 @@ const BetCard = ({ bet }) => {
           {bet.legs?.map((leg, index) => (
             <div key={index} className="flex justify-between items-center">
               <div>
-                <div className="font-medium">{leg.team}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  {leg.sport.charAt(0).toUpperCase() + leg.sport.slice(1)} • {leg.betType}
+                <div className="font-medium">{leg.team}</div>                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  {leg.sport ? `${leg.sport.charAt(0).toUpperCase()}${leg.sport.slice(1)}` : 'Unknown'} • {leg.betType}
                 </div>
               </div>
               <div className="text-right">
