@@ -193,17 +193,18 @@ const BetCard = ({ bet }) => {
                     }}
                 >                    <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white dark:bg-black rounded-sm shadow-sm overflow-hidden group-hover:opacity-80">
                         <img
-                            src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
-                            alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
+                            src={(bet.bettingSite?.logoUrl || bet.bettingSiteId?.logoUrl) || '/assets/images/placeholder-logo.png'} 
+                            alt={(bet.bettingSite?.name || bet.bettingSiteId?.name) || 'Betting Site'} 
                             className="w-full h-full object-contain"
                             onError={(e) => {
                                 e.target.src = '/assets/images/placeholder-logo.png';
                                 e.target.onerror = null;
                             }}
+                            loading="lazy"
                         />
                     </div>
                     <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
-                      {bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'}
+                      {(bet.bettingSite?.name || bet.bettingSiteId?.name) || 'Betting Site'}
                     </span>
                 </a>
             </div>

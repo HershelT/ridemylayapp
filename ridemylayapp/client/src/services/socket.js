@@ -1,6 +1,9 @@
 import { io } from 'socket.io-client';
 
 let socket = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 2000;
 
 // Create and initialize socket instance
 const createSocket = () => {
@@ -11,34 +14,55 @@ const createSocket = () => {
     return null;
   }
 
-  // Connect to the socket server with authentication
-  socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
-    auth: {
-      token,
-    },
-    transports: ['websocket'],
-    autoConnect: true,
-  });
-  
-  // Socket connection events
-  socket.on('connect', () => {
-    console.log('Socket connected:', socket.id);
-  });
-  
-  socket.on('disconnect', (reason) => {
-    console.log('Socket disconnected:', reason);
-  });
-  
-  socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error);
+  try {
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || window.location.origin;
+    socket = io(socketUrl, {
+      auth: { token },
+      reconnection: true,
+      reconnectionDelay: RECONNECT_DELAY,
+      reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
+      transports: ['websocket'],
+    });
     
-    // If unauthorized, clear token
-    if (error.message.includes('Authentication error')) {
-      localStorage.removeItem('token');
-    }
-  });
-  
-  return socket;
+    // Connection event handlers
+    socket.on('connect', () => {
+      console.log('Socket connected:', socket.id);
+      reconnectAttempts = 0;
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // Server initiated disconnect, attempt to reconnect
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          setTimeout(() => {
+            if (socket) socket.connect();
+          }, RECONNECT_DELAY);
+        }
+      }
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+      
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        setTimeout(() => {
+          if (socket) socket.connect();
+        }, RECONNECT_DELAY);
+      }
+    });
+    
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+    
+    return socket;
+  } catch (error) {
+    console.error('Error creating socket:', error);
+    return null;
+  }
 };
 
 // Get or create socket instance
@@ -203,8 +227,10 @@ const markNotificationAsRead = (notificationId) => {
 // Disconnecting socket on logout
 const disconnectSocket = () => {
   if (socket) {
+    socket.removeAllListeners();
     socket.disconnect();
     socket = null;
+    reconnectAttempts = 0;
   }
 };
 
