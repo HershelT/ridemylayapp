@@ -164,7 +164,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     loadBettingSites();
   }, [user]);
   
-  // Calculate potential winnings when stake or odds change  // Calculate total odds whenever legs change
+  // Calculate total odds whenever legs change
   useEffect(() => {
     // If there's only one leg, use its odds
     if (formData.legs.length === 1) {
@@ -488,15 +488,17 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
             </div>
               <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Total Odds*
+                Total Odds (Auto-calculated)
               </label>
               <input
-                type="text"                name="odds"
+                type="text"                
+                name="odds"
                 value={formData.odds}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-gray-50 dark:bg-gray-600 dark:text-white"
                 placeholder="Auto-calculated from legs"
-              />              <div className="flex justify-between items-center">
+              />              
+              <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 block">
                   Use American odds format (e.g., -110, +200)
                 </span>
