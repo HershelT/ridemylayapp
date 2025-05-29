@@ -12,37 +12,42 @@ const logger = require('../utils/logger');
  */
 exports.createBet = async (req, res, next) => {
   try {
-    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;    // Calculate total odds and potential winnings using proper parlay calculations
-    let totalOdds;
-    let potentialWinnings;
+    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;
 
-    if (legs.length === 1) {
-      // Single bet - use leg odds directly
-      totalOdds = legs[0].odds;
-      // Calculate potential winnings - for positive odds: (stake * odds/100), for negative odds: (stake * 100/|odds|)
-      potentialWinnings = totalOdds > 0 
-        ? stake * (totalOdds / 100)
-        : stake * (100 / Math.abs(totalOdds));
+    // Convert odds to numbers and validate
+    const parsedLegs = legs.map(leg => ({
+      ...leg,
+      odds: typeof leg.odds === 'string' ? parseInt(leg.odds) : leg.odds
+    }));
+
+    // Calculate total odds the same way as client
+    let totalOdds;
+    if (parsedLegs.length === 1) {
+      totalOdds = parsedLegs[0].odds;
     } else {
-      // Parlay bet - convert to decimal, multiply, then convert back to American
-      const decimalProduct = legs.reduce((acc, leg) => {
-        const decimal = leg.odds > 0 
-          ? (leg.odds / 100) + 1 
+      // Convert all legs to decimal and multiply, matching client calculateParlayOdds
+      const decimalOdds = parsedLegs.reduce((acc, leg) => {
+        const decimal = leg.odds > 0
+          ? (leg.odds / 100) + 1
           : (100 / Math.abs(leg.odds)) + 1;
         return acc * decimal;
       }, 1);
 
-      // Convert final decimal odds back to American
-      totalOdds = decimalProduct >= 2
-        ? Math.round((decimalProduct - 1) * 100)
-        : Math.round(-100 / (decimalProduct - 1));
-
-      // Calculate potential winnings from decimal odds
-      potentialWinnings = stake * (decimalProduct - 1);
+      // Convert back to American odds with proper rounding
+      if (decimalOdds <= 1) totalOdds = 0;
+      else if (decimalOdds >= 2) {
+        totalOdds = Math.round((decimalOdds - 1) * 100);
+      } else {
+        totalOdds = Math.round(-100 / (decimalOdds - 1));
+      }
     }
-    
-    // Round potential winnings to 2 decimal places
-    potentialWinnings = Math.round(potentialWinnings * 100) / 100;
+
+    // Calculate potential winnings using same logic as client calculateWinnings
+    const decimalOdds = totalOdds > 0
+      ? (totalOdds / 100) + 1
+      : (100 / Math.abs(totalOdds)) + 1;
+
+    const potentialWinnings = Number(Math.round(stake * (decimalOdds - 1) * 100) / 100);
 
     // Create bet
     const bet = await Bet.create({
