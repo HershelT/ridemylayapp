@@ -104,12 +104,12 @@ UserSchema.virtual('betCount', {
 
 // Virtual for followerCount - returns the count of user's followers
 UserSchema.virtual('followerCount').get(function() {
-  return this.followers.length;
+  return this.followers?.length || 0;
 });
 
 // Virtual for followingCount - returns the count of users being followed
 UserSchema.virtual('followingCount').get(function() {
-  return this.following.length;
+  return this.following?.length || 0;
 });
 
 // Match user entered password to hashed password in database
@@ -119,6 +119,10 @@ UserSchema.methods.matchPassword = async function(enteredPassword) {
 
 // Encrypt password using bcrypt
 UserSchema.pre('save', async function(next) {
+  // Initialize followers and following arrays if undefined
+  if (!this.followers) this.followers = [];
+  if (!this.following) this.following = [];
+
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('passwordHash')) {
     return next();
