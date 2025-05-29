@@ -58,7 +58,8 @@ const users = [
     bio: 'Sports betting enthusiast with a knack for NFL parlays',
     profilePicture: 'https://randomuser.me/api/portraits/men/1.jpg',
     isVerified: true,
-    role: 'user'
+    role: 'user',
+    streak: 3
   },
   {
     username: 'sarah_wins',
@@ -68,7 +69,8 @@ const users = [
     bio: 'NBA specialist. Follow for daily basketball picks!',
     profilePicture: 'https://randomuser.me/api/portraits/women/2.jpg',
     isVerified: true,
-    role: 'user'
+    role: 'user',
+    streak: 5
   },
   {
     username: 'mike_bets',
@@ -78,7 +80,8 @@ const users = [
     bio: 'MLB and NHL picks. 60% win rate lifetime.',
     profilePicture: 'https://randomuser.me/api/portraits/men/3.jpg',
     isVerified: true,
-    role: 'user'
+    role: 'user',
+    streak: -2
   },
   {
     username: 'admin_user',
@@ -88,7 +91,52 @@ const users = [
     bio: 'Site administrator',
     profilePicture: 'https://randomuser.me/api/portraits/men/4.jpg',
     isVerified: true,
-    role: 'admin'
+    role: 'admin',
+    streak: 0
+  },
+  {
+    username: 'vegas_insider',
+    email: 'vegas@example.com',
+    password: 'password123',
+    name: 'Tom Vegas',
+    bio: '🎲 Professional Sports Bettor | 15 years experience | VIP picks available',
+    profilePicture: 'https://randomuser.me/api/portraits/men/5.jpg',
+    isVerified: true,
+    role: 'user',
+    streak: 8
+  },
+  {
+    username: 'parlay_queen',
+    email: 'ashley@example.com',
+    password: 'password123',
+    name: 'Ashley Parker',
+    bio: '👑 Parlay Specialist | 70% hit rate on 3+ leg parlays',
+    profilePicture: 'https://randomuser.me/api/portraits/women/6.jpg',
+    isVerified: true,
+    role: 'user',
+    streak: 4
+  },
+  {
+    username: 'stats_master',
+    email: 'david@example.com',
+    password: 'password123',
+    name: 'David Chen',
+    bio: '📊 Data Analyst | Sports Betting Analytics | Mathematical approach to betting',
+    profilePicture: 'https://randomuser.me/api/portraits/men/7.jpg',
+    isVerified: true,
+    role: 'user',
+    streak: 2
+  },
+  {
+    username: 'soccer_expert',
+    email: 'maria@example.com',
+    password: 'password123',
+    name: 'Maria Rodriguez',
+    bio: '⚽ European Soccer Specialist | Premier League & La Liga Expert',
+    profilePicture: 'https://randomuser.me/api/portraits/women/8.jpg',
+    isVerified: true,
+    role: 'user',
+    streak: 6
   }
 ];
 
@@ -97,24 +145,24 @@ const betTemplates = [
   {
     title: 'NBA Finals Parlay',
     description: 'Lakers to win + LeBron over 30 points',
-    odds: -110, // Changed from string to number
+    odds: -110,
     stake: 50,
-    potentialWinnings: 95.45, // Added required field
-    sport: 'basketball', // Changed to lowercase to match enum
+    potentialWinnings: 95.45,
+    sport: 'basketball',
     league: 'NBA',
-    status: 'pending', // Changed from 'active' to valid enum value
+    status: 'won',
     legs: [
       {
         team: 'Los Angeles Lakers',
-        betType: 'moneyline', // Changed from 'type' to 'betType'
+        betType: 'moneyline',
         odds: -110,
-        outcome: 'pending' // Changed from 'status' to 'outcome'
+        outcome: 'won'
       },
       {
-        team: 'LeBron James', // Player counts as team in schema
-        betType: 'over', // Changed from 'type' to 'betType'
+        team: 'LeBron James',
+        betType: 'over',
         odds: -115,
-        outcome: 'pending'
+        outcome: 'won'
       }
     ]
   },
@@ -126,29 +174,29 @@ const betTemplates = [
     potentialWinnings: 600,
     sport: 'football',
     league: 'NFL',
-    status: 'pending',
+    status: 'lost',
     legs: [
       {
         team: 'Kansas City Chiefs',
         betType: 'moneyline',
         odds: -150,
-        outcome: 'pending'
+        outcome: 'won'
       },
       {
         team: 'Buffalo Bills',
         betType: 'moneyline',
         odds: -200,
-        outcome: 'pending'
+        outcome: 'won'
       },
       {
         team: 'Green Bay Packers',
         betType: 'moneyline',
         odds: 120,
-        outcome: 'pending'
+        outcome: 'lost'
       }
     ]
   },
- {
+  {
     title: 'MLB Double Header',
     description: 'Yankees and Dodgers both to win',
     odds: 300,
@@ -171,7 +219,115 @@ const betTemplates = [
         outcome: 'won'
       }
     ]
-    },
+  },
+  {
+    title: 'Premier League Accumulator',
+    description: 'Manchester City, Arsenal, Liverpool all to win + Over 2.5 goals in each game',
+    odds: 800,
+    stake: 50,
+    potentialWinnings: 450,
+    sport: 'soccer',
+    league: 'Premier League',
+    status: 'pending',
+    legs: [
+      {
+        team: 'Manchester City',
+        betType: 'moneyline',
+        odds: -150,
+        outcome: 'pending'
+      },
+      {
+        team: 'Arsenal',
+        betType: 'moneyline',
+        odds: -130,
+        outcome: 'pending'
+      },
+      {
+        team: 'Liverpool',
+        betType: 'moneyline',
+        odds: -160,
+        outcome: 'pending'
+      }
+    ]
+  },
+  {
+    title: 'NHL Playoff Special',
+    description: 'Bruins to win + Total goals over 5.5',
+    odds: 200,
+    stake: 100,
+    potentialWinnings: 300,
+    sport: 'hockey',
+    league: 'NHL',
+    status: 'lost',
+    legs: [
+      {
+        team: 'Boston Bruins',
+        betType: 'moneyline',
+        odds: -130,
+        outcome: 'lost'
+      },
+      {
+        team: 'Game Total',
+        betType: 'over',
+        odds: -110,
+        outcome: 'won'
+      }
+    ]
+  },
+  {
+    title: 'NBA Player Props Parlay',
+    description: 'Curry 25+ points, Jokic triple-double, Tatum 30+ points',
+    odds: 650,
+    stake: 50,
+    potentialWinnings: 375,
+    sport: 'basketball',
+    league: 'NBA',
+    status: 'pending',
+    legs: [
+      {
+        team: 'Stephen Curry',
+        betType: 'over',
+        odds: -120,
+        outcome: 'pending'
+      },
+      {
+        team: 'Nikola Jokic',
+        betType: 'special',
+        odds: 200,
+        outcome: 'pending'
+      },
+      {
+        team: 'Jayson Tatum',
+        betType: 'over',
+        odds: -110,
+        outcome: 'pending'
+      }
+    ]
+  },
+  {
+    title: 'UFC Fight Night Parlay',
+    description: 'Main Event + Co-Main Winners',
+    odds: 250,
+    stake: 100,
+    potentialWinnings: 350,
+    sport: 'mma',
+    league: 'UFC',
+    status: 'won',
+    legs: [
+      {
+        team: 'Israel Adesanya',
+        betType: 'moneyline',
+        odds: -200,
+        outcome: 'won'
+      },
+      {
+        team: 'Alex Pereira',
+        betType: 'moneyline',
+        odds: -150,
+        outcome: 'won'
+      }
+    ]
+  }
 ];
 
 // Clear database and seed with new data
@@ -238,25 +394,65 @@ const seedDatabase = async () => {
     logger.info('Creating comments...');
     const comments = [
       {
-        userId: createdUsers[1]._id,  // Changed from user to userId
-        betId: createdBets[0]._id,    // Changed from bet to betId
+        userId: createdUsers[1]._id,
+        betId: createdBets[0]._id,
         content: 'Great pick! I think Lakers will win for sure.'
       },
       {
-        userId: createdUsers[2]._id,   // Changed from user to userId
-        betId: createdBets[0]._id,     // Changed from bet to betId
+        userId: createdUsers[2]._id,
+        betId: createdBets[0]._id,
         content: 'LeBron has been on fire lately, solid bet!'
       },
       {
-        userId: createdUsers[0]._id,   // Changed from user to userId
-        betId: createdBets[1]._id,     // Changed from bet to betId
+        userId: createdUsers[0]._id,
+        betId: createdBets[1]._id,
         content: 'Riding this one with you!'
+      },
+      {
+        userId: createdUsers[4]._id,
+        betId: createdBets[3]._id,
+        content: 'As a Premier League expert, I love this accumulator. Manchester City is in great form!'
+      },
+      {
+        userId: createdUsers[5]._id,
+        betId: createdBets[3]._id,
+        content: 'Tailing this! The odds are too good to pass up.'
+      },
+      {
+        userId: createdUsers[6]._id,
+        betId: createdBets[5]._id,
+        content: 'Based on my statistical analysis, Curry has hit 25+ in 80% of his last 20 games. Strong prop!'
+      },
+      {
+        userId: createdUsers[3]._id,
+        betId: createdBets[5]._id,
+        content: 'Great research! Adding this to my picks.'
+      },
+      {
+        userId: createdUsers[7]._id,
+        betId: createdBets[4]._id,
+        content: 'Tough loss on the Bruins bet. They were dominating but couldn\'t finish.'
+      },
+      {
+        userId: createdUsers[2]._id,
+        betId: createdBets[4]._id,
+        content: 'Yeah, hockey can be unpredictable. At least the over hit!'
+      },
+      {
+        userId: createdUsers[1]._id,
+        betId: createdBets[6]._id,
+        content: 'UFC parlays are risky but this one looks solid!'
+      },
+      {
+        userId: createdUsers[5]._id,
+        betId: createdBets[6]._id,
+        content: 'Agreed! Both fighters are in great form. BOL!'
       }
     ];
     
     const createdComments = await Comment.insertMany(comments);
     
-    // Add comments to bets
+    // Add comments to bets with more complex relationships
     await Bet.findByIdAndUpdate(createdBets[0]._id, {
       $push: { comments: { $each: [createdComments[0]._id, createdComments[1]._id] } }
     });
@@ -264,65 +460,178 @@ const seedDatabase = async () => {
     await Bet.findByIdAndUpdate(createdBets[1]._id, {
       $push: { comments: createdComments[2]._id }
     });
+
+    await Bet.findByIdAndUpdate(createdBets[3]._id, {
+      $push: { comments: { $each: [createdComments[3]._id, createdComments[4]._id] } }
+    });
+
+    await Bet.findByIdAndUpdate(createdBets[5]._id, {
+      $push: { comments: { $each: [createdComments[5]._id, createdComments[6]._id] } }
+    });
+
+    await Bet.findByIdAndUpdate(createdBets[4]._id, {
+      $push: { comments: { $each: [createdComments[7]._id, createdComments[8]._id] } }
+    });
+
+    await Bet.findByIdAndUpdate(createdBets[6]._id, {
+      $push: { comments: { $each: [createdComments[9]._id, createdComments[10]._id] } }
+    });
     
-    // Create a group chat
+    // Create chat rooms
     logger.info('Creating chat rooms...');
-    const groupChat = await Chat.create({
-      name: 'NBA Bettors',
-      participants: [createdUsers[0]._id, createdUsers[1]._id, createdUsers[2]._id],
-      isGroupChat: true,
-      admin: createdUsers[0]._id
-    });
-    
-    // Create a direct message chat
-    const dmChat = await Chat.create({
-      participants: [createdUsers[0]._id, createdUsers[1]._id],
-      isGroupChat: false
-    });
-    
-    // Create messages in both chats
+    const chats = [
+      {
+        name: 'NBA Bettors',
+        participants: [
+          createdUsers[0]._id, 
+          createdUsers[1]._id, 
+          createdUsers[2]._id,
+          createdUsers[6]._id // stats_master
+        ],
+        isGroupChat: true,
+        admin: createdUsers[0]._id
+      },
+      {
+        name: 'Premier League Tips',
+        participants: [
+          createdUsers[7]._id, // soccer_expert
+          createdUsers[4]._id, // vegas_insider
+          createdUsers[5]._id // parlay_queen
+        ],
+        isGroupChat: true,
+        admin: createdUsers[7]._id
+      },
+      {
+        name: 'VIP Picks',
+        participants: [
+          createdUsers[4]._id, // vegas_insider
+          createdUsers[5]._id, // parlay_queen
+          createdUsers[6]._id, // stats_master
+          createdUsers[7]._id  // soccer_expert
+        ],
+        isGroupChat: true,
+        admin: createdUsers[4]._id
+      },
+      {
+        participants: [createdUsers[0]._id, createdUsers[1]._id],
+        isGroupChat: false
+      },
+      {
+        participants: [createdUsers[4]._id, createdUsers[7]._id],
+        isGroupChat: false
+      }
+    ];
+
+    const createdChats = await Chat.create(chats);
+
+    // Create messages in chats
     logger.info('Creating messages...');
     const messages = [
       {
         sender: createdUsers[0]._id,
         content: 'Hey everyone, what do you think about the Lakers game tonight?',
-        chat: groupChat._id
+        chat: createdChats[0]._id
       },
       {
         sender: createdUsers[1]._id,
         content: 'I think they\'ll cover the spread easily',
-        chat: groupChat._id
+        chat: createdChats[0]._id
+      },
+      {
+        sender: createdUsers[6]._id,
+        content: 'According to my models, Lakers have a 65% chance to cover',
+        chat: createdChats[0]._id
+      },
+      {
+        sender: createdUsers[7]._id,
+        content: 'Manchester City vs Arsenal this weekend - who\'s betting?',
+        chat: createdChats[1]._id
+      },
+      {
+        sender: createdUsers[4]._id,
+        content: 'City at home is almost automatic. Adding to my card.',
+        chat: createdChats[1]._id
+      },
+      {
+        sender: createdUsers[4]._id,
+        content: 'New VIP pick posted - check the analysis in the thread',
+        chat: createdChats[2]._id
+      },
+      {
+        sender: createdUsers[6]._id,
+        content: 'The stats support this pick 100%. Great find!',
+        chat: createdChats[2]._id
       },
       {
         sender: createdUsers[0]._id,
         content: 'Hey Sarah, want to ride my Lakers parlay?',
-        chat: dmChat._id
+        chat: createdChats[3]._id
       },
       {
         sender: createdUsers[1]._id,
         content: 'Sure, I\'ll join you on that one!',
-        chat: dmChat._id
+        chat: createdChats[3]._id
+      },
+      {
+        sender: createdUsers[4]._id,
+        content: 'Got some insider info on the Premier League matches',
+        chat: createdChats[4]._id
+      },
+      {
+        sender: createdUsers[7]._id,
+        content: 'Perfect timing, I was just analyzing those games',
+        chat: createdChats[4]._id
       }
     ];
     
     await Message.insertMany(messages);
     
-    // Update some bets with likes and rides
+    // Update bets with likes and rides
     logger.info('Setting up bet interactions...');
+    
+    // Popular NBA bet with multiple interactions
     await Bet.findByIdAndUpdate(createdBets[0]._id, {
       $push: {
-        likes: [createdUsers[1]._id, createdUsers[2]._id],
-        riders: createdUsers[1]._id
+        likes: [createdUsers[1]._id, createdUsers[2]._id, createdUsers[6]._id],
+        riders: [createdUsers[1]._id, createdUsers[5]._id]
       },
-      $inc: { ridesCount: 1, likesCount: 2 }
+      $inc: { ridesCount: 2, likesCount: 3 }
     });
     
+    // NFL bet with medium engagement
     await Bet.findByIdAndUpdate(createdBets[1]._id, {
       $push: {
-        likes: createdUsers[0]._id,
-        riders: [createdUsers[0]._id, createdUsers[2]._id]
+        likes: [createdUsers[0]._id, createdUsers[4]._id],
+        riders: [createdUsers[0]._id, createdUsers[2]._id, createdUsers[3]._id]
       },
-      $inc: { ridesCount: 2, likesCount: 1 }
+      $inc: { ridesCount: 3, likesCount: 2 }
+    });
+
+    // Premier League bet with high engagement
+    await Bet.findByIdAndUpdate(createdBets[3]._id, {
+      $push: {
+        likes: [createdUsers[4]._id, createdUsers[5]._id, createdUsers[6]._id, createdUsers[7]._id],
+        riders: [createdUsers[5]._id, createdUsers[6]._id, createdUsers[7]._id]
+      },
+      $inc: { ridesCount: 3, likesCount: 4 }
+    });
+
+    // NBA Player Props with medium engagement
+    await Bet.findByIdAndUpdate(createdBets[5]._id, {
+      $push: {
+        likes: [createdUsers[1]._id, createdUsers[3]._id, createdUsers[6]._id],
+        riders: [createdUsers[1]._id, createdUsers[6]._id]
+      },
+      $inc: { ridesCount: 2, likesCount: 3 }
+    });
+
+    // UFC bet with high engagement
+    await Bet.findByIdAndUpdate(createdBets[6]._id, {
+      $push: {
+        likes: [createdUsers[0]._id, createdUsers[2]._id, createdUsers[4]._id, createdUsers[5]._id],
+        riders: [createdUsers[2]._id, createdUsers[4]._id, createdUsers[5]._id]
+      },
+      $inc: { ridesCount: 3, likesCount: 4 }
     });
     
     logger.info('✅ Database seeded successfully!');
