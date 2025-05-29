@@ -20,7 +20,8 @@ const Leaderboard = () => {
     setError(null);
 
     try {
-      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;      const response = await leaderboardAPI.getLeaderboard(timeframe, page);
+      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;      
+      const response = await leaderboardAPI.getLeaderboard(timeframe, page);
       console.log('Leaderboard API response:', response.data); // Debug log
       
       if (!response.data.leaderboard || !Array.isArray(response.data.leaderboard)) {

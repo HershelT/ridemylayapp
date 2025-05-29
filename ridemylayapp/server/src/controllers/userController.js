@@ -274,13 +274,11 @@ exports.getLeaderboard = async (req, res, next) => {
       ...(Object.keys(dateQuery).length > 0 ? dateQuery : {}),
       status: { $in: ['won', 'lost'] }
     });
-    logger.info(`Matching bets for leaderboard: ${matchingBets}`);
-
-    // Aggregate to get user stats with less restrictive matching
+    logger.info(`Matching bets for leaderboard: ${matchingBets}`);    // Aggregate to get user stats with modified pipeline
     const userStats = await Bet.aggregate([
       { 
         $match: { 
-          status: { $exists: true } // Match any bet with a status
+          status: { $in: ['won', 'lost'] } // Only include completed bets
         } 
       },
       { 
@@ -294,18 +292,21 @@ exports.getLeaderboard = async (req, res, next) => {
           },
           totalWinnings: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'won'] }, { $ifNull: ['$potentialWinnings', 0] }, 0]
+              $cond: [{ $eq: ['$status', 'won'] }, '$potentialWinnings', 0]
             }
           },
-          totalStake: { $sum: { $ifNull: ['$stake', 0] } }
+          totalStake: { $sum: '$stake' }
         }
-      },
-      {
-        $addFields: {
+      },      {
+        $project: {
+          _id: 1,
+          totalBets: 1,
+          wonBets: 1,
           winRate: {
-            $multiply: [
-              { $divide: ['$wonBets', '$totalBets'] },
-              100
+            $cond: [
+              { $eq: ['$totalBets', 0] },
+              0,
+              { $multiply: [{ $divide: ['$wonBets', '$totalBets'] }, 100] }
             ]
           },
           profit: { $subtract: ['$totalWinnings', '$totalStake'] }
@@ -314,31 +315,40 @@ exports.getLeaderboard = async (req, res, next) => {
       { $sort: { profit: -1 } },
       { $skip: skip },
       { $limit: limitNum }
-    ]);
+    ]);    // Log user stats for debugging
+    logger.info(`User stats found: ${JSON.stringify(userStats)}`);
 
-    // Get user details
+    // Get user details with improved error handling
     const userIds = userStats.map(stat => stat._id);
-    const users = await User.find({ _id: { $in: userIds } });    // Combine user details with stats
-    const leaderboard = userStats
-      .map(stat => {
+    logger.info(`Looking up users with IDs: ${userIds.join(', ')}`);
+    
+    const users = await User.find({ _id: { $in: userIds } });
+    logger.info(`Found ${users.length} users out of ${userIds.length} IDs`);
+
+    // Combine user details with stats and add detailed logging
+    const leaderboard = [];
+    for (const stat of userStats) {
         const user = users.find(u => u._id.toString() === stat._id.toString());
         if (!user) {
-          logger.warn(`User not found for leaderboard stat: ${stat._id}`);
-          return null;
+            logger.warn(`User not found for leaderboard stat: ${stat._id}`);
+            continue;
         }
-        return {
-          _id: stat._id,
-          username: user.username,
-          avatarUrl: user.avatarUrl,
-          verified: user.verified,
-          totalBets: stat.totalBets,
-          wonBets: stat.wonBets,
-          winRate: stat.winRate,
-          profit: stat.profit,
-          streak: user.streak || 0
+        
+        const leaderboardEntry = {
+            _id: stat._id,
+            username: user.username,
+            avatarUrl: user.avatarUrl || '',
+            verified: user.verified || false,
+            totalBets: stat.totalBets || 0,
+            wonBets: stat.wonBets || 0,
+            winRate: stat.winRate || 0,
+            profit: stat.profit || 0,
+            streak: user.streak || 0
         };
-      })
-      .filter(Boolean); // Remove any null entries    // Get total count for pagination
+        
+        logger.info(`Created leaderboard entry: ${JSON.stringify(leaderboardEntry)}`);
+        leaderboard.push(leaderboardEntry);
+    }// Get total count for pagination
     const totalUsersResult = await Bet.aggregate([
       { $match: { ...dateQuery, status: { $in: ['won', 'lost'] } } },
       { 
@@ -350,17 +360,23 @@ exports.getLeaderboard = async (req, res, next) => {
       { $count: 'total' }
     ]);
 
-    const total = totalUsersResult.length > 0 ? totalUsersResult[0].total : 0;
-
-    res.status(200).json({
+    const total = totalUsersResult.length > 0 ? totalUsersResult[0].total : 0;    // Ensure we have valid data before sending response
+    const responseData = {
       success: true,
       timeframe,
       count: leaderboard.length,
-      total,
+      total: total || leaderboard.length,
       page: pageNum,
-      pages: Math.ceil(total / limitNum),
-      leaderboard
-    });
+      pages: Math.max(1, Math.ceil((total || leaderboard.length) / limitNum)),
+      leaderboard: leaderboard.map(entry => ({
+        ...entry,
+        winRate: Number(entry.winRate.toFixed(2)),
+        profit: Number(entry.profit.toFixed(2))
+      }))
+    };
+
+    logger.info(`Sending leaderboard response: ${JSON.stringify(responseData)}`);
+    res.status(200).json(responseData);
   } catch (error) {
     logger.error('Get leaderboard error:', error);
     next(error);
