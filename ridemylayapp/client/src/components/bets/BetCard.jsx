@@ -260,11 +260,11 @@ const BetCard = ({ bet }) => {
           <div className="flex justify-between items-center">
             <div>
               <div className="text-sm text-gray-600 dark:text-gray-300">Stake</div>
-              <div className="font-medium">${bet.stake.toFixed(2)}</div>
+              <div className="font-medium">${(bet.stake || 0).toFixed(2)}</div>
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600 dark:text-gray-300">Potential Win</div>
-              <div className="font-medium text-green-600 dark:text-green-400">${bet.potentialWinnings.toFixed(2)}</div>
+              <div className="font-medium text-green-600 dark:text-green-400">${(bet.potentialWinnings || 0).toFixed(2)}</div>
             </div>
           </div>
           <div className="mt-2">
