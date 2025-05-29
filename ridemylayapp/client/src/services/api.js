@@ -51,9 +51,13 @@ export const authAPI = {
 
 // User API calls
 export const userAPI = {
-  getProfile: (username) => api.get(`/users/${username}`),
-  getUserBets: (username, page = 1, limit = 10, filters = {}) => 
-    api.get(`/users/${username}/bets`, { params: { page, limit, ...filters } }),
+  getProfile: (username) => api.get(`/users/${username}`),  getUserBets: (usernameOrId, page = 1, limit = 10, filters = {}) => {
+    // If it's 'me', use the /auth/me/bets endpoint
+    if (usernameOrId === 'me') {
+      return api.get('/auth/me/bets', { params: { page, limit, ...filters } });
+    }
+    return api.get(`/users/${usernameOrId}/bets`, { params: { page, limit, ...filters } });
+  },
   toggleFollow: (username) => api.put(`/users/${username}/follow`),
   search: (query, page = 1, limit = 10) => 
     api.get('/users/search', { params: { query, page, limit } }),

@@ -51,54 +51,52 @@ exports.getUserProfile = async (req, res, next) => {
  */
 exports.getUserBets = async (req, res, next) => {
   try {
-    const user = await User.findOne({ username: req.params.username });
-
+    let user;
+    if (req.params.username === 'me' && req.user) {
+      user = req.user;
+    } else {
+      // First try to find user by username
+      user = await User.findOne({ username: req.params.username });
+      
+      // If not found, check if it's a valid MongoDB ID and try that
+      if (!user && req.params.username.match(/^[0-9a-fA-F]{24}$/)) {
+        user = await User.findById(req.params.username);
+      }
+    }
+    
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'User not found' 
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
       });
     }
 
-    const { 
-      status, 
-      sport,
-      sort = '-createdAt',
-      page = 1,
-      limit = 10
-    } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    // Build query
-    const query = { userId: user._id };
-
-    if (status) query.status = status;
-    if (sport) query.sport = sport;
-
-    // Pagination
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Get bets
-    const bets = await Bet.find(query)
-      .sort(sort)
+    // Get user's bets with pagination
+    const bets = await Bet.find({ userId: user._id })
+      .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limitNum)
-      .populate('bettingSiteId', 'name logoUrl');
+      .limit(limit)
+      .populate('userId', 'username avatarUrl verified');
 
-    // Get total count
-    const total = await Bet.countDocuments(query);
+    // Get total count for pagination
+    const total = await Bet.countDocuments({ userId: user._id });
 
     res.status(200).json({
       success: true,
-      count: bets.length,
-      total,
-      page: pageNum,
-      pages: Math.ceil(total / limitNum),
-      bets
+      bets,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
-    logger.error(`Get user bets error for username ${req.params.username}:`, error);
+    logger.error(`Error fetching bets for user ${req.params.username}:`, error);
     next(error);
   }
 };

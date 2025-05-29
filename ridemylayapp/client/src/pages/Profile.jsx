@@ -13,20 +13,29 @@ const Profile = () => {
   const [likes, setLikes] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const fetchUserData = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
     try {
       const userResponse = !userId || userId === 'me' 
         ? await authAPI.getCurrentUser()
         : await userAPI.getProfile(userId);
+        
+      if (!userResponse.data.user) {
+        throw new Error('User not found');
+      }
+      
       setUser(userResponse.data.user);
       setIsOwnProfile(!userId || userId === 'me' || userId === userResponse.data.user._id);
       
-      // Load initial tab data
-      await fetchTabData(activeTab);
+      // Load initial tab data only after we have the user
+      await fetchTabData(activeTab, userResponse.data.user._id);
     } catch (error) {
       console.error('Error fetching user data:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -35,28 +44,69 @@ const Profile = () => {
   useEffect(() => {
     fetchUserData();
   }, [userId, fetchUserData]);
-
   const fetchTabData = useCallback(async (tab) => {
     setLoading(true);
+    setError(null);
 
-    try {      if (tab === 'bets') {
-        const response = await userAPI.getUserBets(userId || user._id);
-        setBets(response.data.bets);
+    try {
+      if (tab === 'bets') {
+        // If no userId or it's 'me', use 'me' endpoint, otherwise use the username
+        const target = !userId || userId === 'me' ? 'me' : user?.username;
+        if (!target) {
+          throw new Error('No user information available');
+        }
+        const response = await userAPI.getUserBets(target);
+        if (response.data.bets) {
+          setBets(response.data.bets);
+        }
       } else if (tab === 'likes') {
-        const response = await betAPI.getLikedBets(userId || 'me');
-        setLikes(response.data.bets);
+        const target = !userId || userId === 'me' ? 'me' : user?.username;
+        if (!target) {
+          throw new Error('No user information available');
+        }
+        const response = await betAPI.getLikedBets(target);
+        if (response.data.bets) {
+          setLikes(response.data.bets);
+        }
       } else if (tab === 'analytics' && isOwnProfile) {
-        const response = await userAPI.getUserAnalytics(userId || 'me');
-        setAnalytics(response.data.analytics);
+        const response = await userAPI.getUserAnalytics(targetUserId);
+        if (response.data.analytics) {
+          setAnalytics(response.data.analytics);
+        }
       }
       
       setActiveTab(tab);
     } catch (error) {
       console.error(`Error fetching ${tab} data:`, error);
+      setError(`Error loading ${tab}: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [userId, isOwnProfile]);
+  }, [isOwnProfile]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-gray-500">User not found</p>
+      </div>
+    );
+  }
 
   const renderTabContent = () => {
     if (loading) {

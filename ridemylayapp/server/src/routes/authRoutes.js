@@ -15,6 +15,10 @@ router.post('/login', login);
 
 // Protected routes
 router.get('/me', protect, getMe);
+router.get('/me/bets', protect, (req, res, next) => {
+  req.params.username = 'me';
+  require('../controllers/userController').getUserBets(req, res, next);
+});
 router.put('/profile', protect, updateProfile);
 router.put('/password', protect, changePassword);
 
