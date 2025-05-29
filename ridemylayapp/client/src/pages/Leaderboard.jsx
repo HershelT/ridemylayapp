@@ -20,18 +20,22 @@ const Leaderboard = () => {
     setError(null);
 
     try {
-      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;
-      const response = await leaderboardAPI.getLeaderboard(timeframe, page);
+      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;      const response = await leaderboardAPI.getLeaderboard(timeframe, page);
+      console.log('Leaderboard API response:', response.data); // Debug log
+      
+      if (!response.data.leaderboard || !Array.isArray(response.data.leaderboard)) {
+        throw new Error('Invalid leaderboard data received');
+      }
       
       // Format the leaderboard data
       const formattedData = response.data.leaderboard.map((user, index) => ({
         _id: user._id,
         rank: (page - 1) * 10 + index + 1,
-        username: user.username,
-        avatarUrl: user.avatarUrl,
-        verified: user.verified,
-        winRate: Math.round(user.winRate),
-        profitLoss: user.profit,
+        username: user.username || 'Unknown User',
+        avatarUrl: user.avatarUrl || '',
+        verified: user.verified || false,
+        winRate: user.winRate ? Math.round(user.winRate) : 0,
+        profitLoss: user.profit || 0,
         streak: user.streak || 0,
         following: user.isFollowing || false,
       }));

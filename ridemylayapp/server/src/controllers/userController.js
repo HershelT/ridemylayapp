@@ -263,11 +263,26 @@ exports.getLeaderboard = async (req, res, next) => {
       const yearAgo = new Date(now);
       yearAgo.setFullYear(now.getFullYear() - 1);
       dateQuery.createdAt = { $gte: yearAgo };
-    }
+    }    // Log the date query for debugging
+    logger.info(`Leaderboard date query: ${JSON.stringify(dateQuery)}`);
+      // First, let's count total bets to debug
+    const totalBets = await Bet.countDocuments();
+    logger.info(`Total bets in database: ${totalBets}`);
 
-    // Aggregate to get user stats
+    // Count bets matching our criteria
+    const matchingBets = await Bet.countDocuments({
+      ...(Object.keys(dateQuery).length > 0 ? dateQuery : {}),
+      status: { $in: ['won', 'lost'] }
+    });
+    logger.info(`Matching bets for leaderboard: ${matchingBets}`);
+
+    // Aggregate to get user stats with less restrictive matching
     const userStats = await Bet.aggregate([
-      { $match: { ...dateQuery, status: { $in: ['won', 'lost'] } } },
+      { 
+        $match: { 
+          status: { $exists: true } // Match any bet with a status
+        } 
+      },
       { 
         $group: {
           _id: '$userId',
@@ -279,10 +294,10 @@ exports.getLeaderboard = async (req, res, next) => {
           },
           totalWinnings: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'won'] }, '$potentialWinnings', 0]
+              $cond: [{ $eq: ['$status', 'won'] }, { $ifNull: ['$potentialWinnings', 0] }, 0]
             }
           },
-          totalStake: { $sum: '$stake' }
+          totalStake: { $sum: { $ifNull: ['$stake', 0] } }
         }
       },
       {
@@ -303,32 +318,39 @@ exports.getLeaderboard = async (req, res, next) => {
 
     // Get user details
     const userIds = userStats.map(stat => stat._id);
-    const users = await User.find({ _id: { $in: userIds } });
-
-    // Combine user details with stats
-    const leaderboard = userStats.map(stat => {
-      const user = users.find(u => u._id.toString() === stat._id.toString());
-      return {
-        _id: stat._id,
-        username: user.username,
-        avatarUrl: user.avatarUrl,
-        verified: user.verified,
-        totalBets: stat.totalBets,
-        wonBets: stat.wonBets,
-        winRate: stat.winRate,
-        profit: stat.profit,
-        streak: user.streak
-      };
-    });
-
-    // Get total count for pagination
-    const totalUsers = await Bet.aggregate([
+    const users = await User.find({ _id: { $in: userIds } });    // Combine user details with stats
+    const leaderboard = userStats
+      .map(stat => {
+        const user = users.find(u => u._id.toString() === stat._id.toString());
+        if (!user) {
+          logger.warn(`User not found for leaderboard stat: ${stat._id}`);
+          return null;
+        }
+        return {
+          _id: stat._id,
+          username: user.username,
+          avatarUrl: user.avatarUrl,
+          verified: user.verified,
+          totalBets: stat.totalBets,
+          wonBets: stat.wonBets,
+          winRate: stat.winRate,
+          profit: stat.profit,
+          streak: user.streak || 0
+        };
+      })
+      .filter(Boolean); // Remove any null entries    // Get total count for pagination
+    const totalUsersResult = await Bet.aggregate([
       { $match: { ...dateQuery, status: { $in: ['won', 'lost'] } } },
-      { $group: { _id: '$userId' } },
+      { 
+        $group: {
+          _id: '$userId',
+          totalBets: { $sum: 1 }
+        }
+      },
       { $count: 'total' }
     ]);
 
-    const total = totalUsers.length > 0 ? totalUsers[0].total : 0;
+    const total = totalUsersResult.length > 0 ? totalUsersResult[0].total : 0;
 
     res.status(200).json({
       success: true,

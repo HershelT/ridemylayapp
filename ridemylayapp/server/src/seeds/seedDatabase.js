@@ -156,19 +156,19 @@ const betTemplates = [
     potentialWinnings: 225,
     sport: 'baseball',
     league: 'MLB',
-    status: 'pending',
+    status: 'won',
     legs: [
       {
         team: 'New York Yankees',
         betType: 'moneyline',
         odds: -120,
-        outcome: 'pending'
+        outcome: 'won'
       },
       {
         team: 'Los Angeles Dodgers',
         betType: 'moneyline',
         odds: -130,
-        outcome: 'pending'
+        outcome: 'won'
       }
     ]
     },
