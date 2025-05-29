@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
 // Pages
 import Home from './pages/Home';
@@ -25,7 +26,7 @@ import { initializeSocket } from './services/socket';
 // Store
 import useAuthStore from './store/authStore';
 
-function App() {
+const App = () => {
   const { isAuthenticated, user, loadUser, token } = useAuthStore();
   const [theme, setTheme] = React.useState('light');
 
@@ -52,6 +53,7 @@ function App() {
     localStorage.setItem('theme', newTheme);
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
+
   return (
     <Router>
       <div className={`App min-h-screen ${theme === 'dark' ? 'dark bg-dark text-white' : 'bg-gray-50 text-gray-900'}`}>
@@ -75,6 +77,16 @@ function App() {
           </Routes>
         </main>
         {isAuthenticated && <TabBar />}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: theme === 'dark' ? '#374151' : '#ffffff',
+              color: theme === 'dark' ? '#ffffff' : '#1f2937',
+            },
+          }}
+        />
       </div>
     </Router>
   );
