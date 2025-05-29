@@ -24,9 +24,7 @@ exports.getUserProfile = async (req, res, next) => {
         success: false, 
         error: 'User not found' 
       });
-    }
-
-    // Get user stats
+    }    // Get user stats
     const betsCount = await Bet.countDocuments({ userId: user._id });
     const wonBetsCount = await Bet.countDocuments({ 
       userId: user._id, 
@@ -38,6 +36,20 @@ exports.getUserProfile = async (req, res, next) => {
       wonBetsCount,
       winRate: betsCount > 0 ? (wonBetsCount / betsCount) * 100 : 0
     };
+
+    // Add isFollowing field if we have an authenticated user
+    let isFollowing = false;
+    if (req.user) {
+      const currentUser = await User.findById(req.user.id);
+      if (currentUser) {
+        isFollowing = currentUser.following.some(
+          id => id.toString() === user._id.toString()
+        );
+        // Add the isFollowing field to the user object
+        user = user.toObject();
+        user.isFollowing = isFollowing;
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -156,14 +168,14 @@ exports.toggleFollow = async (req, res, next) => {
     } else {
       // Follow
       currentUser.following.push(userToFollow._id);
-      userToFollow.followers.push(currentUser._id);
-    }    // Save changes
+      userToFollow.followers.push(currentUser._id);    }    // Save changes
     await currentUser.save();
     await userToFollow.save();
 
     res.status(200).json({
       success: true,
-      isFollowing: !isFollowing
+      isFollowing: !isFollowing,
+      userId: userToFollow._id
     });
   } catch (error) {
     logger.error(`Toggle follow error for username ${req.params.username}:`, error);

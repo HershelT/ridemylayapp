@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authAPI } from '../services/api';
+import { authAPI, userAPI } from '../services/api';
 
 const useAuthStore = create((set) => ({
   user: null,
@@ -128,10 +128,50 @@ const useAuthStore = create((set) => ({
       
       return { success: false, error: error.response?.data?.message || 'Failed to update profile' };
     }
+  },  
+  // Clear errors
+  clearError: () => set({ error: null }),
+  
+  // Track followed users
+  followUser: async (username) => {
+    try {
+      const response = await userAPI.toggleFollow(username);
+      
+      if (response.data.isFollowing) {
+        // Update the current user's following list
+        set(state => ({
+          user: state.user ? {
+            ...state.user,
+            following: [...(state.user.following || []), response.data.userId]
+          } : state.user
+        }));
+        return { success: true, isFollowing: true, userId: response.data.userId };
+      } else {
+        // Remove from following list
+        set(state => ({
+          user: state.user ? {
+            ...state.user,
+            following: (state.user.following || []).filter(id => id !== response.data.userId)
+          } : state.user
+        }));
+        return { success: true, isFollowing: false, userId: response.data.userId };
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Failed to update follow status' 
+      };
+    }
   },
   
-  // Clear errors
-  clearError: () => set({ error: null })
+  // Check if the current user is following a specific user
+  isFollowingUser: (userId) => {
+    const state = useAuthStore.getState();
+    if (!state.user || !state.user.following) return false;
+    return state.user.following.some(id => 
+      id === userId || id._id === userId || (typeof id === 'object' && id.toString() === userId)
+    );
+  }
 }));
 
 export default useAuthStore;

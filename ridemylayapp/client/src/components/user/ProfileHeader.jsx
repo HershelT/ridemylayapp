@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { userAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/authStore';
 
 const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
   const [isFollowing, setIsFollowing] = useState(user?.isFollowing || false);
   const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
   const [showEditModal, setShowEditModal] = useState(false);
+  const followUser = useAuthStore(state => state.followUser);
 
   // Update state when user prop changes
   useEffect(() => {
@@ -24,15 +26,15 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
       setIsFollowing(newFollowState);
       setFollowerCount(prev => newFollowState ? prev + 1 : prev - 1);
       
-      // Call API to update follow status
-      const response = await userAPI.toggleFollow(user.username);
+      // Call the global store action to follow/unfollow
+      const result = await followUser(user.username);
       
-      // Update based on server response      
-      if (response?.data?.isFollowing !== newFollowState) {
+      // Validate the result
+      if (!result.success || result.isFollowing !== newFollowState) {
         // Revert if server state doesn't match our optimistic update
         setIsFollowing(!newFollowState);
         setFollowerCount(prev => !newFollowState ? prev + 1 : prev - 1);
-        throw new Error('Server state mismatch');
+        throw new Error(result.error || 'Failed to update follow status');
       }
       
       // Notify parent component about the change
@@ -40,8 +42,7 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
         onFollowToggle(newFollowState);
       }
     } catch (error) {
-      // Toast error is already handled by the catch block since we throw above
-      toast.error('Failed to update follow status');
+      toast.error(error.message || 'Failed to update follow status');
       console.error('Follow toggle error:', error);
     }
   };

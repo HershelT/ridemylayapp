@@ -4,6 +4,8 @@ import ProfileHeader from '../components/user/ProfileHeader';
 import BetCard from '../components/bets/BetCard';
 import { userAPI, betAPI, authAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import useAuthStore from '../store/authStore';
+import { ensureFollowStatus } from '../utils/followUtils';
 
 const Profile = () => {
   const { userId } = useParams();
@@ -16,6 +18,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const currentUser = useAuthStore(state => state.user);
 
   // Function to handle follow status changes
   const handleFollowToggle = useCallback((isNowFollowing) => {
