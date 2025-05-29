@@ -22,7 +22,7 @@ const bettingSites = [
   },
   {
     name: 'FanDuel',
-    logoUrl: 'https://th.bing.com/th/id/OIP.dyX-UyyCs-_N4x8AI2HzSQHaHY?rs=1&pid=ImgDetMain',
+    logoUrl: 'https://logos-world.net/wp-content/uploads/2024/10/FanDuel-Logo-500x281.png',
     websiteUrl: 'https://fanduel.com',
     apiEndpoint: 'https://api.fanduel.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
@@ -31,7 +31,7 @@ const bettingSites = [
   },
   {
     name: 'BetMGM',
-    logoUrl: 'https://pnghq.com/wp-content/uploads/betmgm-logo-png-free-png-image-downloads-40248.png',
+    logoUrl: 'https://www.pngmart.com/files/22/MGM-Holdings-Logo-PNG-Picture-200x145.png',
     websiteUrl: 'https://betmgm.com',
     apiEndpoint: 'https://api.betmgm.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],

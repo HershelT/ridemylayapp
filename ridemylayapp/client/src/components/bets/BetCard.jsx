@@ -191,8 +191,7 @@ const BetCard = ({ bet }) => {
                       e.stopPropagation();
                       // Track betting site click if needed
                     }}
-                >
-                    <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white rounded-sm shadow-sm overflow-hidden group-hover:opacity-80">
+                >                    <div className="w-5 h-5 mr-1 flex-shrink-0 bg-white dark:bg-black rounded-sm shadow-sm overflow-hidden group-hover:opacity-80">
                         <img
                             src={bet.bettingSiteId?.logoUrl || bet.bettingSite?.logoUrl || '/assets/images/placeholder-logo.png'} 
                             alt={bet.bettingSiteId?.name || bet.bettingSite?.name || 'Betting Site'} 
