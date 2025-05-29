@@ -11,51 +11,13 @@ const logger = require('../utils/logger');
  * @access  Private
  */
 exports.createBet = async (req, res, next) => {
-  try {
-    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;
+  try {    const { legs, stake, bettingSiteId, sport, isRide, isHedge, originalBetId } = req.body;
 
-    // Convert odds to numbers and validate
-    const parsedLegs = legs.map(leg => ({
-      ...leg,
-      odds: typeof leg.odds === 'string' ? parseInt(leg.odds) : leg.odds
-    }));
-
-    // Calculate total odds the same way as client
-    let totalOdds;
-    if (parsedLegs.length === 1) {
-      totalOdds = parsedLegs[0].odds;
-    } else {
-      // Convert all legs to decimal and multiply, matching client calculateParlayOdds
-      const decimalOdds = parsedLegs.reduce((acc, leg) => {
-        const decimal = leg.odds > 0
-          ? (leg.odds / 100) + 1
-          : (100 / Math.abs(leg.odds)) + 1;
-        return acc * decimal;
-      }, 1);
-
-      // Convert back to American odds with proper rounding
-      if (decimalOdds <= 1) totalOdds = 0;
-      else if (decimalOdds >= 2) {
-        totalOdds = Math.round((decimalOdds - 1) * 100);
-      } else {
-        totalOdds = Math.round(-100 / (decimalOdds - 1));
-      }
-    }
-
-    // Calculate potential winnings using same logic as client calculateWinnings
-    const decimalOdds = totalOdds > 0
-      ? (totalOdds / 100) + 1
-      : (100 / Math.abs(totalOdds)) + 1;
-
-    const potentialWinnings = Number(Math.round(stake * (decimalOdds - 1) * 100) / 100);
-
-    // Create bet
+    // Create bet - odds and winnings will be calculated automatically by pre-save middleware
     const bet = await Bet.create({
       userId: req.user.id,
       legs,
-      odds: totalOdds,
       stake,
-      potentialWinnings,
       bettingSiteId,
       sport,
       isRide,
