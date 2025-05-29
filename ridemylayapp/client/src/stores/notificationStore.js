@@ -7,22 +7,23 @@ const useNotificationStore = create((set, get) => ({
   loading: true,
   error: null,
 
-  init: () => {
-    // Listen for notifications_init event
+  init() {
     window.addEventListener('notifications_init', (event) => {
-      const notifications = event.detail;
+      const notifications = event.detail || [];
       set({ notifications, loading: false });
     });
 
-    // Listen for new_notification event
     window.addEventListener('new_notification', (event) => {
       const notification = event.detail;
+      if (!notification) return;
+      
       set(state => ({
-        notifications: [notification, ...state.notifications],
+        notifications: Array.isArray(state.notifications) ? 
+          [notification, ...state.notifications] : 
+          [notification],
         unreadCount: state.unreadCount + 1
       }));
-
-      // Show browser notification
+      
       if (Notification.permission === 'granted') {
         const title = notification.type === 'message' 
           ? `New message from ${notification.sender.username}`
@@ -36,17 +37,17 @@ const useNotificationStore = create((set, get) => ({
     });
   },
 
-  fetchNotifications: async () => {
+  async fetchNotifications() {
     set({ loading: true });
     try {
       const notifications = await notificationAPI.getNotifications();
-      set({ notifications, loading: false });
+      set({ notifications: notifications || [], loading: false });
     } catch (error) {
-      set({ error: error.message, loading: false });
+      set({ error: error.message, loading: false, notifications: [] });
     }
   },
 
-  fetchUnreadCount: async () => {
+  async fetchUnreadCount() {
     try {
       const { count } = await notificationAPI.getUnreadCount();
       set({ unreadCount: count });
@@ -55,47 +56,53 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  markAsRead: async (notificationId) => {
+  async markAsRead(notificationId) {
     try {
       await notificationAPI.markAsRead(notificationId);
-      const notifications = get().notifications.map(n =>
-        n._id === notificationId ? { ...n, read: true } : n
-      );
-      set(state => ({ 
-        notifications,
-        unreadCount: state.unreadCount - 1
+      set(state => ({
+        notifications: state.notifications.map(n =>
+          n._id === notificationId ? { ...n, read: true } : n
+        ),
+        unreadCount: Math.max(0, state.unreadCount - 1)
       }));
     } catch (error) {
       set({ error: error.message });
     }
   },
 
-  markAllAsRead: async () => {
+  async markAllAsRead() {
     try {
       await notificationAPI.markAllAsRead();
-      const notifications = get().notifications.map(n => ({ ...n, read: true }));
-      set({ notifications, unreadCount: 0 });
-    } catch (error) {
-      set({ error: error.message });
-    }
-  },
-
-  deleteNotification: async (notificationId) => {
-    try {
-      await notificationAPI.deleteNotification(notificationId);
-      const notifications = get().notifications.filter(n => n._id !== notificationId);
       set(state => ({
-        notifications,
-        unreadCount: state.unreadCount - (notifications.find(n => n._id === notificationId)?.read ? 0 : 1)
+        notifications: (state.notifications || []).map(n => ({ ...n, read: true })),
+        unreadCount: 0
       }));
     } catch (error) {
       set({ error: error.message });
     }
   },
 
-  addNotification: (notification) => {
+  async deleteNotification(notificationId) {
+    try {
+      await notificationAPI.deleteNotification(notificationId);
+      set(state => {
+        const notification = state.notifications.find(n => n._id === notificationId);
+        return {
+          notifications: state.notifications.filter(n => n._id !== notificationId),
+          unreadCount: Math.max(0, state.unreadCount - (notification?.read ? 0 : 1))
+        };
+      });
+    } catch (error) {
+      set({ error: error.message });
+    }
+  },
+
+  addNotification(notification) {
+    if (!notification) return;
     set(state => ({
-      notifications: [notification, ...state.notifications],
+      notifications: Array.isArray(state.notifications) ? 
+        [notification, ...state.notifications] : 
+        [notification],
       unreadCount: state.unreadCount + 1
     }));
   }

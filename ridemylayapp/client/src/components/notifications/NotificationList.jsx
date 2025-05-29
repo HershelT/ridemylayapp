@@ -7,15 +7,17 @@ import { BsTrash, BsCheck } from 'react-icons/bs';
 const NotificationList = () => {
   const { notifications, loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
   
-  // Ensure notifications is an array
-  const notificationList = Array.isArray(notifications) ? notifications : [];
+  // Ensure notifications is an array and each item has a unique _id
+  const notificationList = Array.isArray(notifications) ? notifications.filter(n => n && n._id) : [];
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
   const getNotificationTitle = (notification) => {
-    switch (notification?.type) {
+    if (!notification?.type) return 'New notification';
+    
+    switch (notification.type) {
       case 'message':
         return 'New message';
       case 'bet_interaction':
@@ -32,7 +34,9 @@ const NotificationList = () => {
   };
 
   const getNotificationLink = (notification) => {
-    switch (notification?.entityType) {
+    if (!notification?.entityType) return '/';
+    
+    switch (notification.entityType) {
       case 'chat':
         return `/messages/${notification.entityId}`;
       case 'bet':
@@ -41,6 +45,22 @@ const NotificationList = () => {
         return `/profile/${notification.entityId}`;
       default:
         return '/';
+    }
+  };
+
+  const handleMarkAsRead = (e, notificationId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (notificationId) {
+      markAsRead(notificationId);
+    }
+  };
+
+  const handleDelete = (e, notificationId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (notificationId) {
+      deleteNotification(notificationId);
     }
   };
 
@@ -71,7 +91,7 @@ const NotificationList = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {notificationList.map(notification => (
+            {notificationList.map(notification => notification && (
               <Link
                 key={notification._id}
                 to={getNotificationLink(notification)}
@@ -99,11 +119,7 @@ const NotificationList = () => {
                   <div className="flex items-center space-x-2 ml-4">
                     {!notification.read && (
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          markAsRead(notification._id);
-                        }}
+                        onClick={(e) => handleMarkAsRead(e, notification._id)}
                         className="p-1 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
                         title="Mark as read"
                       >
@@ -111,11 +127,7 @@ const NotificationList = () => {
                       </button>
                     )}
                     <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        deleteNotification(notification._id);
-                      }}
+                      onClick={(e) => handleDelete(e, notification._id)}
                       className="p-1 rounded-full text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
                       title="Delete notification"
                     >
