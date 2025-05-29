@@ -10,14 +10,18 @@ const initialState = {
 
 const useNotificationStore = create((set, get) => ({
   ...initialState,
-
   init() {
     window.addEventListener('notifications_init', (event) => {
       const notifications = event.detail || [];
       set({ notifications, loading: false });
     });
 
-    // Remove the new_notification event listener since we'll handle this via socket
+    // Listen for new notifications
+    window.addEventListener('new_notification', (event) => {
+      if (event.detail) {
+        this.addNotification(event.detail);
+      }
+    });
   },
 
   async fetchNotifications() {

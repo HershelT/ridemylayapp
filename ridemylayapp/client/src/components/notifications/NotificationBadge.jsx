@@ -5,30 +5,20 @@ import socketService from '../../services/socket';
 import { subscribeToNotifications } from '../../services/notificationService';
 
 const NotificationBadge = () => {
-  const { unreadCount, fetchUnreadCount, init, addNotification } = useNotificationStore();
-
+  const { unreadCount, fetchUnreadCount, init } = useNotificationStore();
+  
   useEffect(() => {
-    // Initialize notification store
+    // Initialize notification store and fetch initial count
     init();
-    
-    // Fetch initial unread count
     fetchUnreadCount();
 
-    // Subscribe to notifications only once
-    const cleanup = subscribeToNotifications((notification) => {
-      addNotification(notification);
-    });
+    // Set up periodic refresh of unread count
+    const refreshInterval = setInterval(fetchUnreadCount, 30000); // Refresh every 30 seconds
 
-    // Request notification permission if not granted
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-
-    // Cleanup on unmount
     return () => {
-      if (cleanup) cleanup();
+      clearInterval(refreshInterval);
     };
-  }, [init, fetchUnreadCount, addNotification]);
+  }, [init, fetchUnreadCount]);
 
   return (
     <div className="relative">

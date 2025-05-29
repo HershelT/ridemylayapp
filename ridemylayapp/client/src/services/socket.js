@@ -198,20 +198,34 @@ const onNewNotification = (callback) => {
 
   if (s) {
     // Listen for new notifications
-    s.on('new_notification', callback);
-    cleanupFunctions.push(() => s.off('new_notification', callback));
+    const handleNewNotification = (notification) => {
+      // Trigger the browser notification
+      handleBrowserNotification(notification);
+      // Call the provided callback
+      callback(notification);
+    };
+
+    s.on('new_notification', handleNewNotification);
+    cleanupFunctions.push(() => s.off('new_notification', handleNewNotification));
 
     // Listen for notification updates (e.g., marking as read)
-    s.on('notification_updated', notification => {
+    s.on('notification_updated', (notification) => {
       callback(notification, 'update');
     });
-    cleanupFunctions.push(() => s.off('notification_updated', callback));
+    cleanupFunctions.push(() => s.off('notification_updated'));
 
     // Handle reconnection
-    s.on('connect', () => {
+    const handleConnect = () => {
+      console.log('Socket reconnected, resubscribing to notifications');
       s.emit('subscribe_notifications');
-    });
-    cleanupFunctions.push(() => s.off('connect'));
+    };
+    s.on('connect', handleConnect);
+    cleanupFunctions.push(() => s.off('connect', handleConnect));
+
+    // Initial subscription
+    if (s.connected) {
+      s.emit('subscribe_notifications');
+    }
 
     // Handle errors
     s.on('notification_error', (error) => {
@@ -327,6 +341,56 @@ const unsubscribeFromBetUpdates = (betId, callback) => {
   const socket = getSocket();
   if (socket) {
     socket.off(`bet:${betId}:update`, callback);
+  }
+};
+
+// Helper function to handle browser notifications
+const handleBrowserNotification = (notification) => {
+  if (!notification || !notification.sender) return;
+
+  // Check if we should show the notification
+  const isInChat = window.location.pathname.startsWith('/messages') && 
+                  notification.entityType === 'chat' && 
+                  window.location.pathname.includes(notification.entityId);
+  const isActiveTab = document.hasFocus();
+  
+  // Don't show notification if we're in the active chat
+  if (isInChat && isActiveTab) return;
+
+  // Request permission if not granted
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  // Show browser notification if permission is granted
+  if (Notification.permission === 'granted') {
+    const title = notification.type === 'message' 
+      ? `New message from ${notification.sender.username}`
+      : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
+
+    const browserNotification = new Notification(title, {
+      body: notification.content,
+      icon: notification.sender.avatarUrl || '/favicon.ico',
+      tag: `${notification.type}-${notification.entityId}`,
+      requireInteraction: true
+    });
+
+    browserNotification.onclick = () => {
+      window.focus();
+      switch (notification.entityType) {
+        case 'chat':
+          window.location.href = `/messages/${notification.entityId}`;
+          break;
+        case 'bet':
+          window.location.href = `/bets/${notification.entityId}`;
+          break;
+        case 'user':
+          window.location.href = `/profile/${notification.entityId}`;
+          break;
+        default:
+          window.location.href = '/';
+      }
+    };
   }
 };
 
