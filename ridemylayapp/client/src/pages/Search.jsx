@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { userAPI, betAPI } from '../services/api';
 
 const Search = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('games'); // 'games', 'topics', 'users'
   const [searchResults, setSearchResults] = useState([]);
@@ -16,71 +19,34 @@ const Search = () => {
     { id: 'hockey', name: 'Hockey' },
   ];
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
+    if (!searchQuery) return;
     setLoading(true);
-
-    // Mock search results
-    setTimeout(() => {
-      if (searchType === 'games') {
-        setSearchResults(generateMockGames(selectedSport !== 'all' ? selectedSport : null));
+    try {
+      if (searchType === 'users') {
+        const response = await userAPI.search(searchQuery);
+        setSearchResults(response.data.users);
+      } else if (searchType === 'games') {
+        const filters = selectedSport !== 'all' ? { sport: selectedSport } : {};
+        const response = await betAPI.getAllBets(1, 10, {
+          ...filters,
+          query: searchQuery 
+        });
+        setSearchResults(response.data.bets);
       } else if (searchType === 'topics') {
-        setSearchResults(generateMockTopics());
-      } else {
-        setSearchResults(generateMockUsers());
+        // Topics are now just grouped bets by popular categories
+        const response = await betAPI.getAllBets(1, 10, { 
+          query: searchQuery,
+          grouped: true
+        });
+        setSearchResults(response.data.topics || []);
       }
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } finally {
       setLoading(false);
-    }, 500);
-  };
-
-  // Generate mock data for demonstration
-  const generateMockGames = (sportFilter = null) => {
-    const sports = sportFilter ? [sportFilter] : ['football', 'basketball', 'baseball', 'soccer', 'hockey'];
-    
-    return Array(8).fill().map((_, index) => ({
-      _id: `game-${index + 1}`,
-      sport: sports[Math.floor(Math.random() * sports.length)],
-      homeTeam: {
-        name: `Team ${Math.floor(Math.random() * 15) + 1}`,
-        score: Math.floor(Math.random() * 100),
-      },
-      awayTeam: {
-        name: `Team ${Math.floor(Math.random() * 15) + 16}`,
-        score: Math.floor(Math.random() * 100),
-      },
-      time: Math.random() > 0.3 ? `${Math.floor(Math.random() * 12) + 1}:${Math.random() > 0.5 ? '00' : '30'} ${Math.random() > 0.5 ? 'Q4' : 'Q3'}` : 'FINAL',
-      odds: {
-        spread: Math.random() > 0.5 ? Math.floor(Math.random() * 10) + 1 : -Math.floor(Math.random() * 10) - 1,
-        total: Math.floor(Math.random() * 50) + 200,
-      },
-      tv: ['ESPN', 'FOX', 'CBS', 'NBC', 'TNT'][Math.floor(Math.random() * 5)],
-      isLive: Math.random() > 0.3,
-    }));
-  };
-
-  const generateMockTopics = () => {
-    const topics = [
-      'NFL Week 1', 'NBA Playoffs', 'MLB Opening Day', 'Champions League Final',
-      'College Football Bowl Season', 'March Madness', 'Stanley Cup Playoffs',
-      'Super Bowl Props', 'World Series', 'Kentucky Derby'
-    ];
-    
-    return topics.slice(0, 8).map((topic, index) => ({
-      _id: `topic-${index + 1}`,
-      name: topic,
-      betsCount: Math.floor(Math.random() * 1000) + 100,
-      isHot: Math.random() > 0.7,
-    }));
-  };
-
-  const generateMockUsers = () => {
-    return Array(8).fill().map((_, index) => ({
-      _id: `user-${index + 1}`,
-      username: `user${Math.floor(Math.random() * 1000)}`,
-      avatarUrl: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
-      verified: Math.random() > 0.7,
-      winRate: Math.floor(Math.random() * 100),
-      followerCount: Math.floor(Math.random() * 10000),
-    }));
+    }
   };
 
   const renderSearchResults = () => {
@@ -95,46 +61,44 @@ const Search = () => {
     if (searchType === 'games') {
       return (
         <div className="space-y-4">
-          {searchResults.map(game => (
-            <div key={game._id} className="card">
+          {searchResults.map(bet => (
+            <div key={bet._id} className="card">
               <div className="flex justify-between items-center mb-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${game.isLive ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-                  {game.isLive ? 'LIVE' : 'UPCOMING'}
+                <span className={`px-2 py-1 rounded-full text-xs ${bet.status === 'pending' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                  {bet.status === 'pending' ? 'LIVE' : bet.status.toUpperCase()}
                 </span>
-                <span className="text-xs text-gray-500">{game.tv}</span>
+                <span className="text-xs text-gray-500">{bet.bettingSiteId?.name}</span>
               </div>
               
               <div className="flex justify-between items-center">
                 <div className="flex-1">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium">{game.homeTeam.name}</span>
-                    <span className="font-bold">{game.homeTeam.score}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">{game.awayTeam.name}</span>
-                    <span className="font-bold">{game.awayTeam.score}</span>
-                  </div>
+                  {bet.legs.map((leg, index) => (
+                    <div key={index} className="flex justify-between items-center mb-2">
+                      <span className="font-medium">{leg.team}</span>
+                      <span className="font-bold">{leg.odds}</span>
+                    </div>
+                  ))}
                 </div>
                 
                 <div className="px-4 text-center">
-                  <div className="font-medium text-red-500">{game.time}</div>
-                  <div className="text-xs text-gray-500 mt-1">{game.sport.toUpperCase()}</div>
+                  <div className="font-medium text-red-500">{bet.status}</div>
+                  <div className="text-xs text-gray-500 mt-1">{bet.sport.toUpperCase()}</div>
                 </div>
                 
                 <div className="flex-1 text-right">
                   <div className="mb-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Spread: </span>
-                    <span className="font-medium">{game.odds.spread > 0 ? `+${game.odds.spread}` : game.odds.spread}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Stake: </span>
+                    <span className="font-medium">${bet.stake}</span>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total: </span>
-                    <span className="font-medium">{game.odds.total}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Potential Win: </span>
+                    <span className="font-medium">${bet.potentialWinnings}</span>
                   </div>
                 </div>
               </div>
               
-              <button className="w-full mt-3 btn-primary">
-                Place Bet
+              <button className="w-full mt-3 btn-primary" onClick={() => navigate(`/bets/${bet._id}`)}>
+                View Bet
               </button>
             </div>
           ))}
@@ -155,8 +119,8 @@ const Search = () => {
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-500 mt-1">{topic.betsCount} bets</p>
-              <button className="w-full mt-3 btn-primary">
+              <p className="text-sm text-gray-500 mt-1">{topic.betCount} bets</p>
+              <button className="w-full mt-3 btn-primary" onClick={() => navigate(`/search/topic/${topic.name}`)}>
                 View Bets
               </button>
             </div>
@@ -184,10 +148,10 @@ const Search = () => {
                 )}
               </div>
               <div className="text-sm text-gray-500">
-                Win Rate: {user.winRate}% · {user.followerCount.toLocaleString()} followers
+                Win Rate: {user.winRate}% · {user.followerCount?.toLocaleString()} followers
               </div>
             </div>
-            <button className="btn-primary text-sm">
+            <button className="btn-primary text-sm" onClick={() => navigate(`/users/${user.username}`)}>
               View Profile
             </button>
           </div>

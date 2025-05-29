@@ -157,30 +157,67 @@ exports.toggleFollow = async (req, res, next) => {
     await currentUser.save();
     await userToFollow.save();
 
-    // Create notification if following (not unfollowing)
-    if (!isFollowing) {
-      const notification = await Notification.create({
-        recipient: userToFollow._id,
-        sender: currentUser._id,
-        type: 'follow',
-        content: `${currentUser.username} started following you`,
-        entityType: 'user',
-        entityId: currentUser._id
-      });
-
-      // If user is online, send real-time notification
-      if (req.io && activeUsers.has(userToFollow._id.toString())) {
-        req.io.to(`user:${userToFollow._id}`).emit('new_notification', notification);
-      }
-    }
-
     res.status(200).json({
       success: true,
-      isFollowing: !isFollowing,
-      followersCount: userToFollow.followers.length
+      isFollowing: !isFollowing
     });
   } catch (error) {
     logger.error(`Toggle follow error for username ${req.params.username}:`, error);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Search for users
+ * @route   GET /api/users/search
+ * @access  Public
+ */
+exports.searchUsers = async (req, res, next) => {
+  try {
+    const { query, page = 1, limit = 10 } = req.query;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query is required'
+      });
+    }
+
+    // Pagination
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Search users by username or name
+    const users = await User.find({
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { name: { $regex: query, $options: 'i' } }
+      ]
+    })
+      .select('username name avatarUrl verified')
+      .skip(skip)
+      .limit(limitNum)
+      .sort('username');
+
+    // Get total count
+    const total = await User.countDocuments({
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { name: { $regex: query, $options: 'i' } }
+      ]
+    });
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
+      users
+    });
+  } catch (error) {
+    logger.error('Search users error:', error);
     next(error);
   }
 };
@@ -193,20 +230,20 @@ exports.toggleFollow = async (req, res, next) => {
 exports.getLeaderboard = async (req, res, next) => {
   try {
     const { 
-      timeframe = 'all', 
-      limit = 10,
-      page = 1 
+      timeframe = 'all',
+      page = 1,
+      limit = 10
     } = req.query;
-
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    // Determine date range based on timeframe
-    const dateQuery = {};
+    
+    // Build date query based on timeframe
     const now = new Date();
-
-    if (timeframe === 'week') {
+    const dateQuery = {};
+    
+    if (timeframe === 'day') {
+      const dayAgo = new Date(now);
+      dayAgo.setDate(now.getDate() - 1);
+      dateQuery.createdAt = { $gte: dayAgo };
+    } else if (timeframe === 'week') {
       const weekAgo = new Date(now);
       weekAgo.setDate(now.getDate() - 7);
       dateQuery.createdAt = { $gte: weekAgo };

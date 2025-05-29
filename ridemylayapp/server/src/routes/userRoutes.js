@@ -4,11 +4,13 @@ const {
   getUserProfile, 
   getUserBets, 
   toggleFollow, 
-  getLeaderboard 
+  getLeaderboard,
+  searchUsers 
 } = require('../controllers/userController');
 const { protect } = require('../middleware/auth');
 
 // Public routes
+router.get('/search', searchUsers);
 router.get('/leaderboard', getLeaderboard);
 router.get('/:username', getUserProfile);
 router.get('/:username/bets', getUserBets);

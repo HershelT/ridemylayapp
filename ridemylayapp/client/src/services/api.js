@@ -55,6 +55,8 @@ export const userAPI = {
   getUserBets: (username, page = 1, limit = 10, filters = {}) => 
     api.get(`/users/${username}/bets`, { params: { page, limit, ...filters } }),
   toggleFollow: (username) => api.put(`/users/${username}/follow`),
+  search: (query, page = 1, limit = 10) => 
+    api.get('/users/search', { params: { query, page, limit } }),
   getLeaderboard: (timeframe = 'all', page = 1, limit = 10) => 
     api.get('/users/leaderboard', { params: { timeframe, page, limit } }),
 };
