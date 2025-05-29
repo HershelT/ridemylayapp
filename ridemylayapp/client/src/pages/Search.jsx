@@ -24,7 +24,7 @@ const Search = () => {
     setLoading(true);
     try {
       if (searchType === 'users') {
-        const response = await userAPI.search(searchQuery);
+        const response = await userAPI.searchUsers(searchQuery);
         setSearchResults(response.data.users);
       } else if (searchType === 'games') {
         const filters = selectedSport !== 'all' ? { sport: selectedSport } : {};

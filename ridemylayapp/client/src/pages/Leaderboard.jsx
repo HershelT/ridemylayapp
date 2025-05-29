@@ -70,16 +70,31 @@ const Leaderboard = () => {
           return user;
         })
       );
-      
-      // Call API
-      await userAPI.toggleFollow(username);
+        // Call API and validate response
+      const response = await userAPI.toggleFollow(username);
+      if (response?.data?.isFollowing !== newFollowState) {
+        throw new Error('Server state mismatch');
+      }
 
-      // If we're in the friends view, we need to refresh the data
+      // If we're in the friends view and unfollowing, we need to refresh the data
       if (leaderboardType === 'friends' && !newFollowState) {
         // Remove the unfollowed user from the friends view immediately
         setLeaderboardData(prevData => prevData.filter(user => user.username !== username));
-        // Then refresh the data to get updated rankings
-        await fetchLeaderboardData();
+        // Then refresh the data to get updated rankings, but with a small delay
+        setTimeout(() => fetchLeaderboardData(), 500);
+      } else {
+        // For other views, just update the local state with the server response
+        setLeaderboardData(prevData => 
+          prevData.map(user => {
+            if (user.username === username) {
+              return { 
+                ...user, 
+                following: response.data.isFollowing 
+              };
+            }
+            return user;
+          })
+        );
       }
     } catch (error) {
       // Revert optimistic update on error

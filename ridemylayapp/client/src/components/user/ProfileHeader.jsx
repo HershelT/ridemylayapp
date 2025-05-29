@@ -27,8 +27,8 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
       // Call API to update follow status
       const response = await userAPI.toggleFollow(user.username);
       
-      // Update based on server response
-      if (!response?.data?.isFollowing === newFollowState) {
+      // Update based on server response      
+      if (response?.data?.isFollowing !== newFollowState) {
         // Revert if server state doesn't match our optimistic update
         setIsFollowing(!newFollowState);
         setFollowerCount(prev => !newFollowState ? prev + 1 : prev - 1);
