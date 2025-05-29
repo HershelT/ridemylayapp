@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaPlus, FaMinus, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaMinus, FaTimes, FaInfoCircle } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
 import { betAPI, bettingSiteAPI } from '../../services/api';
+import { 
+  parseAmericanOdds, 
+  convertAmericanToDecimal, 
+  calculateParlayOdds,
+  calculateWinnings,
+  calculateImpliedProbability,
+  validateOdds
+} from '../../utils/oddsUtils';
 
 const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
   const { user } = useAuthStore();
@@ -156,41 +164,25 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     loadBettingSites();
   }, [user]);
   
+  // Calculate potential winnings when stake or odds change  // Calculate parlay odds when legs change
+  useEffect(() => {
+    if (formData.legs.length > 1) {
+      const totalOdds = calculateParlayOdds(formData.legs);
+      if (totalOdds !== 0) {
+        setFormData(prev => ({
+          ...prev,
+          odds: totalOdds > 0 ? `+${totalOdds}` : totalOdds.toString()
+        }));
+      }
+    }
+  }, [formData.legs]);
+
   // Calculate potential winnings when stake or odds change
   useEffect(() => {
-    const calculateWinnings = () => {
-      const stake = parseFloat(formData.stake) || 0;
-      const odds = parseAmericanOdds(formData.odds);
-      
-      if (!odds || isNaN(stake)) {
-        setPotentialWinnings(0);
-        return;
-      }
-      
-      let winnings = 0;
-      
-      // American odds calculation with precise decimal arithmetic
-      if (odds > 0) {
-        // Positive odds (underdog)
-        winnings = (stake * odds) / 100;
-      } else if (odds < 0) {
-        // Negative odds (favorite)
-        winnings = (stake * 100) / Math.abs(odds);
-      }
-      
-      // Round to 2 decimal places for display
-      setPotentialWinnings(Number((stake + winnings).toFixed(2)));
-    };
-    
-    const parseAmericanOdds = (oddsStr) => {
-      if (!oddsStr || oddsStr === '-' || oddsStr === '+') return null;
-      // Remove any non-numeric characters except minus sign
-      const cleanOdds = oddsStr.replace(/[^\d-]/g, '');
-      // Convert to number, ensuring we keep the sign
-      return cleanOdds.startsWith('-') ? -parseInt(cleanOdds.slice(1)) : parseInt(cleanOdds);
-    };
-    
-    calculateWinnings();
+    const stake = parseFloat(formData.stake) || 0;
+    const odds = parseAmericanOdds(formData.odds);
+    const winnings = calculateWinnings(stake, odds);
+    setPotentialWinnings(winnings);
   }, [formData.stake, formData.odds]);
     // Handle form input changes
   const handleChange = (e) => {
@@ -199,46 +191,67 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
       ...prev,
       [name]: value
     }));
-  };  // Handle odds input changes
+  };  // Handle odds input changes    
   const handleOddsChange = (e) => {
     const value = e.target.value;
-    // Allow empty string, minus sign, or valid number for American odds
-    if (value === '' || value === '-' || /^[+-]?\d*$/.test(value)) {
-      // Process the value to ensure proper American odds format
-      let normalizedValue;
-      if (value === '' || value === '-' || value === '+') {
-        normalizedValue = value;
-      } else {
-        // Remove any leading zeros while preserving +/- signs
-        normalizedValue = value
-          .replace(/^(-)?0+/, '$1')    // Remove leading zeros after minus
-          .replace(/^\+0+/, '+');      // Remove leading zeros after plus
+    // Allow empty string, +/-, and numbers for American odds
+    if (value === '' || value === '-' || value === '+' || /^[+-]?\d*$/.test(value)) {
+      let normalizedValue = value;
+      
+      if (value !== '' && value !== '-' && value !== '+') {
+        // Remove leading zeros but keep sign
+        if (value.startsWith('-')) {
+          normalizedValue = '-' + value.substring(1).replace(/^0+/, '');
+          if (normalizedValue === '-') normalizedValue = '';
+        } else if (value.startsWith('+')) {
+          normalizedValue = '+' + value.substring(1).replace(/^0+/, '');
+          if (normalizedValue === '+') normalizedValue = '';
+        } else {
+          normalizedValue = value.replace(/^0+/, '');
+        }
+      }
+      
+      // Validate odds within reasonable limits
+      if (normalizedValue && normalizedValue !== '-' && normalizedValue !== '+') {
+        const parsed = parseAmericanOdds(normalizedValue);
+        if (parsed && !validateOdds(normalizedValue)) {
+          toast.error('Odds value is outside reasonable limits (-10000 to +10000)');
+          return;
+        }
       }
       
       setFormData(prev => ({
         ...prev,
-        odds: normalizedValue || '' // Ensure we never set undefined
+        odds: normalizedValue
       }));
     }
-  };  // Handle leg odds changes
+  };  // Handle leg odds changes  
   const handleLegOddsChange = (index, value) => {
-    // Allow empty string, minus sign, plus sign, or valid number for American odds
+    // Allow empty string, +/-, and numbers for American odds
     if (value === '' || value === '-' || value === '+' || /^[+-]?\d*$/.test(value)) {
-      // Process the value to ensure proper American odds format
-      let normalizedValue;
-      if (value === '' || value === '-' || value === '+') {
-        normalizedValue = value;
-      } else {
-        // Remove any leading zeros while preserving +/- signs
-        normalizedValue = value
-          .replace(/^(-)?0+/, '$1')    // Remove leading zeros after minus
-          .replace(/^\+0+/, '+');      // Remove leading zeros after plus
+      // Format odds maintaining correct +/- prefix
+      let normalizedValue = value;
+      
+      if (value !== '' && value !== '-' && value !== '+') {
+        // Remove leading zeros but keep sign
+        if (value.startsWith('-')) {
+          // For negative numbers
+          normalizedValue = '-' + value.substring(1).replace(/^0+/, '');
+          if (normalizedValue === '-') normalizedValue = '';
+        } else if (value.startsWith('+')) {
+          // For positive numbers with + sign
+          normalizedValue = '+' + value.substring(1).replace(/^0+/, '');
+          if (normalizedValue === '+') normalizedValue = '';
+        } else {
+          // For positive numbers without + sign
+          normalizedValue = value.replace(/^0+/, '');
+        }
       }
       
       const updatedLegs = [...formData.legs];
       updatedLegs[index] = {
         ...updatedLegs[index],
-        odds: normalizedValue || '' // Ensure we never set undefined
+        odds: normalizedValue
       };
       setFormData(prev => ({
         ...prev,
@@ -287,23 +300,33 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
     if (!formData.stake || !formData.odds || formData.legs.some(leg => !leg.odds)) {
       toast.error('Please fill in all required fields');
       return;
-    }
-
-    try {
-      // Parse odds and stake values just before submission        // Helper function to parse American odds
-      const parseAmericanOdds = (oddsStr) => {
-        if (!oddsStr || oddsStr === '-') return null;
-        // Remove any non-numeric characters except minus sign
-        const cleanOdds = oddsStr.replace(/[^\d-]/g, '');
-        // Convert to number, ensuring we keep the sign
-        return cleanOdds.startsWith('-') ? -parseInt(cleanOdds.slice(1)) : parseInt(cleanOdds);
-      };
-
+    }    try {
+      const parsedStake = parseFloat(formData.stake);
+      const parsedOdds = parseAmericanOdds(formData.odds);
+      
+      // Validate the odds
+      if (!validateOdds(formData.odds)) {
+        toast.error('Odds value is outside reasonable limits');
+        return;
+      }
+      
+      // For parlays, validate each leg
+      if (formData.legs.length > 1) {
+        const invalidLeg = formData.legs.find(leg => !validateOdds(leg.odds));
+        if (invalidLeg) {
+          toast.error('One or more leg odds are outside reasonable limits');
+          return;
+        }
+      }
+      
+      // Calculate winnings
+      const calculatedWinnings = calculateWinnings(parsedStake, parsedOdds);
+      
       const betPayload = {
         ...formData,
-        stake: parseFloat(formData.stake),
-        odds: parseAmericanOdds(formData.odds),
-        potentialWinnings: potentialWinnings,
+        stake: parsedStake,
+        odds: parsedOdds,
+        potentialWinnings: calculatedWinnings,
         legs: formData.legs.map(leg => ({
           ...leg,
           odds: parseAmericanOdds(leg.odds)
@@ -467,10 +490,17 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
                 placeholder="E.g., -110, +150"
                 required
-              />
-              <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 block">
-                Use American odds format (e.g., -110, +200)
-              </span>
+              />              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 block">
+                  Use American odds format (e.g., -110, +200)
+                </span>
+                {formData.odds && validateOdds(formData.odds) && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                    <FaInfoCircle className="mr-1" />
+                    {(calculateImpliedProbability(parseAmericanOdds(formData.odds)) * 100).toFixed(1)}% implied probability
+                  </span>
+                )}
+              </div>
             </div>
             
             <div>
