@@ -369,7 +369,7 @@ const useBetStore = create((set, get) => ({
                 : (state.currentBet.likes || []).filter(id => id !== 'current-user-placeholder')
               } 
             : state.currentBet,
-          error: error.response?.data?.message || 'Failed to toggle like'
+          error: 'Failed to toggle like'
         };
       });
       

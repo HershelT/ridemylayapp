@@ -40,14 +40,12 @@ const useBets = () => {
       fetchUserBets(userId);
     }
   }, [userBets, isLoading, fetchUserBets]);
-    // Toggle like
-  const toggleLike = useCallback((betId, isLiked) => {
-    return toggleLike(betId, isLiked);
-  }, [toggleLike]);
-  return {
-    bets,
-    getUserBets,
-    currentBet,
+  // Toggle like
+  const handleToggleLike = useCallback((betId, isLiked) => {
+    return useBetStore.getState().toggleLike(betId, isLiked);
+  }, []);
+  return {    bets,
+    getUserBets,    currentBet,
     page,
     hasMore,
     hasMoreUserBets,
@@ -62,7 +60,7 @@ const useBets = () => {
     deleteBet,
     rideBet,
     hedgeBet,
-    toggleLike,
+    toggleLike: handleToggleLike,
     shareBet,
     clearError
   };
