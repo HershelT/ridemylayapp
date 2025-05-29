@@ -132,8 +132,18 @@ const BetCard = ({ bet }) => {
     }
   };
 
+  const handleCardClick = (e) => {
+    // Only navigate if the click wasn't on an interactive element
+    if (!e.target.closest('button') && !e.target.closest('a')) {
+      navigate(`/bets/${bet._id}`);
+    }
+  };
+
   return (
-    <div className="card mb-4">
+    <div 
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+      onClick={handleCardClick}
+    >
       {/* User Info */}
       <div className="flex items-center justify-between mb-3">
         <Link to={`/profile/${bet.userId?._id}`} className="flex items-center">
