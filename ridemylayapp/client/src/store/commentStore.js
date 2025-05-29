@@ -16,35 +16,62 @@ const useCommentStore = create(
         loading: false,
         error: null
       });
-    },
-
-    // Get comments for a bet
+    },    // Get comments for a bet
     getComments: async (betId) => {
       set((state) => ({
         loading: true,
         error: null,
-      }));      try {
+      }));      
+      
+      try {
         const response = await commentAPI.getComments(betId);
-        const serverComments = response.data.comments;
+        const serverComments = response.data.comments || [];
+        
+        console.log("Received comments from server:", serverComments);
+        
+        // Map server comments to handle MongoDB extended JSON format
+        const mappedComments = serverComments.map(comment => {
+          const userId = comment.userId?._id || comment.userId?.$oid || comment.userId;
+          const user = comment.userId?.username ? comment.userId : comment.user;
+          
+          return {
+            _id: comment._id?.$oid || comment._id,
+            content: comment.content,
+            userId: userId,
+            betId: comment.betId?.$oid || comment.betId,
+            likes: comment.likes?.map(like => like.$oid || like) || [],
+            createdAt: comment.createdAt?.$date?.$numberLong 
+              ? new Date(parseInt(comment.createdAt.$date.$numberLong)).toISOString()
+              : comment.createdAt,
+            updatedAt: comment.updatedAt?.$date?.$numberLong
+              ? new Date(parseInt(comment.updatedAt.$date.$numberLong)).toISOString()
+              : comment.updatedAt,
+            isEdited: comment.isEdited || false,
+            // Include populated user data
+            user: {
+              _id: user?._id || userId,
+              username: user?.username || "Anonymous",
+              avatarUrl: user?.avatarUrl || "",
+              verified: user?.verified || false
+            }
+          };
+        });
+        
+        console.log("Mapped comments:", mappedComments);
         
         set((state) => {
-          const existingComments = state.comments[betId] || [];
-          // Preserve any temporary comments that aren't in the server response yet
-          const tempComments = existingComments.filter(comment => 
-            comment.isTemp && !serverComments.find(sc => sc.content === comment.content)
-          );
-          
           return {
             comments: {
               ...state.comments,
-              [betId]: [...tempComments, ...serverComments],
+              [betId]: mappedComments,
             },
             loading: false,
           };
         });
         
-        return response.data.comments;
+        return mappedComments;
       } catch (error) {
+        console.error("Error fetching comments:", error);
         set({
           loading: false,
           error: error.response?.data?.message || 'Failed to fetch comments',
@@ -59,7 +86,8 @@ const useCommentStore = create(
       }
 
       // Create unique ID for temporary comment
-      const tempId = Date.now().toString();        // Create temporary comment object that matches server format exactly
+      const tempId = Date.now().toString();        
+      // Create temporary comment object that matches server format exactly
       const tempComment = {
         _id: tempId,
         content,
@@ -85,11 +113,43 @@ const useCommentStore = create(
             : [tempComment],
         },
       }));      
-      try {      // Make the actual API call
+      
+      try {      
+        // Make the actual API call
+        console.log("Sending comment to server:", { content, parentId });
         const response = await commentAPI.addComment(betId, { content, parentId });
-        const newComment = response.data.comment;
+        console.log("Server response:", response.data);
         
-        // Replace the temporary comment with the real one and ensure it stays
+        const serverComment = response.data.comment;
+
+        // Transform the server response to match our format
+        const userId = serverComment.userId?._id || serverComment.userId?.$oid || serverComment.userId;
+        const user = serverComment.userId?.username ? serverComment.userId : serverComment.user;
+        
+        const newComment = {
+          _id: serverComment._id?.$oid || serverComment._id,
+          content: serverComment.content,
+          userId: userId,
+          betId: serverComment.betId?.$oid || serverComment.betId,
+          likes: serverComment.likes?.map(like => like.$oid || like) || [],
+          createdAt: serverComment.createdAt?.$date?.$numberLong 
+            ? new Date(parseInt(serverComment.createdAt.$date.$numberLong)).toISOString()
+            : serverComment.createdAt,
+          updatedAt: serverComment.updatedAt?.$date?.$numberLong
+            ? new Date(parseInt(serverComment.updatedAt.$date.$numberLong)).toISOString()
+            : serverComment.updatedAt,
+          isEdited: serverComment.isEdited || false,
+          // Include populated user data with fallbacks
+          user: {
+            _id: user?._id || userId,
+            username: user?.username || currentUser.username,
+            avatarUrl: user?.avatarUrl || currentUser.avatarUrl || '',
+            verified: user?.verified || currentUser.verified || false
+          }
+        };
+        
+        console.log("Transformed comment:", newComment);
+        
         set((state) => {
           const existingComments = state.comments[betId] || [];
           const otherComments = existingComments.filter(comment => comment._id !== tempId);
@@ -101,9 +161,6 @@ const useCommentStore = create(
             },
           };
         });
-        
-        // Prevent immediate getComments from overwriting
-        await new Promise(resolve => setTimeout(resolve, 100));
         
         return newComment;
       } catch (error) {
@@ -117,13 +174,37 @@ const useCommentStore = create(
         }));
         throw error;
       }
-    },
-
-    // Like a comment
+    },    // Like a comment
     likeComment: async (commentId) => {
       try {
         const response = await commentAPI.likeComment(commentId);
-        const updatedComment = response.data.comment;
+        const serverComment = response.data.comment;
+        
+        // Transform the server response to match our format
+        const userId = serverComment.userId?._id || serverComment.userId?.$oid || serverComment.userId;
+        const user = serverComment.userId?.username ? serverComment.userId : serverComment.user;
+        
+        const updatedComment = {
+          _id: serverComment._id?.$oid || serverComment._id,
+          content: serverComment.content,
+          userId: userId,
+          betId: serverComment.betId?.$oid || serverComment.betId,
+          likes: serverComment.likes?.map(like => like.$oid || like) || [],
+          createdAt: serverComment.createdAt?.$date?.$numberLong 
+            ? new Date(parseInt(serverComment.createdAt.$date.$numberLong)).toISOString()
+            : serverComment.createdAt,
+          updatedAt: serverComment.updatedAt?.$date?.$numberLong
+            ? new Date(parseInt(serverComment.updatedAt.$date.$numberLong)).toISOString()
+            : serverComment.updatedAt,
+          isEdited: serverComment.isEdited || false,
+          // Include populated user data
+          user: {
+            _id: user?._id || userId,
+            username: user?.username || "Anonymous",
+            avatarUrl: user?.avatarUrl || "",
+            verified: user?.verified || false
+          }
+        };
         
         // Update the comment in all bets where it appears
         set((state) => {

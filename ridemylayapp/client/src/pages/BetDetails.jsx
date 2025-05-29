@@ -175,16 +175,15 @@ const BetDetails = () => {  const { id } = useParams();
       setActionLoading(prev => ({ ...prev, share: false }));
     }
   };
-  
-  // Handle adding a comment  const handleAddComment = async (betId, content, parentId) => {
-    const handleAddComment = async (betId, content, parentId) => {
+    // Handle adding a comment
+  const handleAddComment = async (betId, content, parentId) => {
     if (!user) {
       toast.error('Please log in to comment');
       return;
     }
     
     try {
-      // Add the comment
+      // Add the comment - this already updates the local state
       const newComment = await addComment(betId, content, parentId);
       
       if (!newComment) {
@@ -192,12 +191,14 @@ const BetDetails = () => {  const { id } = useParams();
         return;
       }
 
-      // Refresh comments to get the latest state
-      await getComments(betId);
+      // Success notification
+      toast.success('Comment added successfully');
+      
+      // No need to refresh comments - the store already has the new comment
       
     } catch (error) {
       console.error('Error adding comment:', error);
-      toast.error('Failed to add comment');
+      toast.error(error.message || 'Failed to add comment');
     }
   };
   
@@ -285,11 +286,10 @@ const BetDetails = () => {  const { id } = useParams();
       </div>
     );
   }
-  
-  const isLiked = bet.likes?.includes(user?._id);
+    const isLiked = bet.likes?.includes(user?._id);
   const isRiding = bet.riders?.includes(user?._id);
   const isHedging = bet.hedgers?.includes(user?._id);
-  const isOwner = bet.userId === user?._id;
+  const isOwner = bet.userId?._id === user?._id || bet.userId === user?._id;
   
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
@@ -312,12 +312,11 @@ const BetDetails = () => {  const { id } = useParams();
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {bet.title}
               </h1>
-              <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">
-                <Link 
-                  to={`/profile/${bet.user?.username || bet.userId}`}
+              <div className="flex items-center mt-2 text-sm text-gray-500 dark:text-gray-400">                <Link 
+                  to={`/profile/${bet.userId?.username || bet.user?.username || bet.userId}`}
                   className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
-                  {bet.user?.name || 'Unknown User'}
+                  {bet.userId?.username || bet.user?.name || bet.user?.username || 'Unknown User'}
                 </Link>
                 <span className="mx-1">•</span>
                 <span>

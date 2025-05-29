@@ -7,9 +7,12 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
   const [showOptions, setShowOptions] = React.useState(false);
   if (!comment) {
     return null; // Don't render anything if comment is undefined
-  }
-  // First handle user info to avoid null reference errors
-  const userInfo = comment.user || { username: 'Anonymous', _id: null, profilePicture: null };
+  }  // First handle user info to avoid null reference errors
+  const userInfo = comment.user || { 
+    username: 'Anonymous', 
+    _id: null, 
+    avatarUrl: null 
+  };
   
   // Then safely destructure with defaults
   const { 
@@ -48,10 +51,9 @@ const Comment = ({ comment, onLike, onReply, onDelete, currentUserId }) => {
   };
   
   return (
-    <div className="flex space-x-3 py-3 border-b border-gray-700/20">
-      <div className="flex-shrink-0">        <Link to={userInfo._id ? `/profile/${userInfo._id}` : '#'}>
+    <div className="flex space-x-3 py-3 border-b border-gray-700/20">      <div className="flex-shrink-0">        <Link to={userInfo._id ? `/profile/${userInfo._id}` : '#'}>
           <img 
-            src={userInfo.profilePicture || `https://api.dicebear.com/9.x/icons/svg?seed=${userInfo.username || 'anonymous'}`} 
+            src={userInfo.avatarUrl || `https://api.dicebear.com/9.x/icons/svg?seed=${userInfo.username || 'anonymous'}`} 
             alt={userInfo.username || 'User'}
             className="h-9 w-9 rounded-full object-cover" 
           />

@@ -313,36 +313,16 @@ exports.getBetComments = async (req, res, next) => {
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Get top-level comments only (no parentId)
+    // Get all comments for this bet
     const comments = await Comment.find({ 
-      betId: req.params.id,
-      parentId: { $exists: false }
+      betId: req.params.id
     })
       .sort(sort)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('userId', 'username avatarUrl verified')
-      .populate({
-        path: 'childComments',
-        options: { sort: { createdAt: 1 } },
-        populate: {
-          path: 'userId',
-          select: 'username avatarUrl verified'
-        }
-      });
-
-    // Get total count
-    const total = await Comment.countDocuments({ 
-      betId: req.params.id,
-      parentId: { $exists: false }
-    });
+      .populate('userId', 'username avatarUrl verified');
 
     res.status(200).json({
       success: true,
       count: comments.length,
-      total,
-      page: pageNum,
-      pages: Math.ceil(total / limitNum),
       comments
     });
   } catch (error) {
@@ -368,9 +348,7 @@ exports.addComment = async (req, res, next) => {
         success: false,
         error: 'Bet not found'
       });
-    }
-
-    // Create comment
+    }    // Create comment
     const comment = await Comment.create({
       userId: req.user.id,
       betId: req.params.id,
@@ -382,12 +360,13 @@ exports.addComment = async (req, res, next) => {
     bet.comments.push(comment._id);
     await bet.save();
 
-    // Populate user data
-    await comment.populate('userId', 'username avatarUrl verified');
+    // Populate user data - this is important for the frontend
+    const populatedComment = await Comment.findById(comment._id)
+      .populate('userId', 'username avatarUrl verified');
 
     res.status(201).json({
       success: true,
-      comment
+      comment: populatedComment
     });
   } catch (error) {
     logger.error(`Add comment error for bet ID ${req.params.id}:`, error);

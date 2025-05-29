@@ -13,19 +13,20 @@ const CommentList = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newComment, setNewComment] = useState('');
-  const [replyTo, setReplyTo] = useState(null);
-    const handleSubmit = async (e) => {
+  const [replyTo, setReplyTo] = useState(null);  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!newComment.trim()) return;
     
     setIsSubmitting(true);
     try {
+      // Use await to ensure we handle errors properly
       await onAddComment(betId, newComment, replyTo?._id);
       setNewComment('');
       setReplyTo(null);
     } catch (error) {
       console.error('Failed to submit comment:', error);
+      // Error handling will be done in the parent component
     } finally {
       setIsSubmitting(false);
     }
