@@ -28,7 +28,7 @@ const UserSchema = new mongoose.Schema(
     },    avatarUrl: {
       type: String,
       default: function() {
-        // Default avatar based on username using updated DiceBear API v7
+        // Default avatar based on username using updated DiceBear API v9
         return `https://api.dicebear.com/9.x/icons/svg?seed=${this.username}`;
       }
     },
