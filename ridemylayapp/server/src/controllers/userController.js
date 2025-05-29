@@ -232,12 +232,16 @@ exports.searchUsers = async (req, res, next) => {
  * @access  Public
  */
 exports.getLeaderboard = async (req, res, next) => {
-  try {
-    const { 
+  try {    const { 
       timeframe = 'all',
       page = 1,
       limit = 10
     } = req.query;
+    
+    // Convert page and limit to numbers and calculate skip
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
     
     // Build date query based on timeframe
     const now = new Date();
