@@ -5,7 +5,9 @@ const {
   getUserBets, 
   toggleFollow, 
   getLeaderboard,
-  searchUsers 
+  searchUsers,
+  getUserFollowers,
+  getUserFollowing
 } = require('../controllers/userController');
 const { getUserAnalytics } = require('../controllers/analyticsController');
 const { protect } = require('../middleware/auth');
@@ -19,5 +21,9 @@ router.get('/:username/bets', getUserBets);
 // Protected routes
 router.put('/:username/follow', protect, toggleFollow);
 router.get('/:username/analytics', protect, getUserAnalytics);
+
+// Followers/Following routes
+router.get('/:userId/followers', getUserFollowers);
+router.get('/:userId/following', getUserFollowing);
 
 module.exports = router;

@@ -446,7 +446,8 @@ const betTemplates = [
     ],
     status: "lost",
     visibility: "public"
-  }
+  },
+  
 ];
 
 // Clear database and seed with new data
@@ -509,7 +510,8 @@ const seedDatabase = async () => {
     );
 
     // Seed other users with hashed passwords
-    logger.info('Seeding other users...');    const userPromises = users.map(async (user) => {
+    logger.info('Seeding other users...');    
+    const userPromises = users.map(async (user) => {
       return {
         ...user,
         passwordHash: user.password, // Will be hashed by pre-save middleware

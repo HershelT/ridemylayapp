@@ -398,3 +398,93 @@ exports.getLeaderboard = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * @desc    Get user's followers
+ * @route   GET /api/users/:userId/followers
+ * @access  Public
+ */
+exports.getUserFollowers = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Get followers with their details
+    const followers = await User.find({ _id: { $in: user.followers } })
+      .select('username avatarUrl verified winRate');
+
+    // If we have an authenticated user, add isFollowing field
+    let followersWithStatus = followers;
+    if (req.user) {
+      const currentUser = await User.findById(req.user.id);
+      if (currentUser) {
+        followersWithStatus = followers.map(follower => {
+          const isFollowing = currentUser.following.includes(follower._id);
+          return {
+            ...follower.toObject(),
+            isFollowing
+          };
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      users: followersWithStatus
+    });
+  } catch (error) {
+    logger.error(`Get user followers error for userId ${req.params.userId}:`, error);
+    next(error);
+  }
+};
+
+/**
+ * @desc    Get users that a user is following
+ * @route   GET /api/users/:userId/following
+ * @access  Public
+ */
+exports.getUserFollowing = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Get following users with their details
+    const following = await User.find({ _id: { $in: user.following } })
+      .select('username avatarUrl verified winRate');
+
+    // If we have an authenticated user, add isFollowing field
+    let followingWithStatus = following;
+    if (req.user) {
+      const currentUser = await User.findById(req.user.id);
+      if (currentUser) {
+        followingWithStatus = following.map(followedUser => {
+          const isFollowing = currentUser.following.includes(followedUser._id);
+          return {
+            ...followedUser.toObject(),
+            isFollowing
+          };
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      users: followingWithStatus
+    });
+  } catch (error) {
+    logger.error(`Get user following error for userId ${req.params.userId}:`, error);
+    next(error);
+  }
+};

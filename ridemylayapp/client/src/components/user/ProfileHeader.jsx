@@ -3,10 +3,12 @@ import { userAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
 import useAuth from '../../hooks/useAuth';
+import FollowModal from './FollowModal';
 
-const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
-  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
+const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showFollowModal, setShowFollowModal] = useState(false);
+  const [modalType, setModalType] = useState(null); // 'followers' or 'following'
   const followUser = useAuthStore(state => state.followUser);
   const isFollowingUser = useAuthStore(state => state.isFollowingUser);
   const isFollowing = !!user?._id && isFollowingUser(user._id);
@@ -84,18 +86,41 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
               <span className="text-red-500">❄️ {Math.abs(user.streak)} Loss Streak</span> : 
               'No active streak'
             }
-          </div>
-          
-          <div className="flex space-x-4 text-sm mb-3">
+          </div>            <div className="flex space-x-4 text-sm mb-3">
             <div>
               <span className="font-bold">{user?.betCount || 0}</span> Bets
             </div>
-            <div>
-              <span className="font-bold">{followerCount}</span> Followers
-            </div>
-            <div>
-              <span className="font-bold">{user?.following?.length || 0}</span> Following
-            </div>
+            {isOwnProfile ? (
+              <>
+                <button
+                  onClick={() => {
+                    setModalType('followers');
+                    setShowFollowModal(true);
+                  }}
+                  className="hover:opacity-75"
+                >
+                  <span className="font-bold">{followerCount}</span> Followers
+                </button>
+                <button
+                  onClick={() => {
+                    setModalType('following');
+                    setShowFollowModal(true);
+                  }}
+                  className="hover:opacity-75"
+                >
+                  <span className="font-bold">{user?.following?.length || 0}</span> Following
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <span className="font-bold">{followerCount}</span> Followers
+                </div>
+                <div>
+                  <span className="font-bold">{user?.following?.length || 0}</span> Following
+                </div>
+              </>
+            )}
           </div>
           
           {isOwnProfile ? (
@@ -200,8 +225,15 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>      )}
+
+      {/* Follow Modal */}
+      <FollowModal
+        isOpen={showFollowModal}
+        onClose={() => setShowFollowModal(false)}
+        userId={user?._id}
+        type={modalType}
+      />
     </div>
   );
 };
