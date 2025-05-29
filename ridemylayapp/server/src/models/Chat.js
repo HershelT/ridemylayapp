@@ -23,11 +23,10 @@ const ChatSchema = new mongoose.Schema(
       ref: 'User'
     },
     avatarUrl: {
-      type: String,
-      default: function() {
-        // Default group avatar
+      type: String,      default: function() {
+        // Default group avatar using DiceBear API v7
         return this.isGroupChat ? 
-          `https://avatars.dicebear.com/api/identicon/${this._id}.svg` : 
+          `https://https://api.dicebear.com/9.x/icons/svg?seed=${this._id}` : 
           null;
       }
     },

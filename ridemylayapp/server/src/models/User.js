@@ -25,12 +25,11 @@ const UserSchema = new mongoose.Schema(
       required: [true, 'Please provide a password'],
       minlength: [8, 'Password must be at least 8 characters'],
       select: false // Don't include password in query results by default
-    },
-    avatarUrl: {
+    },    avatarUrl: {
       type: String,
       default: function() {
-        // Default avatar based on username
-        return `https://avatars.dicebear.com/api/micah/${this.username}.svg`;
+        // Default avatar based on username using updated DiceBear API v7
+        return `https://api.dicebear.com/9.x/icons/svg?seed=${this.username}`;
       }
     },
     bio: {

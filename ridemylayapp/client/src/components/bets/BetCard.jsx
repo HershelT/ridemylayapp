@@ -137,7 +137,7 @@ const BetCard = ({ bet }) => {
       <div className="flex items-center justify-between mb-3">
         <Link to={`/profile/${bet.userId?._id}`} className="flex items-center">
           <img 
-            src={bet.userId?.avatarUrl || 'https://via.placeholder.com/40'} 
+            src={bet.userId?.avatarUrl || `https://api.dicebear.com/7.x/micah/svg?seed=${bet.userId?.username || 'anonymous'}`} 
             alt="User Avatar" 
             className="w-10 h-10 rounded-full"
           />

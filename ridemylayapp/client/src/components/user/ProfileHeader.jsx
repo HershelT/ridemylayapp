@@ -24,7 +24,7 @@ const ProfileHeader = ({ user, isOwnProfile }) => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4">
       <div className="flex items-start">
         <img 
-          src={user?.avatarUrl || 'https://via.placeholder.com/100'} 
+          src={user?.avatarUrl || `https://api.dicebear.com/9.x/icons/svg?seed=${user?.username || 'anonymous'}`} 
           alt="User Avatar" 
           className="w-20 h-20 rounded-full"
         />
