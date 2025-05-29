@@ -1,49 +1,66 @@
 import React, { useState, useEffect } from 'react';
+import { userAPI, leaderboardAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 const Leaderboard = () => {
   const [leaderboardType, setLeaderboardType] = useState('country');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchLeaderboardData();
-  }, [leaderboardType, timeRange]);
+  }, [leaderboardType, timeRange, page]);
 
   const fetchLeaderboardData = async () => {
     setLoading(true);
+    setError(null);
 
     try {
-      // Mock API call
-    //   setTimeout(() => {
-    //     setLeaderboardData(generateMockLeaderboardData());
-    //     setLoading(false);
-    //   }, 500);
+      let timeframe = timeRange === 'allTime' ? 'all' : timeRange;
+      const response = await leaderboardAPI.getLeaderboard(timeframe, page);
+      
+      // Format the leaderboard data
+      const formattedData = response.data.leaderboard.map((user, index) => ({
+        _id: user._id,
+        rank: (page - 1) * 10 + index + 1,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        verified: user.verified,
+        winRate: Math.round(user.winRate),
+        profitLoss: user.profit,
+        streak: user.streak || 0,
+        following: user.isFollowing || false,
+      }));
 
-      // Real API call would look like:
-      const response = await api.get(`/api/leaderboards/${leaderboardType}`, {
-        params: { timeRange }
-      });
-      setLeaderboardData(response.data);
+      setLeaderboardData(formattedData);
+      setTotalPages(response.data.pages);
     } catch (error) {
       console.error('Error fetching leaderboard data:', error);
+      setError('Failed to load leaderboard data. Please try again later.');
+      toast.error('Failed to load leaderboard data');
+    } finally {
       setLoading(false);
     }
   };
 
-  // Generate mock data for demonstration
-  const generateMockLeaderboardData = () => {
-    return Array(20).fill().map((_, index) => ({
-      _id: `user-${index + 1}`,
-      rank: index + 1,
-      username: `user${Math.floor(Math.random() * 1000)}`,
-      avatarUrl: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
-      verified: Math.random() > 0.7,
-      winRate: Math.floor(Math.random() * 100),
-      profitLoss: Math.random() > 0.7 ? Math.floor(Math.random() * 5000) : -Math.floor(Math.random() * 2000),
-      streak: Math.floor(Math.random() * 10) - 2,
-      following: Math.random() > 0.5,
-    }));
+  const handleFollowToggle = async (username) => {
+    try {
+      await userAPI.toggleFollow(username);
+      setLeaderboardData(prevData => 
+        prevData.map(user => {
+          if (user.username === username) {
+            return { ...user, following: !user.following };
+          }
+          return user;
+        })
+      );
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      toast.error('Failed to update follow status');
   };
 
   return (
@@ -151,14 +168,14 @@ const Leaderboard = () => {
                 <div className="col-span-2 text-center">{user.winRate}%</div>
                 <div className={`col-span-2 text-center ${user.profitLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {user.profitLoss >= 0 ? '+' : ''}{user.profitLoss.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                </div>
-                <div className="col-span-2 text-center">
+                </div>                <div className="col-span-2 text-center">
                   <button 
-                    className={`px-3 py-1 text-xs rounded-full ${
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
                       user.following ? 
-                      'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300' : 
-                      'bg-primary-500 text-white'
+                      'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300' : 
+                      'bg-primary-500 text-white hover:bg-primary-600'
                     }`}
+                    onClick={() => handleFollowToggle(user.username)}
                   >
                     {user.following ? 'Following' : 'Follow'}
                   </button>
@@ -167,9 +184,46 @@ const Leaderboard = () => {
             ))}
           </div>
         )}
-      </div>
+      </div>      {error && (
+        <div className="text-red-500 text-center mb-4">{error}</div>
+      )}
+
+      {!error && !loading && leaderboardData.length === 0 && (
+        <div className="text-center py-8">No data found for the selected filters.</div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex justify-center space-x-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className={`px-3 py-1 rounded-md ${
+              page === 1 
+                ? 'bg-gray-200 text-gray-500' 
+                : 'bg-primary-500 text-white hover:bg-primary-600'
+            }`}
+          >
+            Previous
+          </button>
+          <span className="px-3 py-1">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className={`px-3 py-1 rounded-md ${
+              page === totalPages
+                ? 'bg-gray-200 text-gray-500'
+                : 'bg-primary-500 text-white hover:bg-primary-600'
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
+};
 };
 
 export default Leaderboard;
