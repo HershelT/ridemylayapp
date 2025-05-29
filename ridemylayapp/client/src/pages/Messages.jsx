@@ -3,12 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import ChatList from '../components/chat/ChatList';
 import ChatWindow from '../components/chat/ChatWindow';
 import useAuthStore from '../store/authStore';
+import useMessageStore from '../stores/messageStore';
+import { messageAPI } from '../services/chatApi';
 
 const Messages = () => {
   const { user, isAuthenticated } = useAuthStore();
+  const { resetUnreadCount } = useMessageStore();
   const navigate = useNavigate();
   const [selectedChat, setSelectedChat] = useState(null);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
+
+  // Reset unread count when entering messages page
+  useEffect(() => {
+    if (isAuthenticated) {
+      resetUnreadCount();
+    }
+  }, [isAuthenticated, resetUnreadCount]);
+
+  // Handle chat selection and mark messages as read
+  const handleSelectChat = async (chat) => {
+    setSelectedChat(chat);
+    if (chat) {
+      try {
+        await messageAPI.markAsRead(chat._id);
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
+    }
+  };
 
   // Handle screen resize
   useEffect(() => {
@@ -36,7 +58,7 @@ const Messages = () => {
         isMobileView && selectedChat ? 'hidden' : 'w-full md:w-1/3 lg:w-1/4'
       } bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`}>
         <ChatList 
-          onSelectChat={setSelectedChat}
+          onSelectChat={handleSelectChat}
           selectedChat={selectedChat}
         />
       </div>
@@ -48,7 +70,7 @@ const Messages = () => {
         {selectedChat ? (
           <ChatWindow
             chat={selectedChat}
-            onBack={() => setSelectedChat(null)}
+            onBack={() => handleSelectChat(null)}
             isMobileView={isMobileView}
           />
         ) : (

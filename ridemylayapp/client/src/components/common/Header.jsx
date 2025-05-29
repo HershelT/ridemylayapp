@@ -21,20 +21,30 @@ const Header = ({ toggleTheme }) => {
 
   // Fetch initial unread count and set up socket listeners
   React.useEffect(() => {
-    fetchUnreadCount();
+    if (user) {  // Only fetch and listen if user is logged in
+      fetchUnreadCount();
 
-    // Set up socket listener for new messages
-    socket.on('new_message', (data) => {
-      // Only increment if message is not from current user
-      if (data.sender !== user?._id) {
-        incrementUnreadCount();
-      }
-    });
+      // Set up socket listener for new messages
+      socket.on('new_message', (data) => {
+        if (data.sender !== user._id) {  // Only increment if message is not from current user
+          incrementUnreadCount();
+        }
+      });
 
-    return () => {
-      socket.off('new_message');
-    };
-  }, [fetchUnreadCount]);
+      // Listen for message read events
+      socket.on('message_read', (data) => {
+        if (data.readBy === user._id) {
+          // Update the unread count when messages are marked as read
+          fetchUnreadCount();
+        }
+      });
+
+      return () => {
+        socket.off('new_message');
+        socket.off('message_read');
+      };
+    }
+  }, [fetchUnreadCount, user]);
 
   React.useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);
