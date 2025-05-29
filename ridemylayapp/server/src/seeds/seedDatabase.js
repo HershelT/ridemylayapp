@@ -31,7 +31,7 @@ const bettingSites = [
   },
   {
     name: 'BetMGM',
-    logoUrl: 'https://www.pngmart.com/files/22/MGM-Holdings-Logo-PNG-Picture-200x145.png',
+    logoUrl: 'https://www.odds.com/cms/wp-content/uploads/2020/04/logo_large_betmgm@2x.png',
     websiteUrl: 'https://betmgm.com',
     apiEndpoint: 'https://api.betmgm.com',
     supportedSports: ['football', 'basketball', 'baseball', 'hockey'],
