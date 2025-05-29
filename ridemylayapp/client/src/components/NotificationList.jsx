@@ -94,27 +94,32 @@ const EmptyState = styled.div`
 `;
 
 const NotificationList = () => {
-  const { notifications = [], loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
+  const { notifications, loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
+  
+  // Ensure notifications is an array
+  const notificationList = Array.isArray(notifications) ? notifications : [];
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
   if (loading) {
-    return <Container>
-      <Header>
-        <h3>Notifications</h3>
-      </Header>
-      <EmptyState>Loading notifications...</EmptyState>
-    </Container>;
+    return (
+      <Container>
+        <Header>
+          <h3>Notifications</h3>
+        </Header>
+        <EmptyState>Loading notifications...</EmptyState>
+      </Container>
+    );
   }
 
   const getNotificationTitle = (notification) => {
-    switch (notification.type) {
+    switch (notification?.type) {
       case 'message':
         return 'New message';
       case 'bet_interaction':
-        return notification.metadata.interactionType === 'like' ? 'Liked your bet' : 'Commented on your bet';
+        return notification.metadata?.interactionType === 'like' ? 'Liked your bet' : 'Commented on your bet';
       case 'follow':
         return 'Started following you';
       case 'bet_outcome':
@@ -127,13 +132,13 @@ const NotificationList = () => {
   };
 
   const getNotificationLink = (notification) => {
-    switch (notification.entityType) {
+    switch (notification?.entityType) {
       case 'chat':
-        return `/messages/\${notification.entityId}`;
+        return `/messages/${notification.entityId}`;
       case 'bet':
-        return `/bets/\${notification.entityId}`;
+        return `/bets/${notification.entityId}`;
       case 'user':
-        return `/profile/\${notification.entityId}`;
+        return `/profile/${notification.entityId}`;
       default:
         return '/';
     }
@@ -143,17 +148,17 @@ const NotificationList = () => {
     <Container>
       <Header>
         <h3>Notifications</h3>
-        {notifications.some(n => !n.read) && (
+        {notificationList.some(n => !n.read) && (
           <MarkAllButton onClick={markAllAsRead}>
             Mark all as read
           </MarkAllButton>
         )}
       </Header>
       
-      {notifications.length === 0 ? (
+      {notificationList.length === 0 ? (
         <EmptyState>No notifications yet</EmptyState>
       ) : (
-        notifications.map(notification => (
+        notificationList.map(notification => (
           <NotificationItem 
             key={notification._id}
             to={getNotificationLink(notification)}
@@ -171,17 +176,25 @@ const NotificationList = () => {
             </Content>
             <Actions>
               {!notification.read && (
-                <IconButton onClick={(e) => {
-                  e.preventDefault();
-                  markAsRead(notification._id);
-                }}>
+                <IconButton 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    markAsRead(notification._id);
+                  }}
+                  title="Mark as read"
+                >
                   <BsCheck size={18} />
                 </IconButton>
               )}
-              <IconButton onClick={(e) => {
-                e.preventDefault();
-                deleteNotification(notification._id);
-              }}>
+              <IconButton 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  deleteNotification(notification._id);
+                }}
+                title="Delete notification"
+              >
                 <BsTrash size={14} />
               </IconButton>
             </Actions>
