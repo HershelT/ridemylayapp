@@ -172,8 +172,7 @@ const Leaderboard = () => {
         ) : leaderboardData.length === 0 ? (
           <div className="text-center py-8">No data found for the selected filters.</div>
         ) : (
-          <>
-            <div className="grid grid-cols-12 py-2 px-4 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-500 dark:text-gray-400 text-sm">
+          <>            <div className="grid grid-cols-12 py-2 px-4 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-600 dark:text-gray-300 text-sm">
               <div className="col-span-1">#</div>
               <div className="col-span-5">User</div>
               <div className="col-span-2 text-center">Win Rate</div>
@@ -184,7 +183,7 @@ const Leaderboard = () => {
             {leaderboardData.map(user => (
               <div 
                 key={user._id} 
-                className="grid grid-cols-12 py-3 px-4 border-b border-gray-200 dark:border-gray-700 items-center hover:bg-gray-50 dark:hover:bg-gray-750"
+                className="grid grid-cols-12 py-3 px-4 border-b border-gray-200 dark:border-gray-700 items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
               >
                 <div className="col-span-1 font-medium">{user.rank}</div>
                 <div className="col-span-5 flex items-center">
