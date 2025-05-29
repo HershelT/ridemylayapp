@@ -16,22 +16,23 @@ const Post = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  // Check if we're editing an existing bet
+  // Check if we're editing, riding, or hedging an existing bet
   const modifyBetId = searchParams.get('modify');
   const rideBetId = searchParams.get('ride');
+  const hedgeBetId = searchParams.get('hedge');
   
   useEffect(() => {
     const loadBet = async () => {
-      if (!modifyBetId && !rideBetId) return;
+      if (!modifyBetId && !rideBetId && !hedgeBetId) return;
       
       setLoading(true);
       try {
-        const betId = modifyBetId || rideBetId;
+        const betId = modifyBetId || rideBetId || hedgeBetId;
         const bet = await fetchBet(betId);
         
         if (bet) {
           setBetToEdit(bet);
-          setIsEditing(!!modifyBetId); // Only set editing mode for modify, not ride
+          setIsEditing(!!modifyBetId); // Only set editing mode for modify
         } else {
           setError('Bet not found');
         }
@@ -44,7 +45,7 @@ const Post = () => {
     };
     
     loadBet();
-  }, [modifyBetId, rideBetId, fetchBet]);
+  }, [modifyBetId, rideBetId, hedgeBetId, fetchBet]);
 
   // Redirect if not authenticated
   if (!isAuthenticated) {
@@ -82,11 +83,15 @@ const Post = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="max-w-4xl mx-auto py-6"
-    >
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-        {isEditing ? 'Edit Bet' : (rideBetId ? 'Ride This Bet' : 'Create a New Bet')}
+    >      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
+        {isEditing ? 'Edit Bet' : (rideBetId ? 'Ride This Bet' : hedgeBetId ? 'Hedge This Bet' : 'Create a New Bet')}
       </h1>
-      <CreateBetForm existingBet={betToEdit} isEditing={isEditing} isRiding={!!rideBetId} />
+      <CreateBetForm 
+        existingBet={betToEdit} 
+        isEditing={isEditing} 
+        isRiding={!!rideBetId} 
+        isHedging={!!hedgeBetId} 
+      />
     </motion.div>
   );
 };

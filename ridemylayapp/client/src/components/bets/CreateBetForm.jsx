@@ -4,10 +4,11 @@ import { FaPlus, FaMinus, FaTimes } from 'react-icons/fa';
 import useAuthStore from '../../store/authStore';
 import { betAPI, bettingSiteAPI } from '../../services/api';
 
-const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
+const CreateBetForm = ({ existingBet, isEditing, isRiding, isHedging }) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-    // Form state
+
+  // Form state
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -17,34 +18,93 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
     bettingSiteId: '',
     legs: [{ team: '', betType: 'moneyline', odds: '', outcome: 'pending' }]
   });
-  
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [bettingSites, setBettingSites] = useState([]);
   const [potentialWinnings, setPotentialWinnings] = useState(0);
-  
-  // Pre-fill form with existing bet data if editing or riding
+  const [hedgeCalculation, setHedgeCalculation] = useState(null);
+
+  // Calculate optimal hedge amount and potential profit
+  const calculateHedge = (originalStake, originalOdds) => {
+    const decimalOdds = parseInt(originalOdds) > 0 
+      ? (parseInt(originalOdds) / 100) + 1 
+      : (100 / Math.abs(parseInt(originalOdds))) + 1;
+
+    const potentialWin = originalStake * (decimalOdds - 1);
+    const recommendedHedgeStake = (potentialWin + parseFloat(originalStake)) / 2;
+
+    return {
+      recommendedStake: recommendedHedgeStake.toFixed(2),
+      guaranteedProfit: ((potentialWin - recommendedHedgeStake) / 2).toFixed(2)
+    };
+  };
+
+  // Pre-fill form with existing bet data if editing, riding, or hedging
   useEffect(() => {
     if (existingBet) {
-      const betData = {
-        title: isEditing ? existingBet.title : `Riding: ${existingBet.title}`,
-        description: isEditing ? existingBet.description : `Riding ${existingBet.userId?.username || 'another user'}'s bet`,
-        stake: isEditing ? existingBet.stake.toString() : '',
-        odds: existingBet.odds.toString(),
+      let betData = {
+        title: '',
+        description: '',
+        stake: '',
+        odds: '',
         sport: existingBet.sport,
         bettingSiteId: existingBet.bettingSiteId?._id || existingBet.bettingSiteId,
-        legs: existingBet.legs.map(leg => ({
-          team: leg.team,
-          betType: leg.betType,
-          odds: leg.odds.toString(),
-          outcome: isRiding ? 'pending' : leg.outcome
-        }))
+        legs: []
       };
+
+      if (isEditing) {
+        betData = {
+          ...betData,
+          title: existingBet.title,
+          description: existingBet.description,
+          stake: existingBet.stake.toString(),
+          odds: existingBet.odds.toString(),
+          legs: existingBet.legs.map(leg => ({
+            team: leg.team,
+            betType: leg.betType,
+            odds: leg.odds.toString(),
+            outcome: leg.outcome
+          }))
+        };
+      } else if (isRiding) {
+        betData = {
+          ...betData,
+          title: `Riding: ${existingBet.title}`,
+          description: `Riding ${existingBet.userId?.username}'s bet`,
+          stake: '',
+          odds: existingBet.odds.toString(),
+          legs: existingBet.legs.map(leg => ({
+            team: leg.team,
+            betType: leg.betType,
+            odds: leg.odds.toString(),
+            outcome: 'pending'
+          }))
+        };
+      } else if (isHedging) {
+        // For hedging, we create opposite bets with calculated stakes
+        const hedgeCalc = calculateHedge(existingBet.stake, existingBet.odds);
+        setHedgeCalculation(hedgeCalc);
+
+        betData = {
+          ...betData,
+          title: `Hedge: ${existingBet.title}`,
+          description: `Hedging ${existingBet.userId?.username}'s bet`,
+          stake: hedgeCalc.recommendedStake,
+          odds: (-parseInt(existingBet.odds)).toString(), // Inverse the odds
+          legs: existingBet.legs.map(leg => ({
+            team: leg.team,
+            betType: leg.betType,
+            odds: (-parseInt(leg.odds)).toString(), // Inverse each leg's odds
+            outcome: 'pending'
+          }))
+        };
+      }
       
       setFormData(betData);
     }
-  }, [existingBet, isEditing, isRiding]);
+  }, [existingBet, isEditing, isRiding, isHedging]);
   
   // Fetch betting sites on component mount
   useEffect(() => {
@@ -221,7 +281,7 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
     return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow p-6">
       <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-        {isEditing ? 'Edit Bet' : (isRiding ? 'Ride This Bet' : 'Create a New Bet')}
+        {isEditing ? 'Edit Bet' : (isRiding ? 'Ride This Bet' : (isHedging ? 'Hedge This Bet' : 'Create a New Bet'))}
       </h2>
       
       {error && (
@@ -443,8 +503,8 @@ const CreateBetForm = ({ existingBet, isEditing, isRiding }) => {
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading 
-                ? (isEditing ? 'Updating...' : isRiding ? 'Riding...' : 'Creating...') 
-                : (isEditing ? 'Update Bet' : isRiding ? 'Ride This Bet' : 'Create Bet')}
+                ? (isEditing ? 'Updating...' : isRiding ? 'Riding...' : (isHedging ? 'Hedging...' : 'Creating...')) 
+                : (isEditing ? 'Update Bet' : isRiding ? 'Ride This Bet' : (isHedging ? 'Hedge This Bet' : 'Create Bet'))}
             </button>
           </div>
         </div>
