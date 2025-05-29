@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { userAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import useAuthStore from '../../store/authStore';
+import useAuth from '../../hooks/useAuth';
 
-const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
+const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
+  const [followerCount, setFollowerCount] = useState(user?.followers?.length || 0);
   const [showEditModal, setShowEditModal] = useState(false);
   const followUser = useAuthStore(state => state.followUser);
   const isFollowingUser = useAuthStore(state => state.isFollowingUser);
   const isFollowing = !!user?._id && isFollowingUser(user._id);
+  const { logout } = useAuth();
 
   // Update follower count when user prop changes
   useEffect(() => {
@@ -51,6 +54,10 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
     setShowEditModal(true);
   };
   
+  const handleLogout = () => {
+    logout();
+  };
+  
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4">
       <div className="flex items-start">
@@ -92,12 +99,20 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {  const [foll
           </div>
           
           {isOwnProfile ? (
-            <button 
-              onClick={handleEditProfile}
-              className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
-            >
-              Edit Profile
-            </button>
+            <div className="space-x-2">
+              <button 
+                onClick={handleEditProfile}
+                className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Edit Profile
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="bg-red-500 text-white px-4 py-1 rounded-full text-sm font-medium hover:bg-red-600"
+              >
+                Logout
+              </button>
+            </div>
           ) : (
             <button 
               onClick={handleFollow}
