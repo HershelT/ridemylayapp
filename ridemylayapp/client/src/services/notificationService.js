@@ -9,8 +9,23 @@ export const notificationAPI = {
   deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`)
 };
 
-export const subscribeToNotifications = (callback) => {    return socketService.onNewNotification((notification) => {
-    callback(notification);
+export const subscribeToNotifications = (callback) => {
+  if (!callback || typeof callback !== 'function') {
+    console.warn('Invalid callback provided to subscribeToNotifications');
+    return () => {};
+  }
+
+  return socketService.onNewNotification((notification) => {
+    // Validate notification object before passing to callback
+    if (notification && typeof notification === 'object' && notification._id) {
+      try {
+        callback(notification);
+      } catch (err) {
+        console.error('Error in notification callback:', err);
+      }
+    } else {
+      console.warn('Received invalid notification:', notification);
+    }
   });
 };
 

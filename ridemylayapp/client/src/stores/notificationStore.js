@@ -1,11 +1,15 @@
 import create from 'zustand';
 import { notificationAPI } from '../services/notificationService';
 
-const useNotificationStore = create((set, get) => ({
+const initialState = {
   notifications: [],
   unreadCount: 0,
   loading: true,
-  error: null,
+  error: null
+};
+
+const useNotificationStore = create((set, get) => ({
+  ...initialState,
 
   init() {
     window.addEventListener('notifications_init', (event) => {
@@ -13,28 +17,7 @@ const useNotificationStore = create((set, get) => ({
       set({ notifications, loading: false });
     });
 
-    window.addEventListener('new_notification', (event) => {
-      const notification = event.detail;
-      if (!notification) return;
-      
-      set(state => ({
-        notifications: Array.isArray(state.notifications) ? 
-          [notification, ...state.notifications] : 
-          [notification],
-        unreadCount: state.unreadCount + 1
-      }));
-      
-      if (Notification.permission === 'granted') {
-        const title = notification.type === 'message' 
-          ? `New message from ${notification.sender.username}`
-          : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
-
-        new Notification(title, {
-          body: notification.content,
-          icon: '/favicon.ico'
-        });
-      }
-    });
+    // Remove the new_notification event listener since we'll handle this via socket
   },
 
   async fetchNotifications() {
@@ -96,15 +79,21 @@ const useNotificationStore = create((set, get) => ({
       set({ error: error.message });
     }
   },
-
   addNotification(notification) {
-    if (!notification) return;
-    set(state => ({
-      notifications: Array.isArray(state.notifications) ? 
-        [notification, ...state.notifications] : 
-        [notification],
-      unreadCount: state.unreadCount + 1
-    }));
+    if (!notification || !notification._id) return;
+    
+    set(state => {
+      const notifications = Array.isArray(state.notifications) ? state.notifications : [];
+      
+      // Check if notification already exists
+      const exists = notifications.some(n => n?._id === notification._id);
+      if (exists) return state;  // Don't add duplicate notifications
+
+      return {
+        notifications: [notification, ...notifications],
+        unreadCount: state.unreadCount + 1
+      };
+    });
   }
 }));
 

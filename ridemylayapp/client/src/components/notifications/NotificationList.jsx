@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import useNotificationStore from '../../stores/notificationStore';
@@ -7,8 +7,19 @@ import { BsTrash, BsCheck } from 'react-icons/bs';
 const NotificationList = () => {
   const { notifications, loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
   
-  // Ensure notifications is an array and each item has a unique _id
-  const notificationList = Array.isArray(notifications) ? notifications.filter(n => n && n._id) : [];
+  // Ensure notifications is an array and remove invalid/duplicate items
+  const notificationList = useMemo(() => {
+    if (!Array.isArray(notifications)) return [];
+    
+    const seen = new Set();
+    return notifications
+      .filter(n => {
+        if (!n || !n._id || seen.has(n._id)) return false;
+        seen.add(n._id);
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [notifications]);
 
   useEffect(() => {
     fetchNotifications();
@@ -91,9 +102,9 @@ const NotificationList = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {notificationList.map(notification => notification && (
+            {notificationList.map(notification => (
               <Link
-                key={notification._id}
+                key={`${notification._id}-${notification.createdAt}`}
                 to={getNotificationLink(notification)}
                 className={`block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors relative ${
                   !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
