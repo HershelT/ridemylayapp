@@ -16,8 +16,13 @@ const Header = ({ toggleTheme }) => {
   const handleClickOutside = (event) => {
     if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
       setShowNotifications(false);
-    }
-  };  // Fetch initial unread count and set up socket listeners  React.useEffect(() => {
+    }  };
+
+  // Import handleNewNotification at the top level
+  const { handleNewNotification } = require('../../services/notificationService');
+  
+  // Fetch initial unread count and set up socket listeners
+  React.useEffect(() => {
     // Initial notification count fetch
     fetchUnreadCount();
 
@@ -27,7 +32,7 @@ const Header = ({ toggleTheme }) => {
         if (data.sender._id !== user._id) {  // Only increment if message is not from current user
           incrementUnreadCount();
           // Show notification if not in the chat
-          if (!window.location.pathname.includes(`/messages`)) {
+          if (!window.location.pathname.includes('/messages')) {
             handleNewNotification({
               type: 'message',
               sender: data.sender,
@@ -54,10 +59,8 @@ const Header = ({ toggleTheme }) => {
       // Listen for new notifications
       const notificationCleanup = socketService.onNewNotification(() => {
         fetchUnreadCount(); // Refresh count for new notifications
-      });
-
-      return () => {
-        cleanup(); // Clean up message received listener
+      });      return () => {
+        messageCleanup(); // Clean up message received listener
         notificationCleanup(); // Clean up notification listener
         window.removeEventListener('socket_reconnected', fetchUnreadCount);
         if (socket) {
@@ -65,7 +68,7 @@ const Header = ({ toggleTheme }) => {
         }
       };
     }
-  }, [fetchUnreadCount, user, incrementUnreadCount]);
+  }, [fetchUnreadCount, user, incrementUnreadCount, handleNewNotification]);
 
   React.useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);

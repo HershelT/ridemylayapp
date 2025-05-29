@@ -49,9 +49,16 @@ export const handleNewNotification = (notification) => {
         type: notification.type,
         entityId: notification.entityId,
         senderId: notification.sender._id
-      },
-      requireInteraction: true, // Keep notification until user interacts with it
-      icon: '/favicon.ico' // Add your app icon path
+      },      requireInteraction: true, // Keep notification until user interacts with it
+      icon: notification.sender.avatarUrl || '/favicon.ico' // Use sender's avatar or fallback to app icon
     });
+
+    // Add click handler to open the relevant chat/content
+    browserNotification.onclick = () => {
+      window.focus();
+      if (notification.type === 'message') {
+        window.location.href = `/messages?chat=${notification.entityId}`;
+      }
+    };
   }
 };
