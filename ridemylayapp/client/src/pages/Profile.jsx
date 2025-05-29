@@ -97,10 +97,13 @@ const Profile = () => {
       if (!userResponse.data.user) {
         throw new Error('User not found');
       }
-      
+        // Get current user to compare with profile user
+      const currentUserResponse = await authAPI.getCurrentUser();
+      const currentUser = currentUserResponse.data.user;
       const userData = userResponse.data.user;
+
       setUser(userData);
-      setIsOwnProfile(!userId || userId === 'me' || userId === userData._id);
+      setIsOwnProfile(currentUser._id === userData._id);
       
       // Load initial tab data only after we have the user
       await fetchTabData(activeTab, userData);

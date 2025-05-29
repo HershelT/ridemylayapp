@@ -16,6 +16,8 @@ const ProfileHeader = ({ user, isOwnProfile, onFollowToggle }) => {
   }, [user]);
 
   const handleFollow = async () => {
+    if (!user?.username) return;
+
     try {
       // Optimistic UI update
       const newFollowState = !isFollowing;
