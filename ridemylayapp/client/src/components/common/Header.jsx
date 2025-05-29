@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import NotificationBadge from '../notifications/NotificationBadge';
 import NotificationList from '../notifications/NotificationList';
 import useMessageStore from '../../stores/messageStore';
+import { useAuth } from '../../hooks/useAuth';
+import socket from '../../services/socket';
 
 const Header = ({ toggleTheme }) => {
   const { unreadCount, fetchUnreadCount, incrementUnreadCount } = useMessageStore();
+  const { user } = useAuth();
   const [showNotifications, setShowNotifications] = React.useState(false);
   const notificationsRef = useRef(null);
 
