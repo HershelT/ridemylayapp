@@ -49,33 +49,39 @@ const Profile = () => {
     setError(null);
 
     try {
-      if (tab === 'bets') {
-        // If no userId or it's 'me', use 'me' endpoint, otherwise use the username
-        const target = !userId || userId === 'me' ? 'me' : user?.username;
-        if (!target) {
-          throw new Error('No user information available');
-        }
-        const response = await userAPI.getUserBets(target);
-        if (response.data.bets) {
-          setBets(response.data.bets);
-        }
-      } else if (tab === 'likes') {
-        const target = !userId || userId === 'me' ? 'me' : user?.username;
-        if (!target) {
-          throw new Error('No user information available');
-        }
-        const response = await betAPI.getLikedBets(target);
-        if (response.data.bets) {
-          setLikes(response.data.bets);
-        }      } else if (tab === 'analytics' && isOwnProfile) {
-        const target = !userId || userId === 'me' ? 'me' : user?.username;
-        if (!target) {
-          throw new Error('No user information available');
-        }
-        const response = await userAPI.getUserAnalytics(target);
-        if (response.data.analytics) {
-          setAnalytics(response.data.analytics);
-        }
+      // Determine the target user identifier
+      // If no userId or it's 'me', use 'me', otherwise use the user's username
+      const target = !userId || userId === 'me' ? 'me' : user?.username;
+      if (!target) {
+        throw new Error('No user information available');
+      }
+
+      switch (tab) {
+        case 'bets':
+          const betsResponse = await userAPI.getUserBets(target);
+          if (betsResponse.data.bets) {
+            setBets(betsResponse.data.bets);
+          }
+          break;
+          
+        case 'likes':
+          const likesResponse = await betAPI.getLikedBets(target);
+          if (likesResponse.data.bets) {
+            setLikes(likesResponse.data.bets);
+          }
+          break;
+          
+        case 'analytics':
+          if (isOwnProfile) {
+            const analyticsResponse = await userAPI.getUserAnalytics(target);
+            if (analyticsResponse.data.analytics) {
+              setAnalytics(analyticsResponse.data.analytics);
+            }
+          }
+          break;
+          
+        default:
+          throw new Error('Invalid tab selection');
       }
       
       setActiveTab(tab);
@@ -85,7 +91,7 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
-  }, [isOwnProfile]);
+  }, [userId, user?.username, isOwnProfile]);
 
   if (loading) {
     return (
