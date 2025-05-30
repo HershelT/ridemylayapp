@@ -6,27 +6,46 @@ export const useNotifications = () => {
   const { addNotification, fetchNotifications } = useNotificationStore();
 
   useEffect(() => {
-    let cleanup = null;
+  let cleanup = null;
+  const processedNotifications = new Set(); // Track processed notifications
 
-    const setupNotifications = async () => {
-      // Initial setup
-      await fetchNotifications();
-      
-      // Check if we're already subscribed to notifications
-      // Use optional chaining to prevent errors if the function doesn't exist
-      const isAlreadySubscribed = socketService.isSubscribedToNotifications?.() || false;
-      
-      if (!isAlreadySubscribed) {
-        socketService.subscribeToNotifications();
-      }
+  const setupNotifications = async () => {
+    // Initial setup
+    await fetchNotifications();
+    
+    // Check if we're already subscribed to notifications
+    const isAlreadySubscribed = socketService.isSubscribedToNotifications?.() || false;
+    
+    if (!isAlreadySubscribed) {
+      socketService.subscribeToNotifications();
+    }
 
-      // Handle new notifications
-      const handleNewNotification = (event) => {
-        if (event.detail) {
-          console.log('Adding new notification:', event.detail);
-          addNotification(event.detail);
+    // Handle new notifications
+    const handleNewNotification = (event) => {
+      if (event.detail) {
+        const notification = event.detail;
+        
+        // Check if we've already processed this notification
+        if (notification._id && processedNotifications.has(notification._id)) {
+          console.log('Notification already processed, skipping:', notification._id);
+          return;
         }
-      };
+        
+        // Add to processed set
+        if (notification._id) {
+          processedNotifications.add(notification._id);
+          
+          // Clear old notifications from set (memory management)
+          if (processedNotifications.size > 100) {
+            const iterator = processedNotifications.values();
+            processedNotifications.delete(iterator.next().value);
+          }
+        }
+        
+        console.log('Adding new notification:', notification);
+        addNotification(notification);
+      }
+    };
 
       // Handle reconnection
       const handleReconnect = async () => {

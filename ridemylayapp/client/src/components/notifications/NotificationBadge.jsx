@@ -23,7 +23,8 @@ const NotificationBadge = () => {
     if (socket && socket.connected) {
       socketService.subscribeToNotifications();
     }
-    
+
+      
     // Event handlers
     const handleNewNotification = (event) => {
       console.log('NotificationBadge: New notification event received', event.detail);
@@ -51,6 +52,13 @@ const NotificationBadge = () => {
       console.error('NotificationBadge: Socket connection failed after max attempts');
       // Show user a connection error message or retry button
     };
+
+    // Clear any existing listeners with the same names (prevent duplicates)
+    window.removeEventListener('new_notification', handleNewNotification);
+    window.removeEventListener('notification_count_updated', handleCountUpdate);
+    window.removeEventListener('socket_connected', handleSocketConnected);
+    window.removeEventListener('socket_reconnected', handleSocketReconnected);
+    window.removeEventListener('socket_connection_failed', handleConnectionFailed);
     
     // Set up event listeners
     window.addEventListener('new_notification', handleNewNotification);

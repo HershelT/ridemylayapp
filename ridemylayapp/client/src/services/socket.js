@@ -35,6 +35,9 @@ const listeners = {
 // Add this at the top of the file with other state variables
 let connectionRequestPending = false;
 let connectionRequestQueue = [];
+// Add a notification tracker set
+const processedSocketNotifications = new Set();
+
 
 
 // Create and initialize socket instance
@@ -190,7 +193,25 @@ const setupSocketEvents = () => {
     }));
   });
 
+  // In the setupSocketEvents function, update the new_notification handler:
   socket.on('new_notification', (notification) => {
+    // Skip if already processed (using _id as unique identifier)
+    if (notification._id && processedSocketNotifications.has(notification._id)) {
+      console.log('Socket: Duplicate notification skipped', notification._id);
+      return;
+    }
+    
+    // Add to processed set
+    if (notification._id) {
+      processedSocketNotifications.add(notification._id);
+      
+      // Keep set size manageable
+      if (processedSocketNotifications.size > 100) {
+        const iterator = processedSocketNotifications.values();
+        processedSocketNotifications.delete(iterator.next().value);
+      }
+    }
+    
     console.log('Socket: New notification received', notification);
     window.dispatchEvent(new CustomEvent('new_notification', { 
       detail: notification 
@@ -198,17 +219,6 @@ const setupSocketEvents = () => {
     
     // Browser notification
     handleBrowserNotification(notification);
-    
-    // Sync across tabs
-    try {
-      const notificationChannel = new BroadcastChannel('notifications');
-      notificationChannel.postMessage({ 
-        type: 'notification_received', 
-        notification 
-      });
-    } catch (e) {
-      console.warn('BroadcastChannel not supported');
-    }
   });
   
   socket.on('notification_count_updated', () => {
@@ -876,25 +886,53 @@ const handleBrowserNotification = (notification) => {
   }
 };
 
-// Disconnect socket
+// Add socket disconnect handler to cleanup properly
 const disconnectSocket = () => {
   if (socket) {
+    // First clear all intervals
     clearInterval(pingInterval);
-    socket.removeAllListeners();
-    socket.disconnect();
-    socket = null;
-    connectionStatus = 'disconnected';
-    reconnectAttempts = 0;
-    subscriptions = {
-      notifications: false,
-      chats: new Set(),
-      betUpdates: new Set()
-    };
+    
+    // Remove all listeners with proper tracking
+    if (listeners) {
+      listeners.notification.forEach(({ event, handler }) => {
+        socket.off(event, handler);
+      });
+      listeners.message.forEach(({ event, handler }) => {
+        socket.off(event, handler);
+      });
+      listeners.betUpdate.forEach(({ event, handler }) => {
+        socket.off(event, handler);
+      });
+      listeners.userStatus.forEach(({ event, handler }) => {
+        socket.off(event, handler);
+      });
+      listeners.typing.forEach(({ event, handler }) => {
+        socket.off(event, handler);
+      });
+    }
+    
+    // Clear listener sets
     listeners.notification.clear();
     listeners.message.clear();
     listeners.betUpdate.clear();
     listeners.userStatus.clear();
     listeners.typing.clear();
+    
+    // Then disconnect
+    socket.disconnect();
+    socket = null;
+    connectionStatus = 'disconnected';
+    reconnectAttempts = 0;
+    
+    // Reset subscriptions
+    subscriptions = {
+      notifications: false,
+      chats: new Set(),
+      betUpdates: new Set()
+    };
+    
+    // Clear processed notifications
+    processedSocketNotifications.clear();
   }
 };
 

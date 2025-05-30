@@ -38,25 +38,6 @@ const NotificationList = () => {
     };
   }, [fetchNotifications]);
 
-  useEffect(() => {
-    const socket = socketService.getSocket();
-    
-    const initializeNotifications = async () => {
-      await fetchNotifications();
-      
-      if (socket?.connected) {
-        socket.emit('subscribe_notifications');
-      }
-    };
-
-    initializeNotifications();
-
-    return () => {
-      if (socket?.connected) {
-        socket.off('new_notification');
-      }
-    };
-  }, [fetchNotifications]);
   const getNotificationTitle = (notification) => {
     if (!notification?.type) return 'New notification';
     

@@ -136,6 +136,22 @@ const setupSocketIO = (server) => {
           
           // If user is not online or not in this chat, create notification
           if (!userSocketId || !io.sockets.adapter.rooms.get('chat:' + message.chat)?.has(userSocketId)) {
+            // First, check if a similar notification already exists for this message
+            const existingNotification = await Notification.findOne({
+              recipient: userId,
+              sender: socket.user.id,
+              type: 'message',
+              entityType: 'chat',
+              entityId: message.chat,
+              read: false,
+              createdAt: { $gte: new Date(Date.now() - 60000) } // Last minute
+            });
+            
+            if (existingNotification) {
+              logger.info(`Skipping duplicate notification for user ${userId} in chat ${message.chat}`);
+              continue;
+            }
+            
             // Create notification
             const notification = await Notification.create({
               recipient: userId,
@@ -156,7 +172,7 @@ const setupSocketIO = (server) => {
       } catch (error) {
         logger.error(`Error handling new message: ${error.message}`);
       }
-});
+    });
     
     // Handle chat room operations
     socket.on('join_chat', (chatId) => {
@@ -206,12 +222,26 @@ const setupSocketIO = (server) => {
     // Handle read notification
     socket.on('read_notification', async ({ notificationId }) => {
       try {
-        await Notification.findByIdAndUpdate(notificationId, { read: true });
+        // Check if notification exists and belongs to this user
+        const notification = await Notification.findOne({
+          _id: notificationId,
+          recipient: socket.user.id
+        });
         
-        // Emit notification count updated event
-        socket.emit('notification_count_updated');
+        if (!notification) {
+          logger.warn(`User ${socket.user.username} attempted to mark nonexistent notification ${notificationId} as read`);
+          return;
+        }
         
-        logger.info(`User ${socket.user.username} marked notification ${notificationId} as read`);
+        // Only update if it's not already read
+        if (!notification.read) {
+          await Notification.findByIdAndUpdate(notificationId, { read: true });
+          
+          // Emit notification count updated event ONLY to this user's socket
+          socket.emit('notification_count_updated');
+          
+          logger.info(`User ${socket.user.username} marked notification ${notificationId} as read`);
+        }
       } catch (error) {
         logger.error(`Error marking notification as read: ${error.message}`);
       }

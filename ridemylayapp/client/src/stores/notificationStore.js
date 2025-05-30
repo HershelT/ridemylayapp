@@ -65,38 +65,49 @@ const useNotificationStore = create((set, get) => ({
   addNotification: (notification) => {
     if (!notification || !notification._id) return;
     
-    set(state => {
-      const currentNotifications = Array.isArray(state.notifications) 
-        ? state.notifications 
-        : [];
-      
-      // Check if notification already exists
-      const exists = currentNotifications.some(n => n?._id === notification._id);
-      if (exists) return state;
+    // Add a flag to track if we're currently processing notifications
+    // to prevent recursive dispatches
+    if (window._processingNotification) {
+      console.warn('Preventing recursive notification processing');
+      return;
+    }
+    
+    window._processingNotification = true;
+    
+    try {
+      set(state => {
+        const currentNotifications = Array.isArray(state.notifications) 
+          ? state.notifications 
+          : [];
+        
+        // Check if notification already exists
+        const exists = currentNotifications.some(n => n?._id === notification._id);
+        if (exists) return state;
 
-      // Only add if it's unread
-      if (notification.read) return state;
+        // Only add if it's unread
+        if (notification.read) return state;
 
-      // Add new notification and sort by date
-      const updatedNotifications = [notification, ...currentNotifications]
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Add new notification and sort by date
+        const updatedNotifications = [notification, ...currentNotifications]
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-      const newState = {
-        notifications: updatedNotifications,
-        unreadCount: state.unreadCount + 1
-      };
+        const newState = {
+          notifications: updatedNotifications,
+          unreadCount: state.unreadCount + 1
+        };
 
-      // Emit events for real-time updates
-      window.dispatchEvent(new CustomEvent('new_notification', { 
-        detail: notification 
-      }));
-      
-      window.dispatchEvent(new CustomEvent('unread_count_updated', { 
-        detail: { count: newState.unreadCount } 
-      }));
+        // DON'T dispatch new_notification event - this is causing the recursion
+        // Just dispatch count update
+        window.dispatchEvent(new CustomEvent('unread_count_updated', { 
+          detail: { count: newState.unreadCount } 
+        }));
 
-      return newState;
-    });
+        return newState;
+      });
+    } finally {
+      // Always clear the processing flag
+      window._processingNotification = false;
+    }
   },
 
   markAsRead: async (notificationId) => {
