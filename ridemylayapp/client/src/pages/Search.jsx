@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userAPI, betAPI } from '../services/api';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 const Search = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('users');
   const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(true);  // Start with true to show initial loading state
+  const [loading, setLoading] = useState(true);
   const [selectedSport, setSelectedSport] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
 
   const sports = [
@@ -24,36 +26,47 @@ const Search = () => {
     { id: 'hockey', name: 'Hockey' },
   ];
 
-  // Fetch data on component mount and when page, searchType, or timeRange changes
-  // This matches the pattern in Leaderboard.jsx
+  // Fetch data on component mount and when searchType changes
   useEffect(() => {
-    fetchSearchData();
-  }, [searchType, page]);
+    resetSearch();
+  }, [searchType]);
 
   // Auto-search when typing in the search box (with debounce)
   useEffect(() => {
     if (searchType === 'users') {
       const timer = setTimeout(() => {
-        fetchSearchData();
+        resetSearch();
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [searchQuery]);
 
-  const fetchSearchData = async () => {
+  // Reset search state and fetch first page
+  const resetSearch = useCallback(() => {
+    setSearchResults([]);
+    setPage(1);
+    setHasMore(true);
+    fetchSearchData(1, true);
+  }, [searchType, searchQuery, selectedSport]);
+
+  const fetchSearchData = async (pageNum = page, reset = false) => {
+    if (loading && !reset) return; // Prevent multiple simultaneous requests
+    
     setLoading(true);
     setError(null);
     
     try {
       if (searchType === 'users') {
         // For users, always perform a search even with empty query
-        // This will show all users (like Leaderboard does)
         const query = searchQuery.trim();
         
+        console.log(`Fetching users, page ${pageNum}, query: "${query || 'empty'}"`);
+        
         // Get default results if query is empty
-        const response = await userAPI.searchUsers(query || 'a', page, 10);
-        console.log('Search response:', response);
-
+        const response = await userAPI.searchUsers(query || '', pageNum, 10);
+        
+        console.log('User search response:', response.data);
+        
         if (!response?.data?.users) {
           throw new Error('Invalid user data received');
         }
@@ -61,73 +74,93 @@ const Search = () => {
         // Get auth store's isFollowingUser function
         const isFollowingUser = useAuthStore.getState().isFollowingUser;
         
-        // Format data similar to Leaderboard, but handle the different API response format
-        const formattedData = response.data.users.map((user, index) => {
-          // Check if the data fields exist, use placeholders if not
-          return {
-            _id: user._id,
-            rank: (page - 1) * 10 + index + 1,
-            username: user.username || 'Unknown User',
-            avatarUrl: user.avatarUrl || '',
-            verified: user.verified || false,
-            // These fields might be missing from search API, so provide defaults
-            winRate: user.winRate || 0,
-            profitLoss: user.profit || 0,
-            streak: user.streak || 0,
-            following: isFollowingUser(user._id),
-            bio: user.bio || ''
-          };
-        });
+        // Format data similar to Leaderboard
+        const formattedData = response.data.users.map((user, index) => ({
+          _id: user._id,
+          rank: (pageNum - 1) * 10 + index + 1,
+          username: user.username || 'Unknown User',
+          avatarUrl: user.avatarUrl || '',
+          verified: user.verified || false,
+          winRate: user.winRate || 0,
+          profitLoss: user.profit || 0,
+          streak: user.streak || 0,
+          following: isFollowingUser(user._id),
+          bio: user.bio || ''
+        }));
         
-        setSearchResults(formattedData);
+        // Update search results - either replace or append based on reset flag
+        setSearchResults(prev => reset ? formattedData : [...prev, ...formattedData]);
         setTotalPages(response.data.pages || 1);
+        
+        // Only have more pages if current page is less than total pages
+        const morePages = pageNum < response.data.pages;
+        console.log(`Page ${pageNum} of ${response.data.pages}, hasMore: ${morePages}`);
+        setHasMore(morePages);
       } else if (searchType === 'games') {
         // Handle games search
         const filters = selectedSport !== 'all' ? { sport: selectedSport } : {};
-        const response = await betAPI.getAllBets(page, 10, {
+        const response = await betAPI.getAllBets(pageNum, 10, {
           ...filters,
           query: searchQuery.trim() || undefined
         });
         
         if (response.data?.bets) {
-          setSearchResults(response.data.bets);
+          setSearchResults(prev => reset ? response.data.bets : [...prev, ...response.data.bets]);
           setTotalPages(response.data.pages || 1);
+          setHasMore(pageNum < (response.data.pages || 1));
         } else {
-          setSearchResults([]);
-          setTotalPages(1);
+          if (reset) {
+            setSearchResults([]);
+          }
+          setHasMore(false);
         }
       } else if (searchType === 'topics') {
         // Handle topics search
-        const response = await betAPI.getAllBets(page, 10, { 
+        const response = await betAPI.getAllBets(pageNum, 10, { 
           query: searchQuery.trim() || undefined,
           grouped: true
         });
         
         if (response.data?.topics) {
-          setSearchResults(response.data.topics);
+          setSearchResults(prev => reset ? response.data.topics : [...prev, ...response.data.topics]);
           setTotalPages(response.data.pages || 1);
+          setHasMore(pageNum < (response.data.pages || 1));
         } else {
-          setSearchResults([]);
-          setTotalPages(1);
+          if (reset) {
+            setSearchResults([]);
+          }
+          setHasMore(false);
         }
       }
     } catch (error) {
       console.error('Error fetching search data:', error);
       setError('Failed to load search results. Please try again later.');
       toast.error('Failed to load search results');
-      setSearchResults([]);
+      if (reset) {
+        setSearchResults([]);
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle search button click
-  const handleSearch = () => {
-    setPage(1); // Reset to page 1
-    fetchSearchData();
+  // Load more data when scrolling
+  const loadMoreData = () => {
+    if (!hasMore || loading) return;
+    
+    const nextPage = page + 1;
+    console.log(`Loading more data, page ${nextPage}`);
+    setPage(nextPage);
+    fetchSearchData(nextPage, false);
   };
 
-  // Handle follow/unfollow toggle - use same logic as Leaderboard
+  // Handle search button click
+  const handleSearch = () => {
+    resetSearch();
+  };
+
+  // Handle follow/unfollow toggle
   const handleFollowToggle = async (username) => {
     try {
       const userToUpdate = searchResults.find(u => u.username === username);
@@ -166,15 +199,15 @@ const Search = () => {
   };
 
   const renderSearchResults = () => {
-    if (loading) {
+    if (loading && searchResults.length === 0) {
       return <div className="text-center py-8">Loading...</div>;
     }
 
-    if (error) {
+    if (error && searchResults.length === 0) {
       return <div className="text-red-500 text-center mb-4">{error}</div>;
     }
 
-    if (searchResults.length === 0) {
+    if (searchResults.length === 0 && !loading) {
       return <div className="text-center py-8 text-gray-500">No results found for the selected filters.</div>;
     }
 
@@ -189,138 +222,183 @@ const Search = () => {
             <div className="col-span-2 text-center">Action</div>
           </div>
           
-          {searchResults.map(user => (
-            <div 
-              key={user._id} 
-              className="grid grid-cols-12 py-3 px-4 border-b border-gray-200 dark:border-gray-700 items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          <div id="scrollableDiv" style={{ overflow: 'auto', maxHeight: '70vh' }}>
+            <InfiniteScroll
+              dataLength={searchResults.length}
+              next={loadMoreData}
+              hasMore={hasMore}
+              loader={<div className="text-center py-4">Loading more users...</div>}
+              endMessage={
+                <p className="text-center py-4 text-gray-500">
+                  {searchResults.length > 0 ? "No more users to show" : ""}
+                </p>
+              }
+              scrollableTarget="scrollableDiv"
             >
-              <div className="col-span-1 font-medium">{user.rank}</div>
-              <div className="col-span-5 flex items-center">
-                <img 
-                  src={user.avatarUrl} 
-                  alt={`${user.username}'s avatar`} 
-                  className="w-8 h-8 rounded-full mr-2 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => handleUserClick(user.username)}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `https://api.dicebear.com/9.x/icons/svg?seed=${user.username}`;
-                  }}
-                />
-                <div>
-                  <div className="flex items-center">
-                    <span 
-                      className="font-medium cursor-pointer hover:text-primary-500 transition-colors"
+              {searchResults.map(user => (
+                <div 
+                  key={user._id} 
+                  className="grid grid-cols-12 py-3 px-4 border-b border-gray-200 dark:border-gray-700 items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                >
+                  <div className="col-span-1 font-medium">{user.rank}</div>
+                  <div className="col-span-5 flex items-center">
+                    <img 
+                      src={user.avatarUrl} 
+                      alt={`${user.username}'s avatar`} 
+                      className="w-8 h-8 rounded-full mr-2 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => handleUserClick(user.username)}
-                    >
-                      {user.username}
-                    </span>
-                    {user.verified && (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812z" clipRule="evenodd" />
-                        <path d="M7.9 8.6l2.1 2.1 4.1-4.1 1.4 1.4-5.5 5.5-3.5-3.5 1.4-1.4z" />
-                      </svg>
-                    )}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://api.dicebear.com/9.x/icons/svg?seed=${user.username}`;
+                      }}
+                    />
+                    <div>
+                      <div className="flex items-center">
+                        <span 
+                          className="font-medium cursor-pointer hover:text-primary-500 transition-colors"
+                          onClick={() => handleUserClick(user.username)}
+                        >
+                          {user.username}
+                        </span>
+                        {user.verified && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812z" clipRule="evenodd" />
+                            <path d="M7.9 8.6l2.1 2.1 4.1-4.1 1.4 1.4-5.5 5.5-3.5-3.5 1.4-1.4z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {user.streak > 0 ? 
+                          <span className="text-green-500">🔥 {user.streak} streak</span> : 
+                          user.streak < 0 ? 
+                          <span className="text-red-500">❄️ {Math.abs(user.streak)} losses</span> : 
+                          'No streak'
+                        }
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {user.streak > 0 ? 
-                      <span className="text-green-500">🔥 {user.streak} streak</span> : 
-                      user.streak < 0 ? 
-                      <span className="text-red-500">❄️ {Math.abs(user.streak)} losses</span> : 
-                      'No streak'
-                    }
+                  <div className="col-span-2 text-center">{user.winRate}%</div>
+                  <div className={`col-span-2 text-center ${user.profitLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {user.profitLoss >= 0 ? '+' : ''}{user.profitLoss.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                  </div>
+                  <div className="col-span-2 text-center">
+                    <button 
+                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                        user.following ? 
+                        'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300' : 
+                        'bg-primary-500 text-white hover:bg-primary-600'
+                      }`}
+                      onClick={() => handleFollowToggle(user.username)}
+                    >
+                      {user.following ? 'Following' : 'Follow'}
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="col-span-2 text-center">{user.winRate}%</div>
-              <div className={`col-span-2 text-center ${user.profitLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {user.profitLoss >= 0 ? '+' : ''}{user.profitLoss.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-              </div>
-              <div className="col-span-2 text-center">
-                <button 
-                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    user.following ? 
-                    'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300' : 
-                    'bg-primary-500 text-white hover:bg-primary-600'
-                  }`}
-                  onClick={() => handleFollowToggle(user.username)}
-                >
-                  {user.following ? 'Following' : 'Follow'}
-                </button>
-              </div>
-            </div>
-          ))}
+              ))}
+            </InfiniteScroll>
+          </div>
         </>
       );
     }
 
-    // Games and Topics renderers remain the same
+    // For games and topics, also add InfiniteScroll
     if (searchType === 'games') {
       return (
-        <div className="space-y-4">
-          {searchResults.map(bet => (
-            <div key={bet._id} className="card">
-              <div className="flex justify-between items-center mb-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${bet.status === 'pending' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-                  {bet.status === 'pending' ? 'LIVE' : bet.status.toUpperCase()}
-                </span>
-                <span className="text-xs text-gray-500">{bet.bettingSiteId?.name}</span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <div className="flex-1">
-                  {bet.legs.map((leg, index) => (
-                    <div key={index} className="flex justify-between items-center mb-2">
-                      <span className="font-medium">{leg.team}</span>
-                      <span className="font-bold">{leg.odds}</span>
+        <div id="scrollableDiv" style={{ overflow: 'auto', maxHeight: '70vh' }}>
+          <InfiniteScroll
+            dataLength={searchResults.length}
+            next={loadMoreData}
+            hasMore={hasMore}
+            loader={<div className="text-center py-4">Loading more games...</div>}
+            endMessage={
+              <p className="text-center py-4 text-gray-500">
+                {searchResults.length > 0 ? "No more games to show" : ""}
+              </p>
+            }
+            scrollableTarget="scrollableDiv"
+          >
+            <div className="space-y-4">
+              {searchResults.map(bet => (
+                <div key={bet._id} className="card">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`px-2 py-1 rounded-full text-xs ${bet.status === 'pending' ? 'bg-red-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                      {bet.status === 'pending' ? 'LIVE' : bet.status.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-500">{bet.bettingSiteId?.name}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      {bet.legs?.map((leg, index) => (
+                        <div key={index} className="flex justify-between items-center mb-2">
+                          <span className="font-medium">{leg.team}</span>
+                          <span className="font-bold">{leg.odds}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                
-                <div className="px-4 text-center">
-                  <div className="font-medium text-red-500">{bet.status}</div>
-                  <div className="text-xs text-gray-500 mt-1">{bet.sport.toUpperCase()}</div>
-                </div>
-                
-                <div className="flex-1 text-right">
-                  <div className="mb-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Stake: </span>
-                    <span className="font-medium">${bet.stake}</span>
+                    
+                    <div className="px-4 text-center">
+                      <div className="font-medium text-red-500">{bet.status}</div>
+                      <div className="text-xs text-gray-500 mt-1">{bet.sport?.toUpperCase()}</div>
+                    </div>
+                    
+                    <div className="flex-1 text-right">
+                      <div className="mb-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Stake: </span>
+                        <span className="font-medium">${bet.stake}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Potential Win: </span>
+                        <span className="font-medium">${bet.potentialWinnings}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Potential Win: </span>
-                    <span className="font-medium">${bet.potentialWinnings}</span>
-                  </div>
+                  
+                  <button className="w-full mt-3 btn-primary" onClick={() => navigate(`/bets/${bet._id}`)}>
+                    View Bet
+                  </button>
                 </div>
-              </div>
-              
-              <button className="w-full mt-3 btn-primary" onClick={() => navigate(`/bets/${bet._id}`)}>
-                View Bet
-              </button>
+              ))}
             </div>
-          ))}
+          </InfiniteScroll>
         </div>
       );
     }
 
     if (searchType === 'topics') {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {searchResults.map(topic => (
-            <div key={topic._id} className="card">
-              <div className="flex justify-between items-center">
-                <h3 className="font-bold">{topic.name}</h3>
-                {topic.isHot && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    🔥 Hot
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-500 mt-1">{topic.betCount} bets</p>
-              <button className="w-full mt-3 btn-primary" onClick={() => navigate(`/search/topic/${topic.name}`)}>
-                View Bets
-              </button>
+        <div id="scrollableDiv" style={{ overflow: 'auto', maxHeight: '70vh' }}>
+          <InfiniteScroll
+            dataLength={searchResults.length}
+            next={loadMoreData}
+            hasMore={hasMore}
+            loader={<div className="text-center py-4">Loading more topics...</div>}
+            endMessage={
+              <p className="text-center py-4 text-gray-500">
+                {searchResults.length > 0 ? "No more topics to show" : ""}
+              </p>
+            }
+            scrollableTarget="scrollableDiv"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {searchResults.map(topic => (
+                <div key={topic._id} className="card">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold">{topic.name}</h3>
+                    {topic.isHot && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                        🔥 Hot
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">{topic.betCount} bets</p>
+                  <button className="w-full mt-3 btn-primary" onClick={() => navigate(`/search/topic/${topic.name}`)}>
+                    View Bets
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
+          </InfiniteScroll>
         </div>
       );
     }
@@ -385,7 +463,10 @@ const Search = () => {
                     ? 'bg-primary-500 text-white' 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}
-                onClick={() => setSelectedSport(sport.id)}
+                onClick={() => {
+                  setSelectedSport(sport.id);
+                  resetSearch();
+                }}
               >
                 {sport.name}
               </button>
@@ -397,36 +478,6 @@ const Search = () => {
       <div className="card">
         {renderSearchResults()}
       </div>
-
-      {totalPages > 1 && (
-        <div className="mt-4 flex justify-center space-x-2">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className={`px-3 py-1 rounded-md ${
-              page === 1 
-                ? 'bg-gray-200 text-gray-500' 
-                : 'bg-primary-500 text-white hover:bg-primary-600'
-            }`}
-          >
-            Previous
-          </button>
-          <span className="px-3 py-1">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className={`px-3 py-1 rounded-md ${
-              page === totalPages
-                ? 'bg-gray-200 text-gray-500'
-                : 'bg-primary-500 text-white hover:bg-primary-600'
-            }`}
-          >
-            Next
-          </button>
-        </div>
-      )}
     </div>
   );
 };

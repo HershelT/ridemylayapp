@@ -217,37 +217,36 @@ exports.searchUsers = async (req, res, next) => {
   try {
     const { query, page = 1, limit = 10 } = req.query;
 
-    if (!query) {
-      return res.status(400).json({
-        success: false,
-        error: 'Search query is required'
-      });
-    }
-
     // Pagination
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Search users by username or name
-    const users = await User.find({
-      $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { name: { $regex: query, $options: 'i' } }
-      ]
-    })
+    // Make the default query more inclusive to get more results when query is empty
+    const searchCondition = query && query.trim() !== '' 
+      ? {
+          $or: [
+            { username: { $regex: query, $options: 'i' } },
+            { name: { $regex: query, $options: 'i' } }
+          ]
+        }
+      : {}; // Empty object will match all users (more consistent)
+
+    // Log the search condition for debugging
+    console.log(`Search condition: ${JSON.stringify(searchCondition)}`);
+    
+    // Search users by username or name or get all users
+    const users = await User.find(searchCondition)
       .select('username name avatarUrl verified bio streak')
       .skip(skip)
       .limit(limitNum)
       .sort('username');
 
     // Get total count
-    const total = await User.countDocuments({
-      $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { name: { $regex: query, $options: 'i' } }
-      ]
-    });
+    const total = await User.countDocuments(searchCondition);
+    
+    // Log total found for debugging
+    console.log(`Total users found: ${total}`);
 
     // Get user IDs for aggregation
     const userIds = users.map(user => user._id);
@@ -323,12 +322,18 @@ exports.searchUsers = async (req, res, next) => {
       };
     });
 
+    // Calculate total pages correctly
+    const totalPages = Math.max(1, Math.ceil(total / limitNum));
+    
+    // Log pagination info for debugging
+    console.log(`Page: ${pageNum}, Total pages: ${totalPages}, Users returned: ${enrichedUsers.length}`);
+
     res.status(200).json({
       success: true,
       count: users.length,
       total,
       page: pageNum,
-      pages: Math.ceil(total / limitNum),
+      pages: totalPages,
       users: enrichedUsers
     });
   } catch (error) {
