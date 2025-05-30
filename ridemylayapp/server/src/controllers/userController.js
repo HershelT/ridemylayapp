@@ -236,7 +236,7 @@ exports.searchUsers = async (req, res, next) => {
         { name: { $regex: query, $options: 'i' } }
       ]
     })
-      .select('username name avatarUrl verified')
+      .select('username name avatarUrl verified bio streak')
       .skip(skip)
       .limit(limitNum)
       .sort('username');
@@ -249,13 +249,87 @@ exports.searchUsers = async (req, res, next) => {
       ]
     });
 
+    // Get user IDs for aggregation
+    const userIds = users.map(user => user._id);
+
+    // Calculate win rates and profits (similar to leaderboard)
+    const userStats = await Bet.aggregate([
+      { $match: { 
+          userId: { $in: userIds },
+          status: { $in: ['won', 'lost'] }  // Only include completed bets
+        } 
+      },
+      { 
+        $group: {
+          _id: '$userId',
+          totalBets: { $sum: 1 },
+          wonBets: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'won'] }, 1, 0]
+            }
+          },
+          totalWinnings: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'won'] }, '$potentialWinnings', 0]
+            }
+          },
+          totalStake: { $sum: '$stake' }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          totalBets: 1,
+          wonBets: 1,
+          winRate: {
+            $cond: [
+              { $eq: ['$totalBets', 0] },
+              0,
+              { $multiply: [{ $divide: ['$wonBets', '$totalBets'] }, 100] }
+            ]
+          },
+          profit: { $subtract: ['$totalWinnings', '$totalStake'] }
+        }
+      }
+    ]);
+
+    // Add authentication check for following status
+    let currentUser = null;
+    if (req.user) {
+      currentUser = await User.findById(req.user.id);
+    }
+
+    // Combine user data with stats
+    const enrichedUsers = users.map(user => {
+      // Find stats for this user
+      const stats = userStats.find(stat => 
+        stat._id.toString() === user._id.toString()
+      ) || { winRate: 0, profit: 0, totalBets: 0, wonBets: 0 };
+      
+      // Check if current user is following this user
+      const isFollowing = currentUser ? 
+        currentUser.following.some(id => id.toString() === user._id.toString()) : 
+        false;
+
+      // Convert to plain object and add stats
+      const userObject = user.toObject();
+      return {
+        ...userObject,
+        winRate: Math.round(stats.winRate) || 0,
+        profit: stats.profit || 0,
+        totalBets: stats.totalBets || 0,
+        wonBets: stats.wonBets || 0,
+        isFollowing
+      };
+    });
+
     res.status(200).json({
       success: true,
       count: users.length,
       total,
       page: pageNum,
       pages: Math.ceil(total / limitNum),
-      users
+      users: enrichedUsers
     });
   } catch (error) {
     logger.error('Search users error:', error);

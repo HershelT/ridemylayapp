@@ -31,6 +31,7 @@ const Leaderboard = () => {
       if (!response?.data?.leaderboard) {
         throw new Error('Invalid leaderboard data received');
       }
+      console.log('Search response:', response)
 
       // Get auth store's isFollowingUser function
       const isFollowingUser = useAuthStore.getState().isFollowingUser;

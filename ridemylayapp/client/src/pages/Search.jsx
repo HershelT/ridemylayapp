@@ -1,23 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userAPI, betAPI } from '../services/api';
-import useAuthStore from '../store/authStore'; // Add this import
+import useAuthStore from '../store/authStore';
+import toast from 'react-hot-toast';
 
 const Search = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState('users'); // Default to 'users' now instead of 'games'
+  const [searchType, setSearchType] = useState('users');
   const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);  // Start with true to show initial loading state
   const [selectedSport, setSelectedSport] = useState('all');
-  
-  // Pagination state for users
-  const [userPage, setUserPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const observer = useRef();
-  const lastUserRef = useRef(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState(null);
 
   const sports = [
     { id: 'all', name: 'All Sports' },
@@ -28,143 +24,236 @@ const Search = () => {
     { id: 'hockey', name: 'Hockey' },
   ];
 
-  // Function to load users with pagination
-  const loadUsers = useCallback(async (page = 1, query = '', reset = false) => {
-    try {
-      if (!hasMore && !reset) return;
-      
-      if (page === 1 || reset) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      
-      // If query is empty, use a default search that will match all users
-      // For example, search for a very common character like 'a' or use a space
-      // This is a workaround since your API requires a search query
-      const searchQuery = query.trim() ? query : 'a';
-      
-      const response = await userAPI.searchUsers(searchQuery, page, 20);
-      
-      if (reset || page === 1) {
-        setSearchResults(response.data.users);
-      } else {
-        setSearchResults(prev => [...prev, ...response.data.users]);
-      }
-      
-      setHasMore(response.data.users.length > 0 && response.data.page < response.data.pages);
-      setUserPage(page);
-      setInitialLoad(false);
-    } catch (error) {
-      console.error('Error loading users:', error);
-      // Set an empty array to prevent infinite loading attempts
-      setSearchResults([]);
-      setHasMore(false);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }, [hasMore]);
+  // Fetch data on component mount and when page, searchType, or timeRange changes
+  // This matches the pattern in Leaderboard.jsx
+  useEffect(() => {
+    fetchSearchData();
+  }, [searchType, page]);
 
-  // Handle the search for non-user content types
-  const handleSearch = async () => {
+  // Auto-search when typing in the search box (with debounce)
+  useEffect(() => {
     if (searchType === 'users') {
-      // For users, we'll handle this separately with loadUsers
-      setUserPage(1);
-      loadUsers(1, searchQuery, true);
-      return;
+      const timer = setTimeout(() => {
+        fetchSearchData();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-    
-    // For other search types
+  }, [searchQuery]);
+
+  const fetchSearchData = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      if (searchType === 'games') {
-        const filters = selectedSport !== 'all' ? { sport: selectedSport } : {};
-        const response = await betAPI.getAllBets(1, 10, {
-          ...filters,
-          query: searchQuery 
+      if (searchType === 'users') {
+        // For users, always perform a search even with empty query
+        // This will show all users (like Leaderboard does)
+        const query = searchQuery.trim();
+        
+        // Get default results if query is empty
+        const response = await userAPI.searchUsers(query || 'a', page, 10);
+        console.log('Search response:', response);
+
+        if (!response?.data?.users) {
+          throw new Error('Invalid user data received');
+        }
+        
+        // Get auth store's isFollowingUser function
+        const isFollowingUser = useAuthStore.getState().isFollowingUser;
+        
+        // Format data similar to Leaderboard, but handle the different API response format
+        const formattedData = response.data.users.map((user, index) => {
+          // Check if the data fields exist, use placeholders if not
+          return {
+            _id: user._id,
+            rank: (page - 1) * 10 + index + 1,
+            username: user.username || 'Unknown User',
+            avatarUrl: user.avatarUrl || '',
+            verified: user.verified || false,
+            // These fields might be missing from search API, so provide defaults
+            winRate: user.winRate || 0,
+            profitLoss: user.profit || 0,
+            streak: user.streak || 0,
+            following: isFollowingUser(user._id),
+            bio: user.bio || ''
+          };
         });
-        setSearchResults(response.data.bets);
+        
+        setSearchResults(formattedData);
+        setTotalPages(response.data.pages || 1);
+      } else if (searchType === 'games') {
+        // Handle games search
+        const filters = selectedSport !== 'all' ? { sport: selectedSport } : {};
+        const response = await betAPI.getAllBets(page, 10, {
+          ...filters,
+          query: searchQuery.trim() || undefined
+        });
+        
+        if (response.data?.bets) {
+          setSearchResults(response.data.bets);
+          setTotalPages(response.data.pages || 1);
+        } else {
+          setSearchResults([]);
+          setTotalPages(1);
+        }
       } else if (searchType === 'topics') {
-        // Topics are now just grouped bets by popular categories
-        const response = await betAPI.getAllBets(1, 10, { 
-          query: searchQuery,
+        // Handle topics search
+        const response = await betAPI.getAllBets(page, 10, { 
+          query: searchQuery.trim() || undefined,
           grouped: true
         });
-        setSearchResults(response.data.topics || []);
+        
+        if (response.data?.topics) {
+          setSearchResults(response.data.topics);
+          setTotalPages(response.data.pages || 1);
+        } else {
+          setSearchResults([]);
+          setTotalPages(1);
+        }
       }
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('Error fetching search data:', error);
+      setError('Failed to load search results. Please try again later.');
+      toast.error('Failed to load search results');
       setSearchResults([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load initial users when the component mounts or search type changes
-  useEffect(() => {
-    if (searchType === 'users') {
-      setUserPage(1);
-      loadUsers(1, searchQuery, true);
-    } else {
-      // For other search types, we'll wait for explicit search
-      setSearchResults([]);
-    }
-  }, [searchType, loadUsers]);
+  // Handle search button click
+  const handleSearch = () => {
+    setPage(1); // Reset to page 1
+    fetchSearchData();
+  };
 
-  // Debounced search for users as you type
-  useEffect(() => {
-    if (searchType !== 'users') return;
-    
-    const timer = setTimeout(() => {
-      setUserPage(1);
-      loadUsers(1, searchQuery, true);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [searchQuery, searchType, loadUsers]);
-
-  // Intersection observer for infinite scrolling
-  useEffect(() => {
-    if (searchType !== 'users' || loading || !hasMore) return;
-    
-    const options = {
-      root: null,
-      rootMargin: '0px',
-      threshold: 0.1
-    };
-    
-    const handleObserver = (entries) => {
-      const [entry] = entries;
-      if (entry.isIntersecting && !loadingMore) {
-        setUserPage(prev => prev + 1);
-        loadUsers(userPage + 1, searchQuery);
+  // Handle follow/unfollow toggle - use same logic as Leaderboard
+  const handleFollowToggle = async (username) => {
+    try {
+      const userToUpdate = searchResults.find(u => u.username === username);
+      if (!userToUpdate) return;
+      
+      // Call the auth store action to handle the follow/unfollow
+      const response = await useAuthStore.getState().followUser(username);
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update follow status');
       }
-    };
-    
-    const currentObserver = new IntersectionObserver(handleObserver, options);
-    observer.current = currentObserver;
-    
-    if (lastUserRef.current) {
-      currentObserver.observe(lastUserRef.current);
+      
+      // Show success toast
+      toast.success(response.isFollowing ? 'Started following user' : 'Unfollowed user');
+      
+      // Update the follow status in the local state
+      setSearchResults(prevData => 
+        prevData.map(user => {
+          if (user.username === username) {
+            return { 
+              ...user, 
+              following: response.isFollowing 
+            };
+          }
+          return user;
+        })
+      );
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      toast.error(error.message || 'Failed to update follow status');
     }
-    
-    return () => {
-      if (lastUserRef.current) {
-        currentObserver.unobserve(lastUserRef.current);
-      }
-    };
-  }, [searchResults, hasMore, loading, loadingMore, searchType, userPage, searchQuery, loadUsers]);
+  };
+
+  const handleUserClick = (username) => {
+    navigate(`/profile/${username}`);
+  };
 
   const renderSearchResults = () => {
-    if (loading && searchResults.length === 0) {
+    if (loading) {
       return <div className="text-center py-8">Loading...</div>;
     }
 
-    if (searchResults.length === 0 && !loading && !initialLoad) {
-      return <div className="text-center py-8 text-gray-500">No results found</div>;
+    if (error) {
+      return <div className="text-red-500 text-center mb-4">{error}</div>;
     }
 
+    if (searchResults.length === 0) {
+      return <div className="text-center py-8 text-gray-500">No results found for the selected filters.</div>;
+    }
+
+    if (searchType === 'users') {
+      return (
+        <>
+          <div className="grid grid-cols-12 py-2 px-4 border-b border-gray-200 dark:border-gray-700 font-medium text-gray-700 dark:text-gray-200 text-sm">
+            <div className="col-span-1">#</div>
+            <div className="col-span-5">User</div>
+            <div className="col-span-2 text-center">Win Rate</div>
+            <div className="col-span-2 text-center">P/L</div>
+            <div className="col-span-2 text-center">Action</div>
+          </div>
+          
+          {searchResults.map(user => (
+            <div 
+              key={user._id} 
+              className="grid grid-cols-12 py-3 px-4 border-b border-gray-200 dark:border-gray-700 items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
+            >
+              <div className="col-span-1 font-medium">{user.rank}</div>
+              <div className="col-span-5 flex items-center">
+                <img 
+                  src={user.avatarUrl} 
+                  alt={`${user.username}'s avatar`} 
+                  className="w-8 h-8 rounded-full mr-2 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleUserClick(user.username)}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://api.dicebear.com/9.x/icons/svg?seed=${user.username}`;
+                  }}
+                />
+                <div>
+                  <div className="flex items-center">
+                    <span 
+                      className="font-medium cursor-pointer hover:text-primary-500 transition-colors"
+                      onClick={() => handleUserClick(user.username)}
+                    >
+                      {user.username}
+                    </span>
+                    {user.verified && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812z" clipRule="evenodd" />
+                        <path d="M7.9 8.6l2.1 2.1 4.1-4.1 1.4 1.4-5.5 5.5-3.5-3.5 1.4-1.4z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {user.streak > 0 ? 
+                      <span className="text-green-500">🔥 {user.streak} streak</span> : 
+                      user.streak < 0 ? 
+                      <span className="text-red-500">❄️ {Math.abs(user.streak)} losses</span> : 
+                      'No streak'
+                    }
+                  </div>
+                </div>
+              </div>
+              <div className="col-span-2 text-center">{user.winRate}%</div>
+              <div className={`col-span-2 text-center ${user.profitLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {user.profitLoss >= 0 ? '+' : ''}{user.profitLoss.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+              </div>
+              <div className="col-span-2 text-center">
+                <button 
+                  className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                    user.following ? 
+                    'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300' : 
+                    'bg-primary-500 text-white hover:bg-primary-600'
+                  }`}
+                  onClick={() => handleFollowToggle(user.username)}
+                >
+                  {user.following ? 'Following' : 'Follow'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </>
+      );
+    }
+
+    // Games and Topics renderers remain the same
     if (searchType === 'games') {
       return (
         <div className="space-y-4">
@@ -235,149 +324,6 @@ const Search = () => {
         </div>
       );
     }
-
-    // User search results with infinite scroll
-    return (
-  <div className="space-y-4">
-    {searchResults.map((user, index) => {
-      const isLastItem = index === searchResults.length - 1;
-      // Safely check if the user is being followed
-      const isFollowing = user._id ? useAuthStore.getState().isFollowingUser(user._id) : false;
-      
-      // Extract user data with fallbacks
-      const {
-        _id = '',
-        username = 'Anonymous',
-        avatarUrl = null,
-        verified = false,
-        winRate = 0,
-        followerCount = 0,
-        streak = 0,
-        bio = ''
-      } = user || {};
-      
-      return (
-        <div 
-          key={_id || index} 
-          ref={isLastItem ? lastUserRef : null}
-          className="card p-4 hover:shadow-lg transition-shadow duration-200"
-        >
-          <div className="flex items-center">
-            {/* User Avatar */}
-            <div 
-              className="w-12 h-12 rounded-full overflow-hidden bg-indigo-100 dark:bg-indigo-900/50 flex-shrink-0 cursor-pointer"
-              onClick={() => navigate(`/profile/${username}`)}
-            >
-              {avatarUrl ? (
-                <img 
-                  src={avatarUrl} 
-                  alt={`${username}'s avatar`} 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `https://api.dicebear.com/9.x/icons/svg?seed=${username}`;
-                  }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center font-medium text-indigo-600 dark:text-indigo-400">
-                  {username.substring(0, 2).toUpperCase()}
-                </div>
-              )}
-            </div>
-            
-            {/* User Details */}
-            <div className="ml-3 flex-1 min-w-0">
-              <div className="flex items-center mb-1">
-                <span 
-                  className="font-medium text-gray-900 dark:text-white hover:text-primary-500 cursor-pointer truncate"
-                  onClick={() => navigate(`/profile/${username}`)}
-                >
-                  {username}
-                </span>
-                {verified && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-blue-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <div className="flex items-center px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md">
-                  <span className="mr-1">💯</span>
-                  <span className="font-medium">{Number(winRate).toFixed(1)}%</span>
-                </div>
-                <div className="flex items-center px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-md">
-                  <span className="mr-1">👥</span>
-                  <span className="font-medium">{Number(followerCount).toLocaleString()}</span>
-                </div>
-                {streak !== 0 && (
-                  <div className={`flex items-center px-2 py-0.5 ${
-                    streak > 0 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
-                      : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                    } rounded-md`}
-                  >
-                    <span className="mr-1">{streak > 0 ? '🔥' : '❄️'}</span>
-                    <span className="font-medium">
-                      {Math.abs(streak)} {streak > 0 ? 'win' : 'loss'} streak
-                    </span>
-                  </div>
-                )}
-              </div>
-              
-              {bio && (
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-1">
-                  {bio}
-                </div>
-              )}
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex flex-col space-y-2 ml-2">
-              <button 
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  isFollowing 
-                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600' 
-                    : 'bg-primary-500 text-white hover:bg-primary-600'
-                }`}
-                onClick={async () => {
-                  try {
-                    const result = await useAuthStore.getState().followUser(username);
-                    if (result.success) {
-                      // Force a re-render by updating state
-                      setSearchResults(prev => prev.map(u => 
-                        u._id === _id 
-                          ? {...u, isFollowing: !isFollowing} 
-                          : u
-                      ));
-                    }
-                  } catch (error) {
-                    console.error("Failed to follow/unfollow user:", error);
-                  }
-                }}
-              >
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
-              
-              <button 
-                className="px-4 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                onClick={() => navigate(`/profile/${username}`)}
-              >
-                View Profile
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    })}
-    
-    {loadingMore && (
-      <div className="text-center py-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
-      </div>
-    )}
-  </div>
-);
   };
 
   return (
@@ -414,21 +360,19 @@ const Search = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => {
-              if (e.key === 'Enter' && searchType !== 'users') {
+              if (e.key === 'Enter') {
                 handleSearch();
               }
             }}
           />
-          {searchType !== 'users' && (
-            <button 
-              className="ml-2 bg-primary-500 text-white px-4 rounded-md hover:bg-primary-600"
-              onClick={handleSearch}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
-          )}
+          <button 
+            className="ml-2 bg-primary-500 text-white px-4 rounded-md hover:bg-primary-600"
+            onClick={handleSearch}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
         </div>
 
         {searchType === 'games' && (
@@ -450,7 +394,39 @@ const Search = () => {
         )}
       </div>
 
-      {renderSearchResults()}
+      <div className="card">
+        {renderSearchResults()}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex justify-center space-x-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className={`px-3 py-1 rounded-md ${
+              page === 1 
+                ? 'bg-gray-200 text-gray-500' 
+                : 'bg-primary-500 text-white hover:bg-primary-600'
+            }`}
+          >
+            Previous
+          </button>
+          <span className="px-3 py-1">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className={`px-3 py-1 rounded-md ${
+              page === totalPages
+                ? 'bg-gray-200 text-gray-500'
+                : 'bg-primary-500 text-white hover:bg-primary-600'
+            }`}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 };
