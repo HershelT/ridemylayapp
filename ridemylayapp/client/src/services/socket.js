@@ -31,15 +31,7 @@ const createSocket = () => {
     // Connection event handlers
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
-      reconnectAttempts = 0;
-      // Resubscribe to notifications on reconnect if previously subscribed
-      if (isSubscribedToNotifications) {
-        console.log('Resubscribing to notifications after reconnect');
-        socket.emit('subscribe_notifications');
-      }
-      
-      // Dispatch reconnection event
-      window.dispatchEvent(new CustomEvent('socket_reconnected'));
+      socketService.handleReconnect(); // Handle reconnection logic
     });
     
     socket.on('disconnect', (reason) => {

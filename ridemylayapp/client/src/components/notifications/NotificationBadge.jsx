@@ -28,10 +28,19 @@ const NotificationBadge = () => {
     // Refresh count periodically
     const refreshInterval = setInterval(fetchUnreadCount, 30000);
 
+    // Reconnection handler
+    const handleReconnect = () => {
+      setupNotifications();
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('socket_reconnected', handleReconnect);
+
+
     return () => {
       clearInterval(refreshInterval);
       window.removeEventListener('new_notification', handleNewNotification);
-      window.removeEventListener('socket_reconnected', fetchUnreadCount);
+      window.removeEventListener('socket_reconnected', handleReconnect);
     };
   }, [fetchUnreadCount]);
 
