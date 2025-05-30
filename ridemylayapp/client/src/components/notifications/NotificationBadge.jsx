@@ -2,7 +2,6 @@ import React, { useEffect, useCallback } from 'react';
 import { BsBell } from 'react-icons/bs';
 import useNotificationStore from '../../stores/notificationStore';
 import socketService from '../../services/socket';
-import { subscribeToNotifications } from '../../services/notificationService';
 
 const NotificationBadge = () => {
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
@@ -12,15 +11,18 @@ const NotificationBadge = () => {
     fetchUnreadCount();
     
     // Subscribe to notifications if not already subscribed
-    if (!socketService.isSubscribedToNotifications()) {
-      socketService.subscribeToNotifications();
-    }
+    const setupNotifications = () => {
+      if (!socketService.isSubscribedToNotifications()) {
+        socketService.subscribeToNotifications();
+      }
+    };
 
     // Handle new notifications
     const handleNewNotification = () => {
       fetchUnreadCount();
     };
 
+    setupNotifications();
     window.addEventListener('new_notification', handleNewNotification);
 
     // Refresh count periodically
@@ -29,6 +31,7 @@ const NotificationBadge = () => {
     return () => {
       clearInterval(refreshInterval);
       window.removeEventListener('new_notification', handleNewNotification);
+      window.removeEventListener('socket_reconnected', fetchUnreadCount);
     };
   }, [fetchUnreadCount]);
 

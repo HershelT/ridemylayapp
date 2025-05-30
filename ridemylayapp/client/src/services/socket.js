@@ -306,6 +306,15 @@ const unsubscribeFromNotifications = () => {
   }
 };
 
+// Add reconnection handler
+const handleReconnect = () => {
+    const s = getSocket();
+    if (s?.connected && isSubscribedToNotifications) {
+      console.log('Resubscribing to notifications after reconnect');
+      s.emit('subscribe_notifications');
+    }
+  }
+
 const markNotificationAsRead = (notificationId) => {
   const s = getSocket();
   if (s) {
@@ -425,6 +434,7 @@ const socketService = {
   subscribeToNotifications,
   unsubscribeFromNotifications,
   isSubscribedToNotifications: () => isSubscribedToNotifications,
+  handleReconnect,
   markNotificationAsRead,
   disconnectSocket,
   onMessageReceived,
