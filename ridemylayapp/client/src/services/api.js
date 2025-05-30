@@ -65,7 +65,9 @@ export const userAPI = {
   toggleFollow: (username) => api.put(`/users/${username}/follow`),
   getLeaderboard: (timeframe = 'all', page = 1, limit = 10, type = 'all') => 
     api.get('/users/leaderboard', { params: { timeframe, page, limit, type } }),
-  searchUsers: (query) => api.get(`/users/search?query=${query}`),
+  searchUsers: (query = '', page = 1, limit = 10) => {
+    return api.get(`/users/search`, { params: { query, page, limit } });
+  }
 };
 
 // Bet API calls 
