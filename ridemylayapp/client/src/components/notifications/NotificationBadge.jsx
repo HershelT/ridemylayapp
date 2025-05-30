@@ -24,7 +24,7 @@ const NotificationBadge = () => {
     };
 
     setupNotifications();
-    // Reconnection handler
+
     // Handle reconnection
     const handleReconnect = () => {
       console.log('Socket reconnected, refreshing notification state');
@@ -32,6 +32,9 @@ const NotificationBadge = () => {
       fetchUnreadCount();
     };
     
+    // Setup event listeners
+    const socket = socketService.getSocket();
+    socket?.on('notification_count_updated', fetchUnreadCount);
     window.addEventListener('socket_reconnected', handleReconnect);
     window.addEventListener('new_notification', handleNewNotification);
 
@@ -43,6 +46,7 @@ const NotificationBadge = () => {
 
     return () => {
       clearInterval(refreshInterval);
+      socket?.off('notification_count_updated', fetchUnreadCount);
       window.removeEventListener('new_notification', handleNewNotification);
       window.removeEventListener('socket_reconnected', handleReconnect);
     };

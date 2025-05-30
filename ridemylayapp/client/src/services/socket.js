@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import useNotificationStore from '../stores/notificationStore';
 
 let socket = null;
 let isSubscribedToNotifications = false;
@@ -31,7 +32,7 @@ const createSocket = () => {
     // Connection event handlers
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
-      socketService.handleReconnect(); // Handle reconnection logic
+      handleReconnect(); // Handle reconnection logic
     });
     
     socket.on('disconnect', (reason) => {
@@ -283,6 +284,12 @@ const subscribeToNotifications = () => {
     console.log('Subscribing to notifications');
     s.emit('subscribe_notifications');
     isSubscribedToNotifications = true;
+
+    // Setup notification count listener
+      socket.on('notification_count_updated', () => {
+        const notificationStore = useNotificationStore.getState();
+        notificationStore.fetchUnreadCount();
+      });
     return true;
   }
   return false;
@@ -295,6 +302,8 @@ const unsubscribeFromNotifications = () => {
     console.log('Unsubscribing from notifications');
     s.emit('unsubscribe_notifications');
     isSubscribedToNotifications = false;
+    socket.off('notification_count_updated');
+
   }
 };
 

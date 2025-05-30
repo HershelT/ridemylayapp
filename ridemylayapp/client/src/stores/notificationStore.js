@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { notificationAPI } from '../services/notificationService';
+import socketService from '../services/socket';
 
 const initialState = {
   notifications: [],
@@ -57,10 +58,10 @@ const useNotificationStore = create((set, get) => {
     },
     fetchUnreadCount: async () => {
       try {
-        const { count } = await notificationAPI.getUnreadCount();
-        set({ unreadCount: count });
+        const response = await notificationAPI.getUnreadCount();
+        set({ unreadCount: response.data.count });
       } catch (error) {
-        set({ error: error.message });
+        console.error('Error fetching unread count:', error);
       }
     },
      markAsRead: async (notificationId) => {
@@ -104,29 +105,41 @@ const useNotificationStore = create((set, get) => {
     },
 
     addNotification: (notification) => {
-      if (!notification || !notification._id) return;
+      // if (!notification || !notification._id) return;
       
-      set(state => {
-        const currentNotifications = Array.isArray(state.notifications) 
-          ? state.notifications 
-          : [];
+      // set(state => {
+      //   const currentNotifications = Array.isArray(state.notifications) 
+      //     ? state.notifications 
+      //     : [];
         
-        // Check if notification already exists
-        const exists = currentNotifications.some(n => n?._id === notification._id);
-        if (exists) return state;
+      //   // Check if notification already exists
+      //   const exists = currentNotifications.some(n => n?._id === notification._id);
+      //   if (exists) return state;
 
-        // Only add if it's unread
-        if (notification.read) return state;
+      //   // Only add if it's unread
+      //   if (notification.read) return state;
 
-        // Add new notification and sort by date
-        const updatedNotifications = [notification, ...currentNotifications]
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      //   // Add new notification and sort by date
+      //   const updatedNotifications = [notification, ...currentNotifications]
+      //     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        return {
-          notifications: updatedNotifications,
-          unreadCount: state.unreadCount + 1
-        };
-      });
+      //   return {
+      //     notifications: updatedNotifications,
+      //     unreadCount: state.unreadCount + 1
+      //   };
+      // });
+      set(state => {
+      const notifications = [notification, ...state.notifications];
+      return {
+        notifications,
+        unreadCount: state.unreadCount + 1
+      };
+    });
+
+    // Emit an event that the notification count has updated
+    const socket = socketService.getSocket();
+    socket?.emit('notification_count_updated');
+
     }
   };
 });
