@@ -9,6 +9,44 @@ const initialState = {
   error: null
 };
 
+let isProcessingNotification = false;
+
+const processedNotifications = new Set();
+
+// Rate limiter for notifications to prevent flooding
+const rateLimiter = (() => {
+  const recentNotifications = new Map(); // entityId -> timestamp
+  const THROTTLE_PERIOD = 2000; // Reduce to 2 seconds between similar notifications
+  
+  return {
+    shouldProcess: (notification) => {
+      if (!notification || !notification.entityId) return true;
+      
+      const now = Date.now();
+      const lastTime = recentNotifications.get(notification.entityId);
+      
+      if (lastTime && now - lastTime < THROTTLE_PERIOD) {
+        console.log(`Rate limiting notification for entity ${notification.entityId}`);
+        return false;
+      }
+      
+      // Update the timestamp
+      recentNotifications.set(notification.entityId, now);
+      
+      // Clean up old entries
+      if (recentNotifications.size > 100) {
+        for (const [key, timestamp] of recentNotifications.entries()) {
+          if (now - timestamp > THROTTLE_PERIOD * 2) {
+            recentNotifications.delete(key);
+          }
+        }
+      }
+      
+      return true;
+    }
+  };
+})();
+
 const useNotificationStore = create((set, get) => ({
   ...initialState,
 
@@ -62,11 +100,31 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
+  // Now update the addNotification function:
   addNotification: (notification) => {
-    if (!notification || !notification._id) return;
+    // Early return if notification is invalid
+    if (!notification || !notification._id) {
+      console.warn('Invalid notification data:', notification);
+      return;
+    }
     
-    // Add a flag to track if we're currently processing notifications
-    // to prevent recursive dispatches
+    // Check if we've already processed this notification
+    if (processedNotifications.has(notification._id)) {
+      console.log('Notification already processed, skipping:', notification._id);
+      return;
+    }
+    
+    // For messages only, apply rate limiting for the same sender/chat
+    if (notification.type === 'message') {
+      if (!rateLimiter.shouldProcess(notification)) {
+        return;
+      }
+    }
+    
+    // Add to processed set
+    processedNotifications.add(notification._id);
+    
+    // Prevent recursive handling
     if (window._processingNotification) {
       console.warn('Preventing recursive notification processing');
       return;
@@ -107,6 +165,14 @@ const useNotificationStore = create((set, get) => ({
     } finally {
       // Always clear the processing flag
       window._processingNotification = false;
+      
+      // Limit the size of processedNotifications set (memory management)
+      if (processedNotifications.size > 1000) {
+        const iterator = processedNotifications.values();
+        for (let i = 0; i < 200; i++) {
+          processedNotifications.delete(iterator.next().value);
+        }
+      }
     }
   },
 

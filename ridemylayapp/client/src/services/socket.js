@@ -228,6 +228,45 @@ const setupSocketEvents = () => {
     
     window.dispatchEvent(new Event('notification_count_updated'));
   });
+
+  socket.on('notification_updated', (notification) => {
+    console.log('Socket: Notification updated', notification);
+    
+    // Find and update the existing notification in the store
+    const notificationStore = useNotificationStore.getState();
+    const notifications = notificationStore.notifications;
+    
+    // Check if we have this notification locally
+    const existingIndex = notifications.findIndex(n => 
+      n._id === notification._id || 
+      (n.entityId === notification.entityId && 
+      n.sender._id === notification.sender && 
+      n.type === 'message')
+    );
+    
+    if (existingIndex >= 0) {
+      // Update the existing notification
+      const updatedNotifications = [...notifications];
+      updatedNotifications[existingIndex] = {
+        ...updatedNotifications[existingIndex],
+        content: notification.content,
+        createdAt: notification.createdAt
+      };
+      
+      // Sort them again by date
+      updatedNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      // Update the store directly
+      notificationStore.setState({
+        notifications: updatedNotifications
+      });
+    } else {
+      // If we don't have it locally, add it as a new notification
+      window.dispatchEvent(new CustomEvent('new_notification', { 
+        detail: notification 
+      }));
+    }
+  });
   
   // Handle errors
   socket.on('error', (error) => {

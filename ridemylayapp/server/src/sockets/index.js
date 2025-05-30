@@ -127,6 +127,11 @@ const setupSocketIO = (server) => {
         const chat = await Chat.findById(message.chat);
         if (!chat) return;
         
+        // Create a cache for notification throttling if it doesn't exist
+        if (!global.notificationThrottling) {
+          global.notificationThrottling = new Map();
+        }
+        
         for (const userId of chat.users) {
           // Skip the sender
           if (userId.toString() === socket.user.id) continue;
@@ -136,23 +141,47 @@ const setupSocketIO = (server) => {
           
           // If user is not online or not in this chat, create notification
           if (!userSocketId || !io.sockets.adapter.rooms.get('chat:' + message.chat)?.has(userSocketId)) {
-            // First, check if a similar notification already exists for this message
-            const existingNotification = await Notification.findOne({
-              recipient: userId,
-              sender: socket.user.id,
-              type: 'message',
-              entityType: 'chat',
-              entityId: message.chat,
-              read: false,
-              createdAt: { $gte: new Date(Date.now() - 60000) } // Last minute
-            });
+            // Create throttling key for this sender-recipient-chat combination
+            const throttleKey = `${socket.user.id}:${userId}:${message.chat}`;
+            const now = Date.now();
             
-            if (existingNotification) {
-              logger.info(`Skipping duplicate notification for user ${userId} in chat ${message.chat}`);
-              continue;
+            // Check if we've recently sent a notification to this user for this chat
+            const lastNotificationTime = global.notificationThrottling.get(throttleKey);
+            
+            // If we've sent a notification in the last 5 seconds, update the existing one instead
+            if (lastNotificationTime && (now - lastNotificationTime < 5000)) {
+              // Update the existing notification with the new message content
+              const existingNotification = await Notification.findOne({
+                recipient: userId,
+                sender: socket.user.id,
+                type: 'message',
+                entityType: 'chat',
+                entityId: message.chat,
+                read: false,
+                createdAt: { $gte: new Date(now - 60000) } // Last minute
+              });
+              
+              if (existingNotification) {
+                // Update content to latest message
+                existingNotification.content = message.content || 'New message';
+                existingNotification.metadata = { messageId: message._id };
+                existingNotification.createdAt = new Date(); // Update timestamp
+                await existingNotification.save();
+                
+                // Send updated notification
+                if (userSocketId) {
+                  io.to(userSocketId).emit('notification_updated', existingNotification);
+                }
+                
+                logger.info(`Updated notification for user ${userId} in chat ${message.chat}`);
+                
+                // Reset throttling timer to prevent too many updates
+                global.notificationThrottling.set(throttleKey, now);
+                continue;
+              }
             }
             
-            // Create notification
+            // Create new notification for this message
             const notification = await Notification.create({
               recipient: userId,
               sender: socket.user.id,
@@ -162,6 +191,18 @@ const setupSocketIO = (server) => {
               entityId: message.chat,
               metadata: { messageId: message._id }
             });
+            
+            // Store when we sent this notification
+            global.notificationThrottling.set(throttleKey, now);
+            
+            // Clean up old throttling entries (older than 1 minute)
+            if (global.notificationThrottling.size > 1000) {
+              for (const [key, timestamp] of global.notificationThrottling.entries()) {
+                if (now - timestamp > 60000) {
+                  global.notificationThrottling.delete(key);
+                }
+              }
+            }
             
             // If user is online but not in chat, send notification
             if (userSocketId) {
