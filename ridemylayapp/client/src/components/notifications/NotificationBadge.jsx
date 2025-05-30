@@ -39,6 +39,8 @@ const NotificationBadge = () => {
 
     return () => {
       clearInterval(refreshInterval);
+      window.removeEventListener('new_notification', handleNewNotification);
+      window.removeEventListener('socket_reconnected', handleReconnect);
     };
   }, [fetchUnreadCount]);
 
