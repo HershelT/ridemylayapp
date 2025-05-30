@@ -200,6 +200,12 @@ const useNotificationStore = create((set, get) => ({
       set({ error: error.message });
     }
   },
+  setState: (state) => {
+    set((currentState) => ({
+      ...currentState,
+      ...state
+    }));
+  },
 
   markAllAsRead: async () => {
     try {

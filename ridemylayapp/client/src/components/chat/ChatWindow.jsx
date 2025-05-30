@@ -59,6 +59,10 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
         setMessages(response.data.messages);
         setLoading(false);
         scrollToBottom();
+        
+        // Mark messages as read right after fetching them
+        console.log(`ChatWindow: Marking messages as read for chat ${chat._id}`);
+        await socketService.markMessagesAsRead(chat._id);
       } catch (error) {
         setError('Failed to load messages');
         console.error('Error fetching messages:', error);
@@ -70,29 +74,43 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
     socketService.subscribeToNotifications();
     fetchMessages();
 
-    // Setup message listener
-   // Update in the useEffect where socket listeners are set up (around line 70)
-  const messageCleanup = socketService.onMessageReceived((message) => {
-    // Verify we're receiving the correct chat ID format
-    console.log('Received message:', message); // Add this for debugging
-    
-    // Check both string and object formats for compatibility
-    const messageChat = typeof message.chat === 'object' ? message.chat._id : message.chat;
-    const currentChat = typeof chat._id === 'object' ? chat._id.toString() : chat._id;
-    
-    if (messageChat === currentChat && message.sender._id !== user._id) {
-      setMessages(prev => [...prev, message]);
-      scrollToBottom();
-      // Mark message as read since we're in the chat
-      socketService.markMessagesAsRead(chat._id);
-    }
-  });
+    // Setup message listener with improved message read marking
+    const messageCleanup = socketService.onMessageReceived((message) => {
+      // Verify we're receiving the correct chat ID format
+      console.log('Received message:', message);
+      
+      // Check both string and object formats for compatibility
+      const messageChat = typeof message.chat === 'object' ? message.chat._id : message.chat;
+      const currentChat = typeof chat._id === 'object' ? chat._id.toString() : chat._id;
+      
+      if (messageChat === currentChat && message.sender._id !== user._id) {
+        console.log('ChatWindow: New message received in current chat');
+        setMessages(prev => {
+          // Check if message already exists to prevent duplicates
+          const messageExists = prev.some(m => m._id === message._id);
+          if (messageExists) return prev;
+          return [...prev, message];
+        });
+        
+        scrollToBottom();
+        
+        // Mark message as read since we're in the chat
+        // Add a small delay to ensure the message is processed first
+        setTimeout(() => {
+          console.log('ChatWindow: Marking messages as read after new message');
+          socketService.markMessagesAsRead(chat._id);
+        }, 100);
+      }
+    });
 
     // Setup notification listener
     const notificationCleanup = socketService.onNewNotification((notification) => {
       if (notification.entityType === 'chat' && notification.entityId === chat._id) {
-        // Chat notifications will be handled by the notification system
-        console.log('New chat notification received:', notification);
+        // Auto-mark as read if we're in the chat
+        console.log('Auto-marking notification as read since we are in the chat:', notification._id);
+        if (notification._id) {
+          socketService.markNotificationAsRead(notification._id);
+        }
       }
     });
 
@@ -111,10 +129,18 @@ const ChatWindow = ({ chat, onBack, isMobileView }) => {
 
     // Cleanup function
     return () => {
+      console.log('ChatWindow: Cleaning up message listeners');
       socketService.leaveChatRoom(chat._id);
       messageCleanup();
       notificationCleanup();
       typingCleanup();
+      
+      // Clear any typing indicators when leaving
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        socketService.typingInChat(chat._id, false);
+        typingTimeoutRef.current = null;
+      }
     };
   }, [chat._id, user._id]);
 

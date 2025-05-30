@@ -24,19 +24,24 @@ const NotificationList = () => {
   }, [notifications]);
 
   useEffect(() => {
+    // When component mounts (notification panel opens), force resubscribe to notifications
+    console.log('NotificationList: Component mounted, forcing resubscription');
+    
+    // First fetch notifications
     fetchNotifications();
     
-    const socket = socketService.getSocket();
-    if (socket && socket.connected) {
-      socket.emit('subscribe_notifications');
-    }
-
+    // Then force resubscribe to make sure socket is properly subscribed
+    // But DON'T unsubscribe from anything when we close
+    socketService.forceResubscribeToNotifications();
+    
+    // IMPORTANT: We're NOT removing any event listeners when unmounting
+    // This ensures we continue receiving messages even after closing the notification panel
     return () => {
-      if (socket && socket.connected) {
-        socket.off('new_notification');
-      }
+      console.log('NotificationList: Component unmounting, but keeping all message listeners active');
+      // Deliberately NOT disconnecting or removing listeners
     };
   }, [fetchNotifications]);
+
 
   const getNotificationTitle = (notification) => {
     if (!notification?.type) return 'New notification';

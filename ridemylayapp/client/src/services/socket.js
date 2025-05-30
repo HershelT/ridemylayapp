@@ -195,30 +195,57 @@ const setupSocketEvents = () => {
 
   // In the setupSocketEvents function, update the new_notification handler:
   socket.on('new_notification', (notification) => {
+    console.log("Socket: Received an update from Server", notification);
+    
+    // Validate notification
+    if (!notification || !notification._id) {
+      console.warn('Received invalid notification:', notification);
+      return;
+    }
+    
     // Skip if already processed (using _id as unique identifier)
-    if (notification._id && processedSocketNotifications.has(notification._id)) {
+    if (processedSocketNotifications.has(notification._id)) {
       console.log('Socket: Duplicate notification skipped', notification._id);
       return;
     }
     
     // Add to processed set
-    if (notification._id) {
-      processedSocketNotifications.add(notification._id);
+    processedSocketNotifications.add(notification._id);
+    
+    // Keep set size manageable
+    if (processedSocketNotifications.size > 100) {
+      const iterator = processedSocketNotifications.values();
+      processedSocketNotifications.delete(iterator.next().value);
+    }
+    
+    // For chat notifications, check if we're already in that chat
+    if (notification.entityType === 'chat') {
+      const chatId = notification.entityId;
+      const isInChat = window.location.pathname.includes(`/messages/${chatId}`);
       
-      // Keep set size manageable
-      if (processedSocketNotifications.size > 100) {
-        const iterator = processedSocketNotifications.values();
-        processedSocketNotifications.delete(iterator.next().value);
+      if (isInChat) {
+        console.log('User already in chat, marking as read immediately:', chatId);
+        // Auto-mark as read if we're in the chat
+        markNotificationAsRead(notification._id);
+        // Also mark messages as read
+        markMessagesAsRead(chatId);
+        return;
       }
     }
     
-    console.log('Socket: New notification received', notification);
-    window.dispatchEvent(new CustomEvent('new_notification', { 
-      detail: notification 
-    }));
+    // Dispatch event with debouncing for chat notifications
+    // For non-chat notifications or different chats, show notification
+    console.log('Socket: New notification being dispatched', notification);
     
-    // Browser notification
-    handleBrowserNotification(notification);
+    // Use setTimeout to ensure this runs after any React state updates
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('new_notification', { 
+        detail: notification 
+      }));
+      
+      // Browser notification
+      handleBrowserNotification(notification);
+    }, 0);
   });
   
   socket.on('notification_count_updated', () => {
@@ -232,36 +259,67 @@ const setupSocketEvents = () => {
   socket.on('notification_updated', (notification) => {
     console.log('Socket: Notification updated', notification);
     
-    // Find and update the existing notification in the store
-    const notificationStore = useNotificationStore.getState();
-    const notifications = notificationStore.notifications;
+    // Before accessing the store, verify notification is valid
+    if (!notification || !notification._id) {
+      console.warn('Received invalid notification update:', notification);
+      return;
+    }
     
-    // Check if we have this notification locally
-    const existingIndex = notifications.findIndex(n => 
-      n._id === notification._id || 
-      (n.entityId === notification.entityId && 
-      n.sender._id === notification.sender && 
-      n.type === 'message')
-    );
+    // Add to processed set to prevent duplicates
+    processedSocketNotifications.add(notification._id);
     
-    if (existingIndex >= 0) {
-      // Update the existing notification
-      const updatedNotifications = [...notifications];
-      updatedNotifications[existingIndex] = {
-        ...updatedNotifications[existingIndex],
-        content: notification.content,
-        createdAt: notification.createdAt
-      };
+    try {
+      // Find and update the existing notification in the store
+      const notificationStore = useNotificationStore.getState();
+      if (!notificationStore) {
+        console.error('Cannot access notification store');
+        // Fallback - just dispatch event
+        window.dispatchEvent(new CustomEvent('new_notification', { 
+          detail: notification 
+        }));
+        return;
+      }
       
-      // Sort them again by date
-      updatedNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const notifications = notificationStore.notifications || [];
       
-      // Update the store directly
-      notificationStore.setState({
-        notifications: updatedNotifications
-      });
-    } else {
-      // If we don't have it locally, add it as a new notification
+      // Check if we have this notification locally
+      const existingIndex = notifications.findIndex(n => 
+        n._id === notification._id || 
+        (n.entityId === notification.entityId && 
+        n.sender && notification.sender &&
+        n.sender._id === notification.sender._id && 
+        n.type === 'message')
+      );
+      
+      if (existingIndex >= 0) {
+        // Update the existing notification
+        const updatedNotifications = [...notifications];
+        updatedNotifications[existingIndex] = {
+          ...updatedNotifications[existingIndex],
+          content: notification.content,
+          createdAt: notification.createdAt
+        };
+        
+        // Sort them again by date
+        updatedNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
+        // Update the store directly with error handling
+        try {
+          notificationStore.setState({
+            notifications: updatedNotifications
+          });
+        } catch (err) {
+          console.error('Error updating notification store:', err);
+        }
+      } else {
+        // If we don't have it locally, add it as a new notification
+        window.dispatchEvent(new CustomEvent('new_notification', { 
+          detail: notification 
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing notification update:', error);
+      // Fallback - dispatch event
       window.dispatchEvent(new CustomEvent('new_notification', { 
         detail: notification 
       }));
@@ -338,6 +396,21 @@ const subscribeToNotifications = () => {
   const s = getSocket();
   if (!s) return false;
   
+  // Handle Promise case
+  if (s instanceof Promise) {
+    s.then(socket => {
+      if (socket && socket.connected && !subscriptions.notifications) {
+        console.log('Socket: Subscribing to notifications (delayed)');
+        socket.emit('subscribe_notifications');
+        subscriptions.notifications = true;
+      }
+    }).catch(err => {
+      console.error('Failed to subscribe to notifications:', err);
+    });
+    
+    return false;
+  }
+  
   if (subscriptions.notifications) {
     console.log('Socket: Already subscribed to notifications');
     return true;
@@ -347,28 +420,80 @@ const subscribeToNotifications = () => {
   
   // Only subscribe if we're connected
   if (s.connected) {
-    s.emit('subscribe_notifications');
-    subscriptions.notifications = true;
-    
-    // Success
-    return true;
+    try {
+      s.emit('subscribe_notifications');
+      subscriptions.notifications = true;
+      
+      // Success
+      return true;
+    } catch (error) {
+      console.error('Error subscribing to notifications:', error);
+      return false;
+    }
   }
   
   return false;
 };
 
-// Unsubscribe from notifications
-const unsubscribeFromNotifications = () => {
+// Add a function to force resubscribe to notifications
+const forceResubscribeToNotifications = () => {
   const s = getSocket();
-  if (!s) return;
+  if (!s) return false;
   
-  console.log('Socket: Unsubscribing from notifications');
+  // Reset subscription status
+  // subscriptions.notifications = false;
   
-  if (s.connected) {
-    s.emit('unsubscribe_notifications');
+  // Handle Promise case
+  if (s instanceof Promise) {
+    s.then(socket => {
+      if (socket && socket.connected) {
+        console.log('Socket: Force resubscribing to notifications (delayed)');
+        socket.emit('subscribe_notifications');
+        subscriptions.notifications = true;
+      }
+    }).catch(err => {
+      console.error('Failed to resubscribe to notifications:', err);
+    });
+    
+    return false;
   }
   
-  subscriptions.notifications = false;
+  console.log('Socket: Force resubscribing to notifications');
+  
+  // Only subscribe if we're connected
+  if (s.connected) {
+    try {
+      s.emit('subscribe_notifications');
+      subscriptions.notifications = true;
+      return true;
+    } catch (error) {
+      console.error('Error resubscribing to notifications:', error);
+      return false;
+    }
+  }
+  
+  return false;
+};
+
+// //Unsubscribe from notifications
+// const unsubscribeFromNotifications = () => {
+//   const s = getSocket();
+//   if (!s) return;
+  
+//   console.log('Socket: Unsubscribing from notifications');
+  
+//   if (s.connected) {
+//     s.emit('unsubscribe_notifications');
+//   }
+  
+//   subscriptions.notifications = false;
+// };
+const unsubscribeFromNotifications = () => {
+  // We're deliberately not doing anything here to ensure continuous message receiving
+  console.log('Socket: Unsubscribe from notifications requested but ignored to maintain message listeners');
+  
+  // Do NOT reset subscription status
+  // Do NOT emit unsubscribe_notifications
 };
 
 // Join chat room
@@ -994,6 +1119,7 @@ const socketService = {
   subscribeToNotifications,
   unsubscribeFromNotifications,
   isSubscribedToNotifications, // helps with checking subscription status
+  forceResubscribeToNotifications,
   getReconnectAttempts,
   getLastError,
   joinChatRoom,

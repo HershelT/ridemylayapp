@@ -71,15 +71,17 @@ const Header = ({ toggleTheme }) => {
           <div className="relative" ref={notificationsRef}>
             <button 
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-             onClick={() => {
-              const newState = !showNotifications;
-              setShowNotifications(newState);
-              if (newState) {
-                // Only fetch notifications when opening the panel
-                fetchNotifications();
-              }
-            }}>
-            
+              onClick={() => {
+                const newState = !showNotifications;
+                setShowNotifications(newState);
+                if (newState) {
+                  // Only fetch notifications when opening the panel
+                  fetchNotifications();
+                  // Force resubscribe to notifications, but DON'T unsubscribe from anything
+                  socketService.forceResubscribeToNotifications();
+                }
+                // Important: We don't call any unsubscribe functions when closing
+              }}>
               <NotificationBadge />
             </button>
             {showNotifications && (
