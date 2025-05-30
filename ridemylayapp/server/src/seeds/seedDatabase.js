@@ -477,7 +477,7 @@ const seedDatabase = async () => {
       email: email,
       passwordHash: password, // Will be hashed by pre-save middleware
       name: 'Hershel Thomas',
-      bio: '🎲 Sports betting enthusiast | Analytics-driven picks | Building RideMyLay',
+      bio: '🎲 Sports betting enthusiast | Analytics-driven picks | Building ParrLei',
       profilePicture: 'https://api.dicebear.com/9.x/icons/svg?seed=hershelt',
       isVerified: true,
       role: 'admin',

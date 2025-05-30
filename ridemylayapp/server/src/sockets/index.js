@@ -15,7 +15,7 @@ const setupSocketIO = (server) => {
   const io = socketIo(server, {
     cors: {
       origin: process.env.NODE_ENV === 'production'
-        ? [process.env.CLIENT_URL, 'https://www.ridemylay.com', 'https://ride-my-lay.vercel.app']
+        ? [process.env.CLIENT_URL, 'https://www.ridemylay.com', 'https://ride-my-lay.vercel.app', 'https://www.parrlei.com']
         : 'http://localhost:3000',
       methods: ['GET', 'POST'],
       credentials: true

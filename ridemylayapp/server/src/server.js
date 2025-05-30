@@ -23,7 +23,7 @@ const app = express();
 // and your custom domain (https://www.ridemylay.com).
 // In development, it's localhost:3000
 const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [process.env.CLIENT_URL, 'https://www.ridemylay.com', 'https://ride-my-lay.vercel.app'] // Add your Vercel default domain here too
+    ? [process.env.CLIENT_URL, 'https://www.ridemylay.com', 'https://ride-my-lay.vercel.app', 'https://www.parrlei.com'] // Add your Vercel default domain here too
     : ['http://localhost:3000'];
 
 // --- Middleware ---
