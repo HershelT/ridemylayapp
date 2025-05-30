@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Routes, Route } from 'react-router-dom';
 import ChatList from '../components/chat/ChatList';
 import ChatWindow from '../components/chat/ChatWindow';
 import useAuthStore from '../store/authStore';
 import useMessageStore from '../stores/messageStore';
-import { messageAPI } from '../services/chatApi';
+import { messageAPI, chatAPI } from '../services/chatApi';
+import { useSocket } from '../providers/SocketProvider';
+// Add this to your existing imports
+import { useLocation } from 'react-router-dom';
+
 
 const Messages = () => {
   const { user, isAuthenticated } = useAuthStore();
   const { resetUnreadCount } = useMessageStore();
+  const { chatId } = useParams();
   const navigate = useNavigate();
+  const socket = useSocket();
+  const location = useLocation();
+
+  
   const [selectedChat, setSelectedChat] = useState(null);
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
 
   // Reset unread count when entering messages page
@@ -20,15 +31,90 @@ const Messages = () => {
     }
   }, [isAuthenticated, resetUnreadCount]);
 
+  // Load chats initially
+  useEffect(() => {
+    const loadChats = async () => {
+      try {
+        const response = await chatAPI.getUserChats();
+        setChats(response.data.chats);
+        
+        // If chatId provided in URL, select that chat
+        if (chatId) {
+          const chat = response.data.chats.find(c => c._id === chatId);
+          if (chat) {
+            setSelectedChat(chat);
+            markAsRead(chat);
+          }
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading chats:', error);
+        setLoading(false);
+      }
+    };
+    
+    if (isAuthenticated) {
+      loadChats();
+    }
+  }, [isAuthenticated, chatId]);
+
+  // Add this useEffect to handle bet sharing
+  useEffect(() => {
+    // Check if we have a bet to share
+    if (location.state?.shareBet && selectedChat) {
+      const sendBetMessage = async () => {
+        try {
+          // Send message with bet attachment
+          const messageData = {
+            chatId: selectedChat._id,
+            content: "Check out this bet!",
+            attachments: [{
+              type: 'bet',
+              betId: location.state.shareBet.betId
+            }]
+          };
+          
+          // Add betData if available
+          if (location.state.shareBet.status || 
+              location.state.shareBet.odds || 
+              location.state.shareBet.stake) {
+            messageData.attachments[0].betData = {
+              status: location.state.shareBet.status,
+              odds: location.state.shareBet.odds,
+              stake: location.state.shareBet.stake
+            };
+          }
+          
+          await messageAPI.sendMessage(messageData);
+          
+          // Clear the state to prevent duplicate messages
+          navigate(`/messages/${selectedChat._id}`, { replace: true });
+        } catch (error) {
+          console.error('Error sending bet message:', error);
+        }
+      };
+      
+      sendBetMessage();
+    }
+  }, [location.state, selectedChat, navigate]);
+
   // Handle chat selection and mark messages as read
   const handleSelectChat = async (chat) => {
     setSelectedChat(chat);
+    navigate(`/messages/${chat._id}`);
+    
     if (chat) {
-      try {
-        await messageAPI.markAsRead(chat._id);
-      } catch (error) {
-        console.error('Error marking messages as read:', error);
-      }
+      markAsRead(chat);
+    }
+  };
+  
+  const markAsRead = async (chat) => {
+    try {
+      await messageAPI.markAsRead(chat._id);
+      socket.markMessagesAsRead(chat._id);
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
     }
   };
 
@@ -42,13 +128,6 @@ const Messages = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
-
   if (!isAuthenticated) return null;
 
   return (
@@ -58,6 +137,7 @@ const Messages = () => {
         isMobileView && selectedChat ? 'hidden' : 'w-full md:w-1/3 lg:w-1/4'
       } bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700`}>
         <ChatList 
+          chats={chats}
           onSelectChat={handleSelectChat}
           selectedChat={selectedChat}
         />
@@ -70,7 +150,10 @@ const Messages = () => {
         {selectedChat ? (
           <ChatWindow
             chat={selectedChat}
-            onBack={() => handleSelectChat(null)}
+            onBack={() => {
+              setSelectedChat(null);
+              navigate('/messages');
+            }}
             isMobileView={isMobileView}
           />
         ) : (

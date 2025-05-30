@@ -1,55 +1,53 @@
 const socketIo = require('socket.io');
-const jwt = require('../utils/jwt');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Bet = require('../models/Bet');
+const Notification = require('../models/Notification');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
-const Notification = require('../models/Notification');
+const Bet = require('../models/Bet');
 const logger = require('../utils/logger');
 
-// Map to store active users' socket IDs
-const activeUsers = new Map();
+// Track online users
+const onlineUsers = new Map();
 
+// Setup socket.io with the server
 const setupSocketIO = (server) => {
   const io = socketIo(server, {
     cors: {
-      origin: process.env.CLIENT_URL || '*',
+      origin: process.env.NODE_ENV === 'production'
+        ? [process.env.CLIENT_URL, 'https://www.ridemylay.com', 'https://ride-my-lay.vercel.app']
+        : 'http://localhost:3000',
       methods: ['GET', 'POST'],
       credentials: true
     }
   });
 
-  // Socket.io middleware for authentication
+  // Socket authentication middleware
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token;
-
+      
       if (!token) {
         return next(new Error('Authentication error: No token provided'));
       }
-
+      
       // Verify token
-      const { valid, decoded, error } = jwt.verifyToken(token);
-
-      if (!valid) {
-        logger.warn(`Socket auth: Invalid token: ${error}`);
-        return next(new Error('Authentication error: Invalid token'));
-      }
-
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
       // Find user
-      const user = await User.findById(decoded.id);
-
+      const user = await User.findById(decoded.id).select('-password');
+      
       if (!user) {
         logger.warn(`Socket auth: User not found for ID: ${decoded.id}`);
         return next(new Error('Authentication error: User not found'));
       }
-
-      // Store user info in socket
-      socket.user = {
-        id: user._id.toString(),
-        username: user.username
-      };
-
+      
+      // Attach user to socket
+      socket.user = user;
+      
+      // Update user's last active time
+      await User.findByIdAndUpdate(user._id, { lastActive: new Date() });
+      
       next();
     } catch (error) {
       logger.error(`Socket auth error: ${error.message}`);
@@ -57,233 +55,221 @@ const setupSocketIO = (server) => {
     }
   });
 
-  io.on('connection', (socket) => {
-    logger.info(`New socket connection: ${socket.id} for user: ${socket.user.username}`);    // Store user's socket ID
-    activeUsers.set(socket.user.id, socket.id);
-
+  // Handle connection
+  io.on('connection', async (socket) => {
+    const userId = socket.user._id.toString();
+    
+    logger.info(`User connected: ${socket.user.username} (${userId})`);
+    
+    // Add user to online users map
+    onlineUsers.set(userId, socket.id);
+    
     // Update user's online status
-    updateUserStatus(socket.user.id, true);
-
-    // Join user to their personal room for direct messages
-    socket.join(`user:${socket.user.id}`);
-
-    // Subscribe to notifications
+    await User.findByIdAndUpdate(userId, { 
+      lastActive: new Date(),
+      'status.isOnline': true
+    });
+    
+    // Emit user status change to all sockets
+    io.emit('user_status_change', { 
+      userId, 
+      username: socket.user.username,
+      isOnline: true 
+    });
+    
+    // Handle ping to keep connection alive
+    socket.on('ping', () => {
+      socket.emit('pong');
+    });
+    
+    // Handle notification subscription
     socket.on('subscribe_notifications', async () => {
       try {
         // Find unread notifications for the user
         const unreadNotifications = await Notification.find({
           recipient: socket.user.id,
           read: false
-        }).sort({ createdAt: -1 });
+        })
+        .sort({ createdAt: -1 })
+        .populate('sender', 'username avatarUrl')
+        .limit(30);
 
         // Send existing unread notifications
         socket.emit('notifications_init', unreadNotifications);
+        
+        // Keep track of subscribed users
+        socket.join('notifications:' + socket.user.id);
+        
+        logger.info(`User ${socket.user.username} subscribed to notifications`);
       } catch (error) {
         logger.error(`Error fetching notifications: ${error.message}`);
         socket.emit('notification_error', 'Failed to load notifications');
       }
     });
-
-    // Handle user disconnect
-    socket.on('disconnect', () => {
-      logger.info(`Socket disconnected: ${socket.id} for user: ${socket.user.username}`);
-      
-      // Remove user from active users
-      activeUsers.delete(socket.user.id);
-      
-      // Update user's online status
-      updateUserStatus(socket.user.id, false);
+    
+    socket.on('unsubscribe_notifications', () => {
+      socket.leave('notifications:' + socket.user.id);
+      logger.info(`User ${socket.user.username} unsubscribed from notifications`);
     });
 
-    // Handle joining chat rooms
-    socket.on('join_chat', (chatId) => {
-      socket.join(`chat:${chatId}`);
-      logger.info(`User ${socket.user.username} joined chat room: ${chatId}`);
-    });
-
-    // Handle leaving chat rooms
-    socket.on('leave_chat', (chatId) => {
-      socket.leave(`chat:${chatId}`);
-      logger.info(`User ${socket.user.username} left chat room: ${chatId}`);
-    });    // Handle new message    
-    socket.on('new_message', async function handleNewMessage(message) {
+    // Handle new messages
+    socket.on('new_message', async (message) => {
       try {
-        logger.info(`Processing new message from ${socket.user.username} in chat ${message.chat}`);
-        
-        // Get chat details to create notifications first
-        const chat = await Chat.findById(message.chat)
-          .populate('users', 'username avatarUrl')
-          .populate('latestMessage');
-
-        if (!chat) {
-          throw new Error('Chat not found');
+        if (!message.chat) {
+          return;
         }
-
+        
         // Broadcast to all users in the chat room except sender
-        const messageWithSender = {
-          ...message,
-          sender: {
-            _id: socket.user.id,
-            username: socket.user.username
-          }
-        };
-        socket.to(`chat:${message.chat}`).emit('message_received', messageWithSender);
-          // Create notifications for other users in the chat
-        const notificationPromises = chat.users
-          .filter(user => user._id.toString() !== socket.user.id)
-          .map(async (user) => {
-            try {
-              logger.info(`Creating notification for user ${user._id}`);
-              
-              // Create notification with rich preview
-              const notification = await Notification.create({
-                recipient: user._id,
-                sender: socket.user.id,
-                type: 'message',
-                content: message.content.substring(0, 100), // Include message preview
-                entityType: 'chat',
-                entityId: chat._id,
-                metadata: {
-                  messageId: message._id,
-                  chatName: chat.name || 'Direct Message',
-                  isGroupChat: chat.isGroupChat || false,
-                  messageType: message.type || 'text',
-                  senderUsername: socket.user.username
-                }
-              });
-
-              // Find all socket connections for this recipient
-              const recipientSockets = Array.from(io.sockets.sockets.values())
-                .filter(s => s.user && s.user.id === user._id.toString());              if (recipientSockets.length > 0) {
-                // User is online in at least one tab/window
-                const notificationData = {
-                  ...notification.toObject(),
-                  sender: {
-                    _id: socket.user.id,
-                    username: socket.user.username
-                  }
-                };                // Emit to all of user's connected sockets
-                recipientSockets.forEach(recipientSocket => {
-                  // Only send notification if user is not in the chat
-                  if (!recipientSocket.rooms.has(`chat:${message.chat}`)) {
-                    recipientSocket.emit('new_notification', notificationData);
-                  }
-                });
-              }
-
-              logger.info(`Notification created and sent to user ${user._id}`);
-              return notification;
-            } catch (error) {
-              logger.error(`Error creating notification for user ${user._id}: ${error.message}`);
-              return null;
+        socket.to('chat:' + message.chat).emit('message_received', message);
+        
+        // Also create notifications for offline users
+        // Get chat users excluding sender
+        const chat = await Chat.findById(message.chat);
+        if (!chat) return;
+        
+        for (const userId of chat.users) {
+          // Skip the sender
+          if (userId.toString() === socket.user.id) continue;
+          
+          // Check if user is online and in the chat room
+          const userSocketId = onlineUsers.get(userId.toString());
+          
+          // If user is not online or not in this chat, create notification
+          if (!userSocketId || !io.sockets.adapter.rooms.get('chat:' + message.chat)?.has(userSocketId)) {
+            // Create notification
+            const notification = await Notification.create({
+              recipient: userId,
+              sender: socket.user.id,
+              type: 'message',
+              content: message.content || 'New message',
+              entityType: 'chat',
+              entityId: message.chat,
+              metadata: { messageId: message._id }
+            });
+            
+            // If user is online but not in chat, send notification
+            if (userSocketId) {
+              io.to(userSocketId).emit('new_notification', notification);
             }
-          });
-
-        const notifications = await Promise.all(notificationPromises);
-        const validNotifications = notifications.filter(n => n !== null);
+          }
+        }
       } catch (error) {
         logger.error(`Error handling new message: ${error.message}`);
-        socket.emit('message_error', 'Failed to process message');
       }
+});
+    
+    // Handle chat room operations
+    socket.on('join_chat', (chatId) => {
+      socket.join('chat:' + chatId);
+      logger.info(`User ${socket.user.username} joined chat ${chatId}`);
     });
-
-    // Handle marking messages as read
-    socket.on('read_messages', async (chatId) => {
-      try {
-        await Message.updateMany(
-          {            chat: chatId,
-            readBy: { $ne: socket.user.id }
-          },
-          {
-            $addToSet: { readBy: socket.user.id }
-          }
-        );
-
-        // Notify other users that messages have been read
-        socket.to(`chat:${chatId}`).emit('messages_read', {
-          chatId,
-          userId: socket.user.id
-        });
-      } catch (error) {
-        logger.error(`Error marking messages as read: ${error.message}`);
-      }
+    
+    socket.on('leave_chat', (chatId) => {
+      socket.leave('chat:' + chatId);
+      logger.info(`User ${socket.user.username} left chat ${chatId}`);
     });
-
-    // Handle typing indication
+    
+    // Handle typing notifications
     socket.on('typing', ({ chatId, isTyping }) => {
-      socket.to(`chat:${chatId}`).emit('user_typing', {
+      socket.to('chat:' + chatId).emit('user_typing', {
         userId: socket.user.id,
         username: socket.user.username,
         isTyping
       });
     });
-
-    // Handle read notifications
-    socket.on('read_notification', async ({ notificationId }) => {
-      const notification = await Notification.findByIdAndUpdate(
-        notificationId,
-        { read: true },
-        { new: true }
-      );
-      
-      if (notification) {
-        socket.emit('notification_updated', notification);
+    
+    // Handle read messages
+    socket.on('read_messages', async (chatId) => {
+      try {
+        // Mark messages as read
+        await Message.updateMany(
+          { 
+            chat: chatId, 
+            sender: { $ne: socket.user.id },
+            readBy: { $ne: socket.user.id }
+          },
+          { $addToSet: { readBy: socket.user.id } }
+        );
+        
+        // Notify other users in the chat
+        socket.to('chat:' + chatId).emit('messages_read', {
+          chatId,
+          userId: socket.user.id
+        });
+        
+        logger.info(`User ${socket.user.username} marked messages as read in chat ${chatId}`);
+      } catch (error) {
+        logger.error(`Error marking messages as read: ${error.message}`);
       }
     });
-
-    // Handle bet interactions (like, comment, share)
-    socket.on('bet_interaction', async ({ betId, userId, type, data }) => {
+    
+    // Handle read notification
+    socket.on('read_notification', async ({ notificationId }) => {
       try {
-        // Create notification for the bet owner
-        const bet = await Bet.findById(betId).populate('userId', 'username');
+        await Notification.findByIdAndUpdate(notificationId, { read: true });
         
-        if (bet && bet.userId._id.toString() !== socket.user.id) {
-          const notification = await Notification.create({
-            recipient: bet.userId._id,
-            sender: socket.user.id,
-            type: 'bet_interaction',
-            content: `${socket.user.username} ${type}d your bet`,
-            entityType: 'bet',
-            entityId: betId,
-            metadata: { interactionType: type }
-          });
-
-          // Send notification to recipient if online
-          if (activeUsers.has(bet.userId._id.toString())) {
-            io.to(`user:${bet.userId._id}`).emit('new_notification', notification);
-          }
-        }
-
-        // Broadcast to all relevant users
-        io.emit('bet_update', {
-          betId,
-          userId,
-          type, // 'like', 'comment', 'share', 'ride', 'hedge'
-          data
-      });
-    }
-        catch (error) {
-            logger.error(`Error handling bet interaction: ${error.message}`);
-            socket.emit('bet_interaction_error', 'Failed to process bet interaction');
-        }
-        });
-  });
-
-  // Helper function to update user's online status
-  const updateUserStatus = async (userId, isOnline) => {
-    try {
+        // Emit notification count updated event
+        socket.emit('notification_count_updated');
+        
+        logger.info(`User ${socket.user.username} marked notification ${notificationId} as read`);
+      } catch (error) {
+        logger.error(`Error marking notification as read: ${error.message}`);
+      }
+    });
+    
+    // Handle bet interactions
+    socket.on('bet_interaction', async ({ betId, type, data }) => {
+      try {
+        // Log interaction for analytics
+        logger.info(`Bet interaction: ${socket.user.username} ${type} bet ${betId}`);
+        
+        // Could implement detailed analytics tracking here
+      } catch (error) {
+        logger.error(`Error processing bet interaction: ${error.message}`);
+      }
+    });
+    
+    // Handle disconnect
+    socket.on('disconnect', async () => {
+      logger.info(`User disconnected: ${socket.user.username} (${userId})`);
+      
+      // Remove user from online users map
+      onlineUsers.delete(userId);
+      
+      // Update user's online status
       await User.findByIdAndUpdate(userId, {
-        lastActive: new Date()
+        lastActive: new Date(),
+        'status.isOnline': false
       });
       
-      // Broadcast user status update to relevant users
-      io.emit('user_status_change', {
-        userId,
-        isOnline,
-        lastActive: new Date()
+      // Emit user status change to all sockets
+      io.emit('user_status_change', { 
+        userId, 
+        username: socket.user.username,
+        isOnline: false 
       });
+    });
+  });
+
+  // Utility function to send notification
+  io.sendNotification = async (notification) => {
+    try {
+      // Find recipient's socket if they're online
+      const recipientSocketId = onlineUsers.get(notification.recipient.toString());
+      
+      if (recipientSocketId) {
+        // Emit to specific user
+        io.to(recipientSocketId).emit('new_notification', notification);
+        
+        // Also emit to user's notification room for multi-tab support
+        io.to('notifications:' + notification.recipient).emit('new_notification', notification);
+      }
+      
+      // We always save the notification to database even if user is offline
+      return true;
     } catch (error) {
-      logger.error(`Error updating user status: ${error.message}`);
+      logger.error(`Error sending notification: ${error.message}`);
+      return false;
     }
   };
 

@@ -23,42 +23,35 @@ const Header = ({ toggleTheme }) => {
     const { fetchNotifications } = require('../../stores/notificationStore').default();
   
   // Fetch initial unread count and set up socket listeners
-  React.useEffect(() => {
-    // Initial notification count fetch
-    fetchUnreadCount();    if (user) {
-      // Listen for new messages
-      const messageCleanup = socketService.onMessageReceived((data) => {
-        if (data.sender._id !== user._id) {  // Only increment if message is not from current user
-          incrementUnreadCount();
-        }
-      });
-
-      // Listen for message read events
-      const socket = socketService.getSocket();
-      if (socket) {
-        socket.on('messages_read', (data) => {
-          if (data.userId === user._id) {
-            fetchUnreadCount(); // Refresh count when messages are marked as read
-          }
-        });
-
-        // Listen for socket reconnection
-        window.addEventListener('socket_reconnected', fetchUnreadCount);
+ React.useEffect(() => {
+  // Initial notification count fetch
+  fetchUnreadCount();
+  
+  if (user) {
+    // Create event listeners
+    const messageCleanup = socketService.onMessageReceived((data) => {
+      if (data.sender._id !== user._id) {
+        incrementUnreadCount();
       }
-
-      // Listen for new notifications
-      const notificationCleanup = socketService.onNewNotification(() => {
-        fetchUnreadCount(); // Refresh count for new notifications
-      });      return () => {
-        messageCleanup(); // Clean up message received listener
-        notificationCleanup(); // Clean up notification listener
-        window.removeEventListener('socket_reconnected', fetchUnreadCount);
-        if (socket) {
-          socket.off('messages_read');
-        }
-      };
-    }
-  }, [fetchUnreadCount, user, incrementUnreadCount, handleNewNotification]);
+    });
+    
+    const notificationCleanup = socketService.onNewNotification(() => {
+      fetchUnreadCount();
+    });
+    
+    // Also listen for reconnection events
+    const handleReconnect = () => {
+      fetchUnreadCount();
+    };
+    window.addEventListener('socket_reconnected', handleReconnect);
+    
+    return () => {
+      messageCleanup();
+      notificationCleanup();
+      window.removeEventListener('socket_reconnected', handleReconnect);
+    };
+  }
+}, [fetchUnreadCount, user, incrementUnreadCount]);
 
   React.useEffect(() => {
     document.addEventListener('mousedown', handleClickOutside);

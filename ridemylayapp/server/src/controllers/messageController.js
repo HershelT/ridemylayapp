@@ -101,15 +101,27 @@ exports.sendMessage = async (req, res, next) => {
       });
     }
 
+    // Create message with validated attachments
+    let processedAttachments = [];
+    if (attachments && attachments.length > 0) {
+      processedAttachments = attachments.map(att => {
+        // Basic validation for attachment data
+        if (att.type === 'bet' && !att.betId) {
+          return null; // Skip invalid attachments
+        }
+        return att;
+      }).filter(Boolean); // Remove null entries
+    }
+
     // Create message
     let message = await Message.create({
       sender: req.user.id,
       content: content || '',
       chat: chatId,
-      attachments: attachments || [],
+      attachments: processedAttachments,
       readBy: [req.user.id] // Mark as read by sender
     });
-
+    
     // Populate sender info
     message = await message.populate('sender', 'username avatarUrl');
     message = await message.populate('readBy', 'username');

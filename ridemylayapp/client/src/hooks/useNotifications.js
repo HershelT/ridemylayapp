@@ -12,7 +12,11 @@ export const useNotifications = () => {
       // Initial setup
       await fetchNotifications();
       
-      if (!socketService.isSubscribedToNotifications()) {
+      // Check if we're already subscribed to notifications
+      // Use optional chaining to prevent errors if the function doesn't exist
+      const isAlreadySubscribed = socketService.isSubscribedToNotifications?.() || false;
+      
+      if (!isAlreadySubscribed) {
         socketService.subscribeToNotifications();
       }
 

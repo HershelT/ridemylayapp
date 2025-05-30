@@ -30,6 +30,11 @@ const MessageSchema = new mongoose.Schema(
       betId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Bet'
+      },
+      betData: {
+        status: String,
+        odds: Number,
+        stake: Number
       }
     }],
     isEdited: {

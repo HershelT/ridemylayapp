@@ -13,12 +13,12 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import BetDetails from './pages/BetDetails';
-import Messages from './pages/Messages'; // Add this import
-
+import Messages from './pages/Messages';
 
 // Components
 import Header from './components/common/Header';
 import TabBar from './components/common/TabBar';
+import ConnectionMonitor from './components/common/ConnectionMonitor';
 
 // Services
 import socketService from './services/socket';
@@ -29,28 +29,16 @@ import { useNotifications } from './hooks/useNotifications';
 // Store
 import useAuthStore from './store/authStore';
 
-// Create a new AppContent component
-const AppContent = () => {
-  const { isAuthenticated, user, loadUser, token } = useAuthStore();
+const App = () => {
+  const { isAuthenticated, loadUser, token } = useAuthStore();
   const [theme, setTheme] = React.useState('light');
-  useNotifications(); // Now this is within Router context
 
+  // Theme handling logic
   useEffect(() => {
-    // Check for saved theme preference
     const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
     document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-
-    // Initialize socket connection if user is authenticated
-    if (token) {
-      socketService.createSocket();
-    }
-
-    // Load user data if token exists
-    if (token) {
-      loadUser();
-    }
-  }, [token, loadUser]);
+  }, []);
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -59,51 +47,59 @@ const AppContent = () => {
     document.documentElement.classList.toggle('dark', newTheme === 'dark');
   };
 
+  // Load user if token exists
+  useEffect(() => {
+    if (token) {
+      loadUser();
+      socketService.createSocket();
+    }
+  }, [token, loadUser]);
+
   return (
-    <div className={`App min-h-screen ${theme === 'dark' ? 'dark bg-dark text-white' : 'bg-gray-50 text-gray-900'}`}>
-      {isAuthenticated && <Header toggleTheme={toggleTheme} />}
-      <main className={`container mx-auto px-4 ${isAuthenticated ? 'pb-16 pt-16' : 'py-0'}`}>
-          {/* Keep existing routes */}
+    <Router>
+      <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        {isAuthenticated && <Header toggleTheme={toggleTheme} />}
+        <main className={`container mx-auto px-4 ${isAuthenticated ? 'pb-16 pt-16' : 'py-0'}`}>
           <Routes>
-                  {/* Auth Routes (Public) */}
-                  <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
-                  <Route path="/register" element={isAuthenticated ? <Navigate to="/" /> : <Register />} />
-                  <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/" /> : <ForgotPassword />} />
-                  <Route path="/reset-password/:token" element={isAuthenticated ? <Navigate to="/" /> : <ResetPassword />} />
-                  
-                  {/* Protected Routes */}
-                  <Route path="/" element={isAuthenticated ? <Home /> : <Navigate to="/login" />} />            
-                  <Route path="/search" element={isAuthenticated ? <Search /> : <Navigate to="/login" />} />
-                  <Route path="/post" element={isAuthenticated ? <Post /> : <Navigate to="/login" />} />
-                  <Route path="/messages" element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} /> 
-                  <Route path="/leaderboard" element={isAuthenticated ? <Leaderboard /> : <Navigate to="/login" />} />
-                  <Route path="/profile" element={isAuthenticated ? <Navigate to="/profile/me" /> : <Navigate to="/login" />} />
-                  <Route path="/profile/:userId" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
-                  <Route path="/bets/:id" element={isAuthenticated ? <BetDetails /> : <Navigate to="/login" />} />
-          {/* ... existing routes ... */}
-        </Routes>
-      </main>
-      {isAuthenticated && <TabBar />}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: theme === 'dark' ? '#374151' : '#ffffff',
-            color: theme === 'dark' ? '#ffffff' : '#1f2937',
-          },
-        }}
-      />
-    </div>
+            {/* Auth Routes (Public) */}
+            <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
+            <Route path="/register" element={isAuthenticated ? <Navigate to="/" /> : <Register />} />
+            <Route path="/forgot-password" element={isAuthenticated ? <Navigate to="/" /> : <ForgotPassword />} />
+            <Route path="/reset-password/:token" element={isAuthenticated ? <Navigate to="/" /> : <ResetPassword />} />
+            
+            {/* Protected Routes */}
+            <Route path="/" element={isAuthenticated ? <Home /> : <Navigate to="/login" />} />            
+            <Route path="/search" element={isAuthenticated ? <Search /> : <Navigate to="/login" />} />
+            <Route path="/post" element={isAuthenticated ? <Post /> : <Navigate to="/login" />} />
+            <Route path="/messages/*" element={isAuthenticated ? <Messages /> : <Navigate to="/login" />} /> 
+            <Route path="/leaderboard" element={isAuthenticated ? <Leaderboard /> : <Navigate to="/login" />} />
+            <Route path="/profile" element={isAuthenticated ? <Navigate to="/profile/me" /> : <Navigate to="/login" />} />
+            <Route path="/profile/:userId" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
+            <Route path="/bets/:id" element={isAuthenticated ? <BetDetails /> : <Navigate to="/login" />} />
+          </Routes>
+        </main>
+        {isAuthenticated && <TabBar />}
+        {isAuthenticated && <ConnectionMonitor />}
+        {isAuthenticated && <NotificationsListener />}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: theme === 'dark' ? '#374151' : '#ffffff',
+              color: theme === 'dark' ? '#ffffff' : '#1f2937',
+            },
+          }}
+        />
+      </div>
+    </Router>
   );
 };
 
-const App = () => {
-  return (
-    <Router>
-      <AppContent />
-    </Router>
-  );
+// Component to handle notification setup once user is authenticated
+const NotificationsListener = () => {
+  useNotifications(); // Use hook within Router context
+  return null;
 };
 
 export default App;

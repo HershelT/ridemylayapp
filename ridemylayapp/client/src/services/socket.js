@@ -1,171 +1,519 @@
 import { io } from 'socket.io-client';
 import useNotificationStore from '../stores/notificationStore';
 
+// Socket state variables
 let socket = null;
-let isSubscribedToNotifications = false;
-let notificationListeners = new Set();
-
-
+let connectionStatus = 'disconnected'; // 'connected', 'disconnected', 'connecting', 'error'
 let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 2000;
+let subscriptions = {
+  notifications: false,
+  chats: new Set(),
+  betUpdates: new Set()
+};
+
+// Configuration
+const MAX_RECONNECT_ATTEMPTS = 30;
+const RECONNECT_DELAY = 3000;
+const PING_INTERVAL = 30000;
+let pingInterval = null;
+
+// Listeners registry to avoid duplicates
+const listeners = {
+  notification: new Set(),
+  message: new Set(),
+  betUpdate: new Set(),
+  userStatus: new Set(),
+  typing: new Set()
+};
 
 // Create and initialize socket instance
 const createSocket = () => {
-  if (socket) return socket; // Return existing socket if it exists
+  if (socket?.connected) return socket;
   
   const token = localStorage.getItem('token');
-  
   if (!token) {
-    console.warn('No auth token found, socket connection not established');
+    console.warn('Socket: No auth token found, connection not established');
     return null;
   }
 
   try {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || window.location.origin;
+    
+    // Cleanup any existing socket
+    if (socket) {
+      socket.removeAllListeners();
+      socket.disconnect();
+    }
+    
+    // Create new socket
     socket = io(socketUrl, {
       auth: { token },
       reconnection: true,
       reconnectionDelay: RECONNECT_DELAY,
       reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
-      transports: ['websocket'],
-      // autoConnect: true // We'll connect manually
+      timeout: 10000,
+      transports: ['websocket', 'polling']
     });
     
-    // Connection event handlers
-    socket.on('connect', () => {
-      console.log('Socket connected:', socket.id);
-      reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-      handleReconnect(); // Handle reconnection logic
-    });
-    
-    socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-      if (reason === 'io server disconnect') {
-        // Server initiated disconnect, attempt to reconnect
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttempts++;
-          setTimeout(() => {
-            if (socket) socket.connect();
-          }, RECONNECT_DELAY);
-        }
-      }
-    });
-    
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      
-      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        reconnectAttempts++;
-        setTimeout(() => {
-          if (socket) socket.connect();
-        }, RECONNECT_DELAY);
-      }
-    });
-    
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
-    
-  // Set up global socket event listeners for notifications
-    socket.on('notifications_init', (notifications) => {
-      if (window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('notifications_init', { detail: notifications }));
-      }
-      // Store the last sync timestamp to handle cross-tab sync
-      localStorage.setItem('lastNotificationSync', Date.now().toString());
-    });
-
-    // Handle broadcast channel for cross-tab notification sync
-    const notificationChannel = new BroadcastChannel('notifications');
-    notificationChannel.onmessage = (event) => {
-      if (event.data.type === 'notification_received' || event.data.type === 'notification_read') {
-        socket.emit('subscribe_notifications'); // Re-fetch notifications
-      }
-    };
-
-    // Handle notifications
-    socket.on('new_notification', (notification) => {
-      console.log('Received new notification:', notification);
-      window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
-    });
-
-    socket.on('notification_count_updated', () => {
-      const notificationStore = useNotificationStore.getState();
-      notificationStore.fetchUnreadCount();
-    });
-
-    // Connect the socket
-    socket.connect();
+    // Setup connection event handlers
+    setupSocketEvents();
     
     return socket;
   } catch (error) {
-    console.error('Error creating socket:', error);
+    console.error('Socket: Error creating socket connection:', error);
     return null;
   }
 };
 
-// Get or create socket instance
+// Setup core socket event listeners
+const setupSocketEvents = () => {
+  if (!socket) return;
+  
+  // Connection events
+  socket.on('connect', () => {
+    console.log('Socket: Connected successfully', socket.id);
+    connectionStatus = 'connected';
+    reconnectAttempts = 0;
+    
+    // Resubscribe to everything after reconnection
+    resubscribeAll();
+    
+    // Dispatch reconnection event
+    window.dispatchEvent(new Event('socket_connected'));
+  });
+  
+  socket.on('disconnect', (reason) => {
+    console.log('Socket: Disconnected', reason);
+    connectionStatus = 'disconnected';
+    window.dispatchEvent(new Event('socket_disconnected'));
+    
+    // If server initiated disconnect, try to reconnect
+    if (reason === 'io server disconnect' || reason === 'transport close') {
+      setTimeout(() => {
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          console.log(`Socket: Attempting reconnect ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+          connectionStatus = 'connecting';
+          socket.connect();
+        }
+      }, RECONNECT_DELAY);
+    }
+  });
+  
+  socket.on('connect_error', (error) => {
+    console.error('Socket: Connection error', error);
+    connectionStatus = 'error';
+    
+    // Attempt reconnect with exponential backoff
+    const delay = RECONNECT_DELAY * Math.min(Math.pow(2, reconnectAttempts), 10);
+    
+    setTimeout(() => {
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        console.log(`Socket: Attempting reconnect ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+        connectionStatus = 'connecting';
+        socket.connect();
+      } else {
+        // Max attempts reached, force user to reload
+        window.dispatchEvent(new CustomEvent('socket_connection_failed'));
+      }
+    }, delay);
+  });
+  
+  // Set up ping interval to keep connection alive
+  clearInterval(pingInterval);
+  pingInterval = setInterval(() => {
+    if (socket?.connected) {
+      socket.emit('ping');
+    }
+  }, PING_INTERVAL);
+  
+  // Set up pong response
+  socket.on('pong', () => {
+    console.log('Socket: Received pong from server');
+  });
+  
+  // Handle notifications
+  socket.on('notifications_init', (notifications) => {
+    console.log('Socket: Received initial notifications', notifications.length);
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('notifications_init', { detail: notifications }));
+    }
+    // Store the last sync timestamp to handle cross-tab sync
+    localStorage.setItem('lastNotificationSync', Date.now().toString());
+  });
+  
+  // Handle new notifications
+  socket.on('new_message', (message) => {
+    console.log('Socket: New message received:', message);
+    window.dispatchEvent(new CustomEvent('message_received', { 
+      detail: message 
+    }));
+  });
+
+  socket.on('new_notification', (notification) => {
+    console.log('Socket: New notification received', notification);
+    window.dispatchEvent(new CustomEvent('new_notification', { 
+      detail: notification 
+    }));
+    
+    // Browser notification
+    handleBrowserNotification(notification);
+    
+    // Sync across tabs
+    try {
+      const notificationChannel = new BroadcastChannel('notifications');
+      notificationChannel.postMessage({ 
+        type: 'notification_received', 
+        notification 
+      });
+    } catch (e) {
+      console.warn('BroadcastChannel not supported');
+    }
+  });
+  
+  socket.on('notification_count_updated', () => {
+    console.log('Socket: Notification count updated');
+    const notificationStore = useNotificationStore.getState();
+    notificationStore.fetchUnreadCount();
+    
+    window.dispatchEvent(new Event('notification_count_updated'));
+  });
+  
+  // Handle errors
+  socket.on('error', (error) => {
+    console.error('Socket: General error', error);
+  });
+}
+
+// Resubscribe to all previous subscriptions after reconnect
+const resubscribeAll = () => {
+  // Resubscribe to notifications
+  if (subscriptions.notifications) {
+    subscribeToNotifications();
+  }
+  
+  // Resubscribe to chats
+  subscriptions.chats.forEach(chatId => {
+    joinChatRoom(chatId);
+  });
+  
+  // Resubscribe to bet updates
+  subscriptions.betUpdates.forEach(betId => {
+    socket.emit('subscribe_bet', { betId });
+  });
+  
+  // Notify app about reconnection
+  window.dispatchEvent(new Event('socket_reconnected'));
+};
+
+// Get socket instance
 const getSocket = () => {
-  if (!socket || !socket.connected) {
-    socket = createSocket();
+  // If no socket exists or it's disconnected, create a new one
+  if (!socket || (!socket.connected && connectionStatus !== 'connecting')) {
+    return createSocket();
   }
   return socket;
 };
 
-// Chat events
+// Get connection status
+const getConnectionStatus = () => connectionStatus;
+
+// Subscribe to notifications
+const subscribeToNotifications = () => {
+  const s = getSocket();
+  if (!s) return false;
+  
+  console.log('Socket: Subscribing to notifications');
+  
+  // Only subscribe if we're connected
+  if (s.connected) {
+    s.emit('subscribe_notifications');
+    subscriptions.notifications = true;
+    
+    // Success
+    return true;
+  }
+  
+  return false;
+};
+
+// Unsubscribe from notifications
+const unsubscribeFromNotifications = () => {
+  const s = getSocket();
+  if (!s) return;
+  
+  console.log('Socket: Unsubscribing from notifications');
+  
+  if (s.connected) {
+    s.emit('unsubscribe_notifications');
+  }
+  
+  subscriptions.notifications = false;
+};
+
+// Join chat room
 const joinChatRoom = (chatId) => {
   const s = getSocket();
-  if (s) {
+  if (!s || !chatId) {
+    console.warn(`Socket: Cannot join chat room ${chatId} - socket or chatId missing`);
+    return;
+  }
+  
+  console.log(`Socket: Joining chat room ${chatId}, socket connected: ${s.connected}`);
+  
+  if (s.connected) {
     s.emit('join_chat', chatId);
+    subscriptions.chats.add(chatId);
+    console.log(`Socket: Joined chat room ${chatId}, current chat rooms:`, Array.from(subscriptions.chats));
+  } else {
+    console.warn(`Socket: Cannot join chat ${chatId} - socket not connected`);
+    // Try reconnecting
+    reconnect();
   }
 };
 
+// Leave chat room
 const leaveChatRoom = (chatId) => {
   const s = getSocket();
-  if (s) {
+  if (!s || !chatId) return;
+  
+  console.log(`Socket: Leaving chat room ${chatId}`);
+  
+  if (s.connected) {
     s.emit('leave_chat', chatId);
-  }
-};
-
-const typingInChat = (chatId, isTyping) => {
-  const s = getSocket();
-  if (s) {
-    s.emit('typing', { chatId, isTyping });
+    subscriptions.chats.delete(chatId);
   }
 };
 
 const markMessagesAsRead = (chatId) => {
   const s = getSocket();
-  if (s) {
+  if (!s || !chatId) return;
+  
+  console.log(`Socket: Marking messages as read for chat ${chatId}`);
+  
+  if (s.connected) {
     s.emit('read_messages', chatId);
+    
+    // Also update through API for persistence
+    // try {
+    //   messageAPI.markAsRead(chatId)
+    //     .then(() => console.log('Messages marked as read via API'))
+    //     .catch(err => console.error('Error marking messages as read via API:', err));
+    // } catch (e) {
+    //   console.error('Error calling markAsRead API:', e);
+    // }
   }
 };
 
+// Send chat message
 const sendChatMessage = (message) => {
   const s = getSocket();
-  if (s) {
+  if (!s) return;
+  
+  if (s.connected) {
     s.emit('new_message', message);
   }
 };
 
+// Mark notification as read
+const markNotificationAsRead = (notificationId) => {
+  const s = getSocket();
+  if (!s) return;
+  
+  if (s.connected) {
+    s.emit('read_notification', { notificationId });
+  }
+};
+
+// Listen for new messages
 const onMessageReceived = (callback) => {
   const s = getSocket();
-  if (s) {
-    // Listen only for message_received events
-    s.on('message_received', callback);
-  }
+  if (!s || typeof callback !== 'function') return () => {};
+  
+  // Use both event names to ensure compatibility
+  const handleMessage = (message) => {
+    try {
+      callback(message);
+    } catch (err) {
+      console.error('Error in message callback:', err);
+    }
+  };
+  
+  // Listen for both possible event names
+  s.on('new_message', handleMessage);
+  s.on('message_received', handleMessage);
+  
+  listeners.message.add({ event: 'new_message', handler: handleMessage });
+  listeners.message.add({ event: 'message_received', handler: handleMessage });
+  
+  // Return cleanup function
   return () => {
     if (s) {
-      s.off('message_received', callback);
+      s.off('new_message', handleMessage);
+      s.off('message_received', handleMessage);
+      listeners.message.delete({ event: 'new_message', handler: handleMessage });
+      listeners.message.delete({ event: 'message_received', handler: handleMessage });
     }
   };
 };
 
-// Bet events
+// Listen for typing in chat
+const onUserTyping = (callback) => {
+  const s = getSocket();
+  if (!s || typeof callback !== 'function') return () => {};
+  
+  // Add typing listener
+  s.on('user_typing', callback);
+  listeners.typing.add({ event: 'user_typing', handler: callback });
+  
+  // Return cleanup function
+  return () => {
+    if (s) {
+      s.off('user_typing', callback);
+      listeners.typing.delete({ event: 'user_typing', handler: callback });
+    }
+  };
+};
+
+// Emit typing status
+const typingInChat = (chatId, isTyping) => {
+  const s = getSocket();
+  if (!s || !chatId) return;
+  
+  if (s.connected) {
+    s.emit('typing', { chatId, isTyping });
+  }
+};
+
+// Listen for bet updates
+const onBetUpdate = (callback) => {
+  const s = getSocket();
+  if (!s || typeof callback !== 'function') return () => {};
+  
+  // Add bet update listener
+  s.on('bet_update', callback);
+  listeners.betUpdate.add({ event: 'bet_update', handler: callback });
+  
+  // Return cleanup function
+  return () => {
+    if (s) {
+      s.off('bet_update', callback);
+      listeners.betUpdate.delete({ event: 'bet_update', handler: callback });
+    }
+  };
+};
+
+// Subscribe to bet updates
+const subscribeToBetUpdates = (betId, callback) => {
+  const s = getSocket();
+  if (!s || !betId) return () => {};
+  
+  // Subscribe to specific bet updates
+  if (s.connected) {
+    s.emit('subscribe_bet', { betId });
+    subscriptions.betUpdates.add(betId);
+  }
+  
+  if (typeof callback === 'function') {
+    const handler = (data) => {
+      if (data.betId === betId) {
+        callback(data);
+      }
+    };
+    
+    s.on('bet_update', handler);
+    listeners.betUpdate.add({ event: 'bet_update', handler });
+    
+    return () => {
+      if (s) {
+        s.off('bet_update', handler);
+        listeners.betUpdate.delete({ event: 'bet_update', handler });
+      }
+    };
+  }
+  
+  return () => {};
+};
+
+// Unsubscribe from bet updates
+const unsubscribeFromBetUpdates = (betId) => {
+  const s = getSocket();
+  if (!s || !betId) return;
+  
+  if (s.connected) {
+    s.emit('unsubscribe_bet', { betId });
+    subscriptions.betUpdates.delete(betId);
+  }
+};
+
+// Listen for new notifications
+const onNewNotification = (callback) => {
+  const s = getSocket();
+  if (!s || typeof callback !== 'function') return () => {};
+  
+  // Add notification listener
+  const handleNewNotification = (notification) => {
+    // Handle browser notification if needed
+    handleBrowserNotification(notification);
+    // Call the provided callback
+    callback(notification);
+  };
+  
+  s.on('new_notification', handleNewNotification);
+  listeners.notification.add({ event: 'new_notification', handler: handleNewNotification });
+  
+  // Return cleanup function
+  return () => {
+    if (s) {
+      s.off('new_notification', handleNewNotification);
+      listeners.notification.delete({ event: 'new_notification', handler: handleNewNotification });
+    }
+  };
+};
+
+// Listen for user status changes
+const onUserStatusChange = (callback) => {
+  const s = getSocket();
+  if (!s || typeof callback !== 'function') return () => {};
+  
+  // Add user status listener
+  s.on('user_status_change', callback);
+  listeners.userStatus.add({ event: 'user_status_change', handler: callback });
+  
+  // Return cleanup function
+  return () => {
+    if (s) {
+      s.off('user_status_change', callback);
+      listeners.userStatus.delete({ event: 'user_status_change', handler: callback });
+    }
+  };
+};
+
+// Listen for user stats updates
+const onUserStatsUpdate = (callback) => {
+  const s = getSocket();
+  if (!s || typeof callback !== 'function') return () => {};
+  
+  // Add user stats listener
+  s.on('user_stats_update', callback);
+  listeners.userStatus.add({ event: 'user_stats_update', handler: callback });
+  
+  // Return cleanup function
+  return () => {
+    if (s) {
+      s.off('user_stats_update', callback);
+      listeners.userStatus.delete({ event: 'user_stats_update', handler: callback });
+    }
+  };
+};
+
+// Emit bet interaction
 const emitBetInteraction = (betId, type, data) => {
   const s = getSocket();
-  if (s) {
+  if (!s || !betId) return;
+  
+  if (s.connected) {
     s.emit('bet_interaction', {
       betId,
       type, // 'like', 'comment', 'share', 'ride', 'hedge'
@@ -174,239 +522,9 @@ const emitBetInteraction = (betId, type, data) => {
   }
 };
 
-// Add listeners for socket events
-const onUserTyping = (callback) => {
-  const s = getSocket();
-  if (s) {
-    s.on('user_typing', callback);
-  }
-  return () => {
-    if (s) {
-      s.off('user_typing', callback);
-    }
-  };
-};
-
-const onBetUpdate = (callback) => {
-  const s = getSocket();
-  if (s) {
-    s.on('bet_update', callback);
-  }
-  return () => {
-    if (s) {
-      s.off('bet_update', callback);
-    }
-  };
-};
-
-
-const onNewNotification = (callback) => {
-  const s = getSocket();
-  let cleanupFunctions = [];
-
-  if (s) {
-    // Listen for new notifications
-    const handleNewNotification = (notification) => {
-      // Trigger the browser notification
-      handleBrowserNotification(notification);
-      // Call the provided callback
-      if (callback && typeof callback === 'function') {
-        callback(notification);
-      }
-    };
-
-    s.on('new_notification', handleNewNotification);
-    cleanupFunctions.push(() => s.off('new_notification', handleNewNotification));
-
-    // Listen for notification updates (e.g., marking as read)
-    s.on('notification_updated', (notification) => {
-      if (callback && typeof callback === 'function') {
-        callback(notification, 'update');
-      }
-    });
-    cleanupFunctions.push(() => s.off('notification_updated'));
-
-    // Handle reconnection
-    const handleConnect = () => {
-      console.log('Socket reconnected, resubscribing to notifications');
-      s.emit('subscribe_notifications');
-    };
-    s.on('connect', handleConnect);
-    cleanupFunctions.push(() => s.off('connect', handleConnect));
-
-    // Initial subscription
-    if (s.connected) {
-      s.emit('subscribe_notifications');
-    }
-
-    // Handle errors
-    s.on('notification_error', (error) => {
-      console.error('Notification error:', error);
-    });
-    cleanupFunctions.push(() => s.off('notification_error'));
-  }
-
-  return () => {
-    if (s) {
-      cleanupFunctions.forEach(cleanup => cleanup());
-    }
-  };
-};
-
-const onUserStatusChange = (callback) => {
-  const s = getSocket();
-  let cleanupFunctions = [];
-
-  if (s) {
-    s.on('user_status_change', callback);
-    cleanupFunctions.push(() => s.off('user_status_change', callback));
-
-    // Handle reconnection
-    s.on('connect', () => {
-      s.emit('subscribe_status_updates');
-    });
-    cleanupFunctions.push(() => s.off('connect'));
-  }
-
-  return () => {
-    if (s) {
-      cleanupFunctions.forEach(cleanup => cleanup());
-    }
-  };
-};
-
-// User stats events
-const onUserStatsUpdate = (callback) => {
-  const s = getSocket();
-  if (!s) return () => {};
-  
-  s.on('user_stats_update', callback);
-  return () => {
-    s.off('user_stats_update', callback);
-  };
-};
-
-// Notification events
-const subscribeToNotifications = () => {
-  const s = getSocket();
-  if (s?.connected) {
-    console.log('Subscribing to notifications');
-    s.emit('subscribe_notifications');
-    isSubscribedToNotifications = true;
-
-    // Setup notification count listener
-    const handleNotificationCount = () => {
-      const notificationStore = useNotificationStore.getState();
-      notificationStore.fetchUnreadCount();
-    };
-
-    const handleNewNotification = (notification) => {
-      console.log('New notification received:', notification);
-      window.dispatchEvent(new CustomEvent('new_notification', { 
-        detail: notification 
-      }));
-    };
-
-    s.on('notification_count_updated', handleNotificationCount);
-    s.on('new_notification', handleNewNotification);
-
-    notificationListeners.add({ 
-      event: 'notification_count_updated', 
-      handler: handleNotificationCount 
-    });
-    notificationListeners.add({ 
-      event: 'new_notification', 
-      handler: handleNewNotification 
-    });
-
-    return true;
-  }
-  return false;
-};
-
-// unsubscribe from notifications
-const unsubscribeFromNotifications = () => {
-  const s = getSocket();
-  if (s?.connected) {
-    console.log('Unsubscribing from notifications');
-    s.emit('unsubscribe_notifications');
-    isSubscribedToNotifications = false;
-    
-    notificationListeners.forEach(({ event, handler }) => {
-      s.off(event, handler);
-    });
-    notificationListeners.clear();
-  }
-};
-
-// Add reconnection handler
-const handleReconnect = () => {
-  const s = getSocket();
-  if (s?.connected) {
-    console.log('Socket reconnected, handling reconnection');
-    if (isSubscribedToNotifications) {
-      console.log('Resubscribing to notifications after reconnect');
-      subscribeToNotifications();
-      window.dispatchEvent(new Event('socket_reconnected'));
-    }
-  }
-};
-
-const markNotificationAsRead = (notificationId) => {
-  const s = getSocket();
-  if (s) {
-    s.emit('read_notification', { notificationId });
-  }
-};
-
-// Disconnecting socket on logout
-const disconnectSocket = () => {
-  if (socket) {
-    socket.removeAllListeners();
-    socket.disconnect();
-    socket = null;
-    reconnectAttempts = 0;
-  }
-};
-
-
-const subscribeToMessages = (callback) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.on('message received', callback);
-    return () => socket.off('message received', callback);
-  }
-  return () => {};
-};
-
-const subscribeToChatTyping = (callback) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.on('typing', callback);
-    return () => socket.off('typing', callback);
-  }
-  return () => {};
-};
-
-const emitTyping = (chatId) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.emit('typing', chatId);
-  }
-};
-
-const subscribeToBetUpdates = (betId, callback) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.on(`bet:${betId}:update`, callback);
-  }
-};
-
-const unsubscribeFromBetUpdates = (betId, callback) => {
-  const socket = getSocket();
-  if (socket) {
-    socket.off(`bet:${betId}:update`, callback);
-  }
+// Add this function to the socket service, between other notification-related functions
+const isSubscribedToNotifications = () => {
+  return subscriptions.notifications;
 };
 
 // Helper function to handle browser notifications
@@ -459,32 +577,59 @@ const handleBrowserNotification = (notification) => {
   }
 };
 
+// Disconnect socket
+const disconnectSocket = () => {
+  if (socket) {
+    clearInterval(pingInterval);
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+    connectionStatus = 'disconnected';
+    reconnectAttempts = 0;
+    subscriptions = {
+      notifications: false,
+      chats: new Set(),
+      betUpdates: new Set()
+    };
+    listeners.notification.clear();
+    listeners.message.clear();
+    listeners.betUpdate.clear();
+    listeners.userStatus.clear();
+    listeners.typing.clear();
+  }
+};
+
+// Force reconnection
+const reconnect = () => {
+  disconnectSocket();
+  createSocket();
+};
+
+// Export socket service
 const socketService = {
-  getSocket,
   createSocket,
+  getSocket,
+  getConnectionStatus,
+  subscribeToNotifications,
+  unsubscribeFromNotifications,
+  isSubscribedToNotifications, // helps with checking subscription status
   joinChatRoom,
   leaveChatRoom,
   typingInChat,
   markMessagesAsRead,
-  subscribeToBetUpdates,
-  unsubscribeFromBetUpdates,
-  subscribeToNotifications,
-  unsubscribeFromNotifications,
-  isSubscribedToNotifications: () => isSubscribedToNotifications,
-  handleReconnect,
+  sendChatMessage,
   markNotificationAsRead,
-  disconnectSocket,
   onMessageReceived,
   onUserTyping,
   onBetUpdate,
+  subscribeToBetUpdates,
+  unsubscribeFromBetUpdates,
   onNewNotification,
   onUserStatusChange,
-  subscribeToMessages,
-  subscribeToChatTyping,
-  emitTyping,
-  emitBetInteraction,
   onUserStatsUpdate,
-  sendChatMessage
+  emitBetInteraction,
+  disconnectSocket,
+  reconnect
 };
 
 export default socketService;

@@ -5,64 +5,74 @@ import socketService from '../../services/socket';
 
 const NotificationBadge = () => {
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
+  
+  // Memoize fetchUnreadCount to prevent unnecessary rerenders
+  const memoizedFetchUnreadCount = useCallback(() => {
+    fetchUnreadCount();
+  }, [fetchUnreadCount]);
 
-  const setupNotifications = useCallback(() => {
-    console.log('Setting up notifications in NotificationBadge');
+  // Setup notifications and event listeners
+  useEffect(() => {
+    console.log('NotificationBadge: Setting up notification system');
+    
+    // Initial fetch
+    memoizedFetchUnreadCount();
+    
+    // Ensure we're subscribed to notifications
     const socket = socketService.getSocket();
-    if (socket && !socketService.isSubscribedToNotifications()) {
+    if (socket && socket.connected) {
       socketService.subscribeToNotifications();
     }
-  }, []);
-
-  useEffect(() => {
-    console.log('NotificationBadge mounted, initializing...');
-    // Initial fetch and setup
-    fetchUnreadCount();
-    setupNotifications();
-
-    // Event handlers
-    const handleNewNotification = () => {
-      console.log('New notification received, updating count');
-      fetchUnreadCount();
-    };
-
-    const handleCountUpdate = (event) => {
-      console.log('Notification count updated:', event.detail?.count);
-    };
-
-    const handleReconnect = () => {
-      console.log('Socket reconnected, refreshing notification state');
-      setupNotifications();
-      fetchUnreadCount();
-    };
-
-    // Set up event listeners
-    const socket = socketService.getSocket();
-    if (socket) {
-      socket.on('new_notification', handleNewNotification);
-      socket.on('notification_count_updated', fetchUnreadCount);
-    }
     
-    window.addEventListener('socket_reconnected', handleReconnect);
-    window.addEventListener('new_notification', handleNewNotification);
-    window.addEventListener('unread_count_updated', handleCountUpdate);
-
-    // Periodic refresh as fallback
-    const refreshInterval = setInterval(fetchUnreadCount, 30000);
-
-    // Cleanup
-    return () => {
-      console.log('NotificationBadge unmounting, cleaning up...');
-      clearInterval(refreshInterval);
-      if (socket) {
-        socket.off('new_notification', handleNewNotification);
-        socket.off('notification_count_updated', fetchUnreadCount);
-      }
-      window.removeEventListener('socket_reconnected', handleReconnect);
-      window.removeEventListener('new_notification', handleNewNotification);
-      window.removeEventListener('unread_count_updated', handleCountUpdate);
+    // Event handlers
+    const handleNewNotification = (event) => {
+      console.log('NotificationBadge: New notification event received', event.detail);
+      memoizedFetchUnreadCount();
     };
-  }, [fetchUnreadCount, setupNotifications]);
+    
+    const handleCountUpdate = (event) => {
+      console.log('NotificationBadge: Count update event received');
+      memoizedFetchUnreadCount();
+    };
+    
+    const handleSocketConnected = () => {
+      console.log('NotificationBadge: Socket connected, subscribing to notifications');
+      socketService.subscribeToNotifications();
+      memoizedFetchUnreadCount();
+    };
+    
+    const handleSocketReconnected = () => {
+      console.log('NotificationBadge: Socket reconnected, refreshing data');
+      socketService.subscribeToNotifications();
+      memoizedFetchUnreadCount();
+    };
+    
+    const handleConnectionFailed = () => {
+      console.error('NotificationBadge: Socket connection failed after max attempts');
+      // Show user a connection error message or retry button
+    };
+    
+    // Set up event listeners
+    window.addEventListener('new_notification', handleNewNotification);
+    window.addEventListener('notification_count_updated', handleCountUpdate);
+    window.addEventListener('socket_connected', handleSocketConnected);
+    window.addEventListener('socket_reconnected', handleSocketReconnected);
+    window.addEventListener('socket_connection_failed', handleConnectionFailed);
+    
+    // Set up periodic refresh as backup
+    const refreshInterval = setInterval(memoizedFetchUnreadCount, 30000);
+    
+    // Clean up function
+    return () => {
+      console.log('NotificationBadge: Cleaning up event listeners');
+      window.removeEventListener('new_notification', handleNewNotification);
+      window.removeEventListener('notification_count_updated', handleCountUpdate);
+      window.removeEventListener('socket_connected', handleSocketConnected);
+      window.removeEventListener('socket_reconnected', handleSocketReconnected);
+      window.removeEventListener('socket_connection_failed', handleConnectionFailed);
+      clearInterval(refreshInterval);
+    };
+  }, [memoizedFetchUnreadCount]);
 
   return (
     <div className="relative">
