@@ -8,28 +8,29 @@ export const useNotifications = () => {
   const { addNotification } = useNotificationStore();
 
   useEffect(() => {
-    // Request notification permissions when the hook is first used
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
-    }    // Subscribe to notifications
     const cleanup = socketService.onNewNotification((notification) => {
-      // The socket service now handles browser notifications
-      // Add to store only if addNotification is available
-      if (typeof addNotification === 'function') {
-        addNotification(notification);
-      } else {
-        console.warn('addNotification is not available in the notification store');
-      }
+        if (typeof addNotification === 'function') {
+            console.log('Adding notification to store:', notification);
+            addNotification(notification);
+        } else {
+            console.warn('addNotification is not available in the notification store');
+        }
     });
-
-    // Initial subscription
     const socket = socketService.getSocket();
     if (socket && socket.connected) {
-      socket.emit('subscribe_notifications');
+        console.log('Subscribing to notifications');
+        socket.emit('subscribe_notifications');
     }
-
+    const handleReconnect = () => {
+        if (socket && socket.connected) {
+            console.log('Socket reconnected, resubscribing to notifications');
+            socket.emit('subscribe_notifications');
+        }
+    };
+    window.addEventListener('socket_reconnected', handleReconnect);
     return () => {
-      if (cleanup) cleanup();
+        if (cleanup) cleanup();
+        window.removeEventListener('socket_reconnected', handleReconnect);
     };
   }, [addNotification]);
 

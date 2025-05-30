@@ -3,10 +3,14 @@ const logger = require('../utils/logger');
 
 exports.getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ recipient: req.user._id })
-      .sort({ createdAt: -1 })
-      .populate('sender', 'username profilePicture')
-      .limit(30);
+    // Only fetch unread notifications
+    const notifications = await Notification.find({
+      recipient: req.user._id,
+      read: false  // Only get unread notifications
+    })
+    .sort({ createdAt: -1 })
+    .populate('sender', 'username profilePicture')
+    .limit(30);
 
     res.json(notifications);
   } catch (error) {

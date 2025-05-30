@@ -2,29 +2,61 @@ import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import useNotificationStore from '../../stores/notificationStore';
+import socketService from '../../services/socket';
 import { BsTrash, BsCheck } from 'react-icons/bs';
 
 const NotificationList = () => {
-  const { notifications, loading, fetchNotifications, markAsRead, deleteNotification, markAllAsRead } = useNotificationStore();
+  const { 
+    notifications, 
+    loading, 
+    fetchNotifications, 
+    markAsRead, 
+    deleteNotification, 
+    markAllAsRead 
+  } = useNotificationStore();
   
-  // Ensure notifications is an array and remove invalid/duplicate items
+  // Memoize filtered notifications
   const notificationList = useMemo(() => {
     if (!Array.isArray(notifications)) return [];
     
-    const seen = new Set();
-    return notifications
-      .filter(n => {
-        if (!n || !n._id || seen.has(n._id)) return false;
-        seen.add(n._id);
-        return true;
-      })
+    return notifications.filter(n => !n.read)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [notifications]);
 
   useEffect(() => {
     fetchNotifications();
+    
+    const socket = socketService.getSocket();
+    if (socket && socket.connected) {
+      socket.emit('subscribe_notifications');
+    }
+
+    return () => {
+      if (socket && socket.connected) {
+        socket.off('new_notification');
+      }
+    };
   }, [fetchNotifications]);
 
+  useEffect(() => {
+    const socket = socketService.getSocket();
+    
+    const initializeNotifications = async () => {
+      await fetchNotifications();
+      
+      if (socket?.connected) {
+        socket.emit('subscribe_notifications');
+      }
+    };
+
+    initializeNotifications();
+
+    return () => {
+      if (socket?.connected) {
+        socket.off('new_notification');
+      }
+    };
+  }, [fetchNotifications]);
   const getNotificationTitle = (notification) => {
     if (!notification?.type) return 'New notification';
     

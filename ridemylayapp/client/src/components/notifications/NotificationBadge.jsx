@@ -6,15 +6,24 @@ import { subscribeToNotifications } from '../../services/notificationService';
 
 const NotificationBadge = () => {
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
+
   useEffect(() => {
     // Initial fetch
     fetchUnreadCount();
     
-    // Set up periodic refresh of unread count
-    const refreshInterval = setInterval(fetchUnreadCount, 30000); // Refresh every 30 seconds
+    const socket = socketService.getSocket();
+    if (socket && socket.connected) {
+      socket.emit('subscribe_notifications');
+    }
+
+    // Refresh count periodically
+    const refreshInterval = setInterval(fetchUnreadCount, 30000);
 
     return () => {
       clearInterval(refreshInterval);
+      if (socket && socket.connected) {
+        socket.off('new_notification');
+      }
     };
   }, [fetchUnreadCount]);
 

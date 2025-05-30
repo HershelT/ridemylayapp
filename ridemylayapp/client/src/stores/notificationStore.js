@@ -1,4 +1,4 @@
-import create from 'zustand';
+import { create } from 'zustand';
 import { notificationAPI } from '../services/notificationService';
 
 const initialState = {
@@ -12,7 +12,12 @@ const useNotificationStore = create((set, get) => {
   // Initialize event listeners
   window.addEventListener('notifications_init', (event) => {
     const notifications = event.detail || [];
-    set({ notifications, loading: false });
+    const unreadNotifications = notifications.filter(n => !n.read);
+    set({ 
+      notifications: unreadNotifications,
+      unreadCount: unreadNotifications.length,
+      loading: false 
+    });
   });
 
   window.addEventListener('new_notification', (event) => {
@@ -27,14 +32,29 @@ const useNotificationStore = create((set, get) => {
   return {
     ...initialState,
     fetchNotifications: async () => {
-    set({ loading: true });
-    try {
-      const notifications = await notificationAPI.getNotifications();
-      set({ notifications: notifications || [], loading: false });
-    } catch (error) {
-      set({ error: error.message, loading: false, notifications: [] });
-    }
-  },
+      set({ loading: true });
+      try {
+        const response = await notificationAPI.getNotifications();
+        const notifications = response.data || [];
+        
+        // Only keep unread notifications
+        const unreadNotifications = notifications.filter(n => !n.read);
+        
+        // Sort by date
+        const sortedNotifications = unreadNotifications.sort((a, b) => {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+        set({ 
+          notifications: sortedNotifications,
+          loading: false,
+          unreadCount: sortedNotifications.length
+        });
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        set({ error: error.message, loading: false, notifications: [] });
+      }
+    },
     fetchUnreadCount: async () => {
       try {
         const { count } = await notificationAPI.getUnreadCount();
@@ -43,15 +63,18 @@ const useNotificationStore = create((set, get) => {
         set({ error: error.message });
       }
     },
-    markAsRead: async (notificationId) => {
+     markAsRead: async (notificationId) => {
       try {
         await notificationAPI.markAsRead(notificationId);
-        set(state => ({
-          notifications: state.notifications.map(n =>
-            n._id === notificationId ? { ...n, read: true } : n
-          ),
-          unreadCount: Math.max(0, state.unreadCount - 1)
-        }));
+        set(state => {
+          const updatedNotifications = state.notifications.filter(
+            n => n._id !== notificationId
+          );
+          return {
+            notifications: updatedNotifications,
+            unreadCount: Math.max(0, state.unreadCount - 1)
+          };
+        });
       } catch (error) {
         set({ error: error.message });
       }
@@ -59,10 +82,7 @@ const useNotificationStore = create((set, get) => {
     markAllAsRead: async () => {
       try {
         await notificationAPI.markAllAsRead();
-        set(state => ({
-          notifications: (state.notifications || []).map(n => ({ ...n, read: true })),
-          unreadCount: 0
-        }));
+        set({ notifications: [], unreadCount: 0 });
       } catch (error) {
         set({ error: error.message });
       }
@@ -84,19 +104,29 @@ const useNotificationStore = create((set, get) => {
     },
 
     addNotification: (notification) => {
-    if (!notification || !notification._id) return;
-    
-    set(state => {
-      const notifications = Array.isArray(state.notifications) ? state.notifications : [];
+      if (!notification || !notification._id) return;
       
-      // Check if notification already exists
-      const exists = notifications.some(n => n?._id === notification._id);
-      if (exists) return state;  // Don't add duplicate notifications
+      set(state => {
+        const currentNotifications = Array.isArray(state.notifications) 
+          ? state.notifications 
+          : [];
+        
+        // Check if notification already exists
+        const exists = currentNotifications.some(n => n?._id === notification._id);
+        if (exists) return state;
 
-      return {
-        notifications: [notification, ...notifications],
-        unreadCount: (state.unreadCount || 0) + 1
-      };    });
+        // Only add if it's unread
+        if (notification.read) return state;
+
+        // Add new notification and sort by date
+        const updatedNotifications = [notification, ...currentNotifications]
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        return {
+          notifications: updatedNotifications,
+          unreadCount: state.unreadCount + 1
+        };
+      });
     }
   };
 });

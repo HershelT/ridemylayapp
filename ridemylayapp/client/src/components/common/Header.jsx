@@ -18,8 +18,9 @@ const Header = ({ toggleTheme }) => {
       setShowNotifications(false);
     }  };
 
-  // Import handleNewNotification at the top level
-  const { handleNewNotification } = require('../../services/notificationService');
+    // Import handleNewNotification at the top level
+    const { handleNewNotification } = require('../../services/notificationService');
+    const { fetchNotifications } = require('../../stores/notificationStore').default();
   
   // Fetch initial unread count and set up socket listeners
   React.useEffect(() => {
@@ -77,8 +78,15 @@ const Header = ({ toggleTheme }) => {
           <div className="relative" ref={notificationsRef}>
             <button 
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
+             onClick={() => {
+              const newState = !showNotifications;
+              setShowNotifications(newState);
+              if (newState) {
+                // Only fetch notifications when opening the panel
+                fetchNotifications();
+              }
+            }}>
+            
               <NotificationBadge />
             </button>
             {showNotifications && (
