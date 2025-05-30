@@ -25,7 +25,7 @@ const createSocket = () => {
       reconnectionDelay: RECONNECT_DELAY,
       reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
       transports: ['websocket'],
-      autoConnect: false // We'll connect manually
+      // autoConnect: true // We'll connect manually
     });
     
     // Connection event handlers
