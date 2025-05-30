@@ -5,6 +5,7 @@ import useNotificationStore from '../stores/notificationStore';
 let socket = null;
 let connectionStatus = 'disconnected'; // 'connected', 'disconnected', 'connecting', 'error'
 let reconnectAttempts = 0;
+let lastConnectionError = null; 
 let subscriptions = {
   notifications: false,
   chats: new Set(),
@@ -17,6 +18,12 @@ const RECONNECT_DELAY = 3000;
 const PING_INTERVAL = 30000;
 let pingInterval = null;
 
+// Add heartbeat tracking
+let lastHeartbeat = 0;
+const HEARTBEAT_INTERVAL = 15000; // 15 seconds
+const HEARTBEAT_TIMEOUT = 30000; // 30 seconds
+
+
 // Listeners registry to avoid duplicates
 const listeners = {
   notification: new Set(),
@@ -25,8 +32,13 @@ const listeners = {
   userStatus: new Set(),
   typing: new Set()
 };
+// Add this at the top of the file with other state variables
+let connectionRequestPending = false;
+let connectionRequestQueue = [];
+
 
 // Create and initialize socket instance
+// Modify createSocket to handle request batching
 const createSocket = () => {
   if (socket?.connected) return socket;
   
@@ -36,6 +48,16 @@ const createSocket = () => {
     return null;
   }
 
+  // If a connection request is already pending, queue this request
+  if (connectionRequestPending) {
+    console.log('Socket: Connection already being established, queuing request');
+    return new Promise(resolve => {
+      connectionRequestQueue.push(resolve);
+    });
+  }
+
+  connectionRequestPending = true;
+  
   try {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || window.location.origin;
     
@@ -44,6 +66,8 @@ const createSocket = () => {
       socket.removeAllListeners();
       socket.disconnect();
     }
+    
+    console.log('Socket: Creating new connection to', socketUrl);
     
     // Create new socket
     socket = io(socketUrl, {
@@ -58,9 +82,18 @@ const createSocket = () => {
     // Setup connection event handlers
     setupSocketEvents();
     
+    // Add a handler for successful connection to resolve all queued requests
+    socket.on('connect', () => {
+      connectionRequestPending = false;
+      connectionRequestQueue.forEach(resolve => resolve(socket));
+      connectionRequestQueue = [];
+    });
+    
     return socket;
   } catch (error) {
     console.error('Socket: Error creating socket connection:', error);
+    connectionRequestPending = false;
+    lastConnectionError = error.message; // Store the error message
     return null;
   }
 };
@@ -74,6 +107,8 @@ const setupSocketEvents = () => {
     console.log('Socket: Connected successfully', socket.id);
     connectionStatus = 'connected';
     reconnectAttempts = 0;
+    lastConnectionError = null; // Clear any previous errors
+
     
     // Resubscribe to everything after reconnection
     resubscribeAll();
@@ -103,6 +138,8 @@ const setupSocketEvents = () => {
   socket.on('connect_error', (error) => {
     console.error('Socket: Connection error', error);
     connectionStatus = 'error';
+    lastConnectionError = error.message; // Store the error message
+
     
     // Attempt reconnect with exponential backoff
     const delay = RECONNECT_DELAY * Math.min(Math.pow(2, reconnectAttempts), 10);
@@ -114,10 +151,12 @@ const setupSocketEvents = () => {
         connectionStatus = 'connecting';
         socket.connect();
       } else {
-        // Max attempts reached, force user to reload
-        window.dispatchEvent(new CustomEvent('socket_connection_failed'));
-      }
-    }, delay);
+      // Max attempts reached, force user to reload
+      window.dispatchEvent(new CustomEvent('socket_connection_failed', {
+        detail: { error: lastConnectionError }
+      }));
+    }
+  }, delay);
   });
   
   // Set up ping interval to keep connection alive
@@ -184,6 +223,32 @@ const setupSocketEvents = () => {
   socket.on('error', (error) => {
     console.error('Socket: General error', error);
   });
+
+  // Set up heartbeat
+  const heartbeatInterval = setInterval(() => {
+    if (socket?.connected) {
+      const now = Date.now();
+      // If no heartbeat for too long, force reconnect
+      if (lastHeartbeat > 0 && now - lastHeartbeat > HEARTBEAT_TIMEOUT) {
+        console.warn(`Socket: No heartbeat for ${(now - lastHeartbeat)/1000}s, reconnecting`);
+        reconnect();
+        return;
+      }
+      
+      socket.emit('heartbeat');
+    }
+  }, HEARTBEAT_INTERVAL);
+  
+  socket.on('heartbeat', () => {
+    lastHeartbeat = Date.now();
+  });
+  
+  // Add cleanup
+  return () => {
+    clearInterval(heartbeatInterval);
+  };
+
+
 }
 
 // Resubscribe to all previous subscriptions after reconnect
@@ -224,6 +289,11 @@ const subscribeToNotifications = () => {
   const s = getSocket();
   if (!s) return false;
   
+  if (subscriptions.notifications) {
+    console.log('Socket: Already subscribed to notifications');
+    return true;
+  }
+  
   console.log('Socket: Subscribing to notifications');
   
   // Only subscribe if we're connected
@@ -255,8 +325,24 @@ const unsubscribeFromNotifications = () => {
 // Join chat room
 const joinChatRoom = (chatId) => {
   const s = getSocket();
+  
   if (!s || !chatId) {
     console.warn(`Socket: Cannot join chat room ${chatId} - socket or chatId missing`);
+    return;
+  }
+  
+  if (s instanceof Promise) {
+    console.log(`Socket: Connection in progress, joining chat room ${chatId} when ready`);
+    
+    s.then(socket => {
+      if (socket && socket.connected) {
+        console.log(`Socket: Joining chat room ${chatId} (delayed)`);
+        socket.emit('join_chat', chatId);
+        subscriptions.chats.add(chatId);
+      }
+    }).catch(err => {
+      console.error(`Socket: Failed to join chat room ${chatId}:`, err);
+    });
     return;
   }
   
@@ -329,9 +415,52 @@ const markNotificationAsRead = (notificationId) => {
 // Listen for new messages
 const onMessageReceived = (callback) => {
   const s = getSocket();
-  if (!s || typeof callback !== 'function') return () => {};
   
-  // Use both event names to ensure compatibility
+  // If we don't have a socket at all, return a no-op cleanup function
+  if (!s) {
+    console.warn('Socket: No socket for message listener');
+    return () => {};
+  }
+  
+  // If getSocket returned a Promise (connection in progress), handle it
+  if (s instanceof Promise) {
+    console.log('Socket: Connection in progress, setting up message listener when ready');
+    
+    // Set up a promise chain to handle the socket when it's ready
+    s.then(socket => {
+      if (socket && typeof callback === 'function') {
+        // Set up the event handlers when the socket is ready
+        const handleMessage = (message) => {
+          try {
+            callback(message);
+          } catch (err) {
+            console.error('Error in message callback:', err);
+          }
+        };
+        
+        socket.on('new_message', handleMessage);
+        socket.on('message_received', handleMessage);
+        
+        listeners.message.add({ event: 'new_message', handler: handleMessage });
+        listeners.message.add({ event: 'message_received', handler: handleMessage });
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    // Return cleanup function
+    return () => {
+      console.log('Cleanup requested for message listeners (will be executed when socket is available)');
+    };
+  }
+  
+  // If callback is not a function, return a no-op
+  if (typeof callback !== 'function') {
+    console.warn('Socket: No callback provided for message listener');
+    return () => {};
+  }
+  
+  // Normal case - we have a socket instance
   const handleMessage = (message) => {
     try {
       callback(message);
@@ -349,7 +478,7 @@ const onMessageReceived = (callback) => {
   
   // Return cleanup function
   return () => {
-    if (s) {
+    if (s && typeof s.off === 'function') {
       s.off('new_message', handleMessage);
       s.off('message_received', handleMessage);
       listeners.message.delete({ event: 'new_message', handler: handleMessage });
@@ -361,7 +490,33 @@ const onMessageReceived = (callback) => {
 // Listen for typing in chat
 const onUserTyping = (callback) => {
   const s = getSocket();
-  if (!s || typeof callback !== 'function') return () => {};
+  
+  if (!s) {
+    console.warn('Socket: No socket for typing listener');
+    return () => {};
+  }
+  
+  if (s instanceof Promise) {
+    console.log('Socket: Connection in progress, setting up typing listener when ready');
+    
+    s.then(socket => {
+      if (socket && typeof callback === 'function') {
+        socket.on('user_typing', callback);
+        listeners.typing.add({ event: 'user_typing', handler: callback });
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    return () => {
+      console.log('Cleanup requested for typing listeners (will be executed when socket is available)');
+    };
+  }
+  
+  if (typeof callback !== 'function') {
+    console.warn('Socket: No callback provided for typing listener');
+    return () => {};
+  }
   
   // Add typing listener
   s.on('user_typing', callback);
@@ -369,7 +524,7 @@ const onUserTyping = (callback) => {
   
   // Return cleanup function
   return () => {
-    if (s) {
+    if (s && typeof s.off === 'function') {
       s.off('user_typing', callback);
       listeners.typing.delete({ event: 'user_typing', handler: callback });
     }
@@ -389,7 +544,33 @@ const typingInChat = (chatId, isTyping) => {
 // Listen for bet updates
 const onBetUpdate = (callback) => {
   const s = getSocket();
-  if (!s || typeof callback !== 'function') return () => {};
+  
+  if (!s) {
+    console.warn('Socket: No socket for bet update listener');
+    return () => {};
+  }
+  
+  if (s instanceof Promise) {
+    console.log('Socket: Connection in progress, setting up bet update listener when ready');
+    
+    s.then(socket => {
+      if (socket && typeof callback === 'function') {
+        socket.on('bet_update', callback);
+        listeners.betUpdate.add({ event: 'bet_update', handler: callback });
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    return () => {
+      console.log('Cleanup requested for bet update listeners (will be executed when socket is available)');
+    };
+  }
+  
+  if (typeof callback !== 'function') {
+    console.warn('Socket: No callback provided for bet update listener');
+    return () => {};
+  }
   
   // Add bet update listener
   s.on('bet_update', callback);
@@ -397,7 +578,7 @@ const onBetUpdate = (callback) => {
   
   // Return cleanup function
   return () => {
-    if (s) {
+    if (s && typeof s.off === 'function') {
       s.off('bet_update', callback);
       listeners.betUpdate.delete({ event: 'bet_update', handler: callback });
     }
@@ -407,7 +588,39 @@ const onBetUpdate = (callback) => {
 // Subscribe to bet updates
 const subscribeToBetUpdates = (betId, callback) => {
   const s = getSocket();
-  if (!s || !betId) return () => {};
+  
+  if (!s || !betId) {
+    console.warn(`Socket: Cannot subscribe to bet updates for ${betId} - socket or betId missing`);
+    return () => {};
+  }
+  
+  if (s instanceof Promise) {
+    console.log(`Socket: Connection in progress, setting up bet subscription for ${betId} when ready`);
+    
+    s.then(socket => {
+      if (socket) {
+        socket.emit('subscribe_bet', { betId });
+        subscriptions.betUpdates.add(betId);
+        
+        if (typeof callback === 'function') {
+          const handler = (data) => {
+            if (data.betId === betId) {
+              callback(data);
+            }
+          };
+          
+          socket.on('bet_update', handler);
+          listeners.betUpdate.add({ event: 'bet_update', handler });
+        }
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    return () => {
+      console.log(`Cleanup requested for bet subscription ${betId} (will be executed when socket is available)`);
+    };
+  }
   
   // Subscribe to specific bet updates
   if (s.connected) {
@@ -426,7 +639,7 @@ const subscribeToBetUpdates = (betId, callback) => {
     listeners.betUpdate.add({ event: 'bet_update', handler });
     
     return () => {
-      if (s) {
+      if (s && typeof s.off === 'function') {
         s.off('bet_update', handler);
         listeners.betUpdate.delete({ event: 'bet_update', handler });
       }
@@ -450,7 +663,40 @@ const unsubscribeFromBetUpdates = (betId) => {
 // Listen for new notifications
 const onNewNotification = (callback) => {
   const s = getSocket();
-  if (!s || typeof callback !== 'function') return () => {};
+  
+  if (!s) {
+    console.warn('Socket: No socket for notification listener');
+    return () => {};
+  }
+  
+  if (s instanceof Promise) {
+    console.log('Socket: Connection in progress, setting up notification listener when ready');
+    
+    s.then(socket => {
+      if (socket && typeof callback === 'function') {
+        const handleNewNotification = (notification) => {
+          // Handle browser notification if needed
+          handleBrowserNotification(notification);
+          // Call the provided callback
+          callback(notification);
+        };
+        
+        socket.on('new_notification', handleNewNotification);
+        listeners.notification.add({ event: 'new_notification', handler: handleNewNotification });
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    return () => {
+      console.log('Cleanup requested for notification listeners (will be executed when socket is available)');
+    };
+  }
+  
+  if (typeof callback !== 'function') {
+    console.warn('Socket: No callback provided for notification listener');
+    return () => {};
+  }
   
   // Add notification listener
   const handleNewNotification = (notification) => {
@@ -465,7 +711,7 @@ const onNewNotification = (callback) => {
   
   // Return cleanup function
   return () => {
-    if (s) {
+    if (s && typeof s.off === 'function') {
       s.off('new_notification', handleNewNotification);
       listeners.notification.delete({ event: 'new_notification', handler: handleNewNotification });
     }
@@ -473,9 +719,36 @@ const onNewNotification = (callback) => {
 };
 
 // Listen for user status changes
+// Listen for user status changes
 const onUserStatusChange = (callback) => {
   const s = getSocket();
-  if (!s || typeof callback !== 'function') return () => {};
+  
+  if (!s) {
+    console.warn('Socket: No socket for user status listener');
+    return () => {};
+  }
+  
+  if (s instanceof Promise) {
+    console.log('Socket: Connection in progress, setting up user status listener when ready');
+    
+    s.then(socket => {
+      if (socket && typeof callback === 'function') {
+        socket.on('user_status_change', callback);
+        listeners.userStatus.add({ event: 'user_status_change', handler: callback });
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    return () => {
+      console.log('Cleanup requested for user status listeners (will be executed when socket is available)');
+    };
+  }
+  
+  if (typeof callback !== 'function') {
+    console.warn('Socket: No callback provided for user status listener');
+    return () => {};
+  }
   
   // Add user status listener
   s.on('user_status_change', callback);
@@ -483,7 +756,7 @@ const onUserStatusChange = (callback) => {
   
   // Return cleanup function
   return () => {
-    if (s) {
+    if (s && typeof s.off === 'function') {
       s.off('user_status_change', callback);
       listeners.userStatus.delete({ event: 'user_status_change', handler: callback });
     }
@@ -493,7 +766,33 @@ const onUserStatusChange = (callback) => {
 // Listen for user stats updates
 const onUserStatsUpdate = (callback) => {
   const s = getSocket();
-  if (!s || typeof callback !== 'function') return () => {};
+  
+  if (!s) {
+    console.warn('Socket: No socket for user stats listener');
+    return () => {};
+  }
+  
+  if (s instanceof Promise) {
+    console.log('Socket: Connection in progress, setting up user stats listener when ready');
+    
+    s.then(socket => {
+      if (socket && typeof callback === 'function') {
+        socket.on('user_stats_update', callback);
+        listeners.userStatus.add({ event: 'user_stats_update', handler: callback });
+      }
+    }).catch(err => {
+      console.error('Socket connection failed:', err);
+    });
+    
+    return () => {
+      console.log('Cleanup requested for user stats listeners (will be executed when socket is available)');
+    };
+  }
+  
+  if (typeof callback !== 'function') {
+    console.warn('Socket: No callback provided for user stats listener');
+    return () => {};
+  }
   
   // Add user stats listener
   s.on('user_stats_update', callback);
@@ -501,7 +800,7 @@ const onUserStatsUpdate = (callback) => {
   
   // Return cleanup function
   return () => {
-    if (s) {
+    if (s && typeof s.off === 'function') {
       s.off('user_stats_update', callback);
       listeners.userStatus.delete({ event: 'user_stats_update', handler: callback });
     }
@@ -605,6 +904,11 @@ const reconnect = () => {
   createSocket();
 };
 
+const getReconnectAttempts = () => reconnectAttempts;
+const getLastError = () => lastConnectionError; // You'll need to track this
+// in
+
+
 // Export socket service
 const socketService = {
   createSocket,
@@ -613,6 +917,8 @@ const socketService = {
   subscribeToNotifications,
   unsubscribeFromNotifications,
   isSubscribedToNotifications, // helps with checking subscription status
+  getReconnectAttempts,
+  getLastError,
   joinChatRoom,
   leaveChatRoom,
   typingInChat,

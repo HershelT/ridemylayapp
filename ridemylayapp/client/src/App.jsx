@@ -51,7 +51,16 @@ const App = () => {
   useEffect(() => {
     if (token) {
       loadUser();
-      socketService.createSocket();
+      
+      // Handle the Promise that might be returned by createSocket
+      const socketPromise = socketService.createSocket();
+      if (socketPromise instanceof Promise) {
+        socketPromise.then(() => {
+          console.log('Socket initialized successfully from App');
+        }).catch(err => {
+          console.error('Failed to initialize socket from App:', err);
+        });
+      }
     }
   }, [token, loadUser]);
 
