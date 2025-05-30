@@ -5,36 +5,53 @@ import useNotificationStore from '../stores/notificationStore';
 
 export const useNotifications = () => {
   const location = useLocation();
-  const { addNotification } = useNotificationStore();
+  const { addNotification, fetchNotifications } = useNotificationStore();
 
   useEffect(() => {
-    const cleanup = socketService.onNewNotification((notification) => {
-        if (typeof addNotification === 'function') {
-            console.log('Adding notification to store:', notification);
-            addNotification(notification);
-        } else {
-            console.warn('addNotification is not available in the notification store');
-        }
-    });
-    const socket = socketService.getSocket();
-    if (socket && socket.connected) {
-        console.log('Subscribing to notifications');
-        socket.emit('subscribe_notifications');
-    }
-    const handleReconnect = () => {
-        if (socket && socket.connected) {
-            console.log('Socket reconnected, resubscribing to notifications');
-            socket.emit('subscribe_notifications');
-        }
-    };
-    window.addEventListener('socket_reconnected', handleReconnect);
-    return () => {
-        if (cleanup) cleanup();
-        window.removeEventListener('socket_reconnected', handleReconnect);
-    };
-  }, [addNotification]);
+    let cleanupFunctions = [];
+    
+    const setupNotifications = async () => {
+      const socket = socketService.getSocket();
+      
+      // Initial subscription and fetch
+      if (!socketService.isSubscribedToNotifications()) {
+        socketService.subscribeToNotifications();
+        await fetchNotifications();
+      }
 
-  return {
-    currentPath: location.pathname,
-  };
+      // Handle new notifications
+      const handleNewNotification = (event) => {
+        if (event.detail) {
+          console.log('Adding new notification to store:', event.detail);
+          addNotification(event.detail);
+        }
+      };
+
+      // Listen for new notifications
+      window.addEventListener('new_notification', handleNewNotification);
+      cleanupFunctions.push(() => {
+        window.removeEventListener('new_notification', handleNewNotification);
+      });
+
+      // Handle reconnection
+      const handleReconnect = async () => {
+        console.log('Socket reconnected, refreshing notifications');
+        socketService.subscribeToNotifications();
+        await fetchNotifications();
+      };
+
+      window.addEventListener('socket_reconnected', handleReconnect);
+      cleanupFunctions.push(() => {
+        window.removeEventListener('socket_reconnected', handleReconnect);
+      });
+    };
+
+    setupNotifications();
+
+    return () => {
+      cleanupFunctions.forEach(cleanup => cleanup());
+    };
+  }, [addNotification, fetchNotifications]);
+
+  return { currentPath: location.pathname };
 };

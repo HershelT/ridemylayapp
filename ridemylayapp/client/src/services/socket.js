@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 
 let socket = null;
+let isSubscribedToNotifications = false;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 2000;
@@ -31,9 +32,13 @@ const createSocket = () => {
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
       reconnectAttempts = 0;
-      // Resubscribe to notifications on reconnect
-      socket.emit('subscribe_notifications');
-      // Dispatch event to notify components of reconnection
+      // Resubscribe to notifications on reconnect if previously subscribed
+      if (isSubscribedToNotifications) {
+        console.log('Resubscribing to notifications after reconnect');
+        socket.emit('subscribe_notifications');
+      }
+      
+      // Dispatch reconnection event
       window.dispatchEvent(new CustomEvent('socket_reconnected'));
     });
     
@@ -82,10 +87,10 @@ const createSocket = () => {
       }
     };
 
+    // Handle notifications
     socket.on('new_notification', (notification) => {
-      if (window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
-      }
+      console.log('Received new notification:', notification);
+      window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
     });
 
     // Connect the socket
@@ -192,55 +197,6 @@ const onBetUpdate = (callback) => {
   };
 };
 
-// // Helper function to handle browser notifications
-// const handleBrowserNotification = (notification) => {
-//   if (!notification || !notification.sender) return;
-
-//   // Check if we should show the notification
-//   const isInChat = window.location.pathname.startsWith('/messages') && 
-//                   notification.entityType === 'chat' && 
-//                   window.location.pathname.includes(notification.entityId);
-//   const isActiveTab = document.hasFocus();
-  
-//   // Don't show notification if we're in the active chat
-//   if (isInChat && isActiveTab) return;
-
-//   // Request permission if not granted
-//   if (Notification.permission === 'default') {
-//     Notification.requestPermission();
-//   }
-
-//   // Show browser notification if permission is granted
-//   if (Notification.permission === 'granted') {
-//     const title = notification.type === 'message' 
-//       ? `New message from ${notification.sender.username}`
-//       : `New ${notification.type.replace('_', ' ')} from ${notification.sender.username}`;
-
-//     const browserNotification = new Notification(title, {
-//       body: notification.content,
-//       icon: notification.sender.avatarUrl || '/favicon.ico',
-//       tag: `${notification.type}-${notification.entityId}`,
-//       requireInteraction: true
-//     });
-
-//     browserNotification.onclick = () => {
-//       window.focus();
-//       switch (notification.entityType) {
-//         case 'chat':
-//           window.location.href = `/messages/${notification.entityId}`;
-//           break;
-//         case 'bet':
-//           window.location.href = `/bets/${notification.entityId}`;
-//           break;
-//         case 'user':
-//           window.location.href = `/profile/${notification.entityId}`;
-//           break;
-//         default:
-//           window.location.href = '/';
-//       }
-//     };
-//   }
-// };
 
 const onNewNotification = (callback) => {
   const s = getSocket();
@@ -331,13 +287,22 @@ const onUserStatsUpdate = (callback) => {
 // Notification events
 const subscribeToNotifications = () => {
   const s = getSocket();
-  if (s && s.connected) {
+  if (s?.connected) {
+    console.log('Subscribing to notifications');
     s.emit('subscribe_notifications');
-  } else if (s) {
-    // If socket exists but not connected, wait for connection then subscribe
-    s.once('connect', () => {
-      s.emit('subscribe_notifications');
-    });
+    isSubscribedToNotifications = true;
+    return true;
+  }
+  return false;
+};
+
+// unsubscribe from notifications
+const unsubscribeFromNotifications = () => {
+  const s = getSocket();
+  if (s?.connected) {
+    console.log('Unsubscribing from notifications');
+    s.emit('unsubscribe_notifications');
+    isSubscribedToNotifications = false;
   }
 };
 
@@ -458,6 +423,8 @@ const socketService = {
   subscribeToBetUpdates,
   unsubscribeFromBetUpdates,
   subscribeToNotifications,
+  unsubscribeFromNotifications,
+  isSubscribedToNotifications: () => isSubscribedToNotifications,
   markNotificationAsRead,
   disconnectSocket,
   onMessageReceived,

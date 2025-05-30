@@ -11,19 +11,24 @@ const NotificationBadge = () => {
     // Initial fetch
     fetchUnreadCount();
     
-    const socket = socketService.getSocket();
-    if (socket && socket.connected) {
-      socket.emit('subscribe_notifications');
+    // Subscribe to notifications if not already subscribed
+    if (!socketService.isSubscribedToNotifications()) {
+      socketService.subscribeToNotifications();
     }
+
+    // Handle new notifications
+    const handleNewNotification = () => {
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('new_notification', handleNewNotification);
 
     // Refresh count periodically
     const refreshInterval = setInterval(fetchUnreadCount, 30000);
 
     return () => {
       clearInterval(refreshInterval);
-      if (socket && socket.connected) {
-        socket.off('new_notification');
-      }
+      window.removeEventListener('new_notification', handleNewNotification);
     };
   }, [fetchUnreadCount]);
 
