@@ -151,7 +151,7 @@ const Search = () => {
                 Win Rate: {user.winRate}% · {user.followerCount?.toLocaleString()} followers
               </div>
             </div>
-            <button className="btn-primary text-sm" onClick={() => navigate(`/users/${user.username}`)}>
+            <button className="btn-primary text-sm" onClick={() => navigate(`/profile/${user.username}`)}>
               View Profile
             </button>
           </div>
