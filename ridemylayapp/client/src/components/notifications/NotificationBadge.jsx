@@ -6,51 +6,63 @@ import socketService from '../../services/socket';
 const NotificationBadge = () => {
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
 
+  const setupNotifications = useCallback(() => {
+    console.log('Setting up notifications in NotificationBadge');
+    const socket = socketService.getSocket();
+    if (socket && !socketService.isSubscribedToNotifications()) {
+      socketService.subscribeToNotifications();
+    }
+  }, []);
+
   useEffect(() => {
-    // Initial fetch
+    console.log('NotificationBadge mounted, initializing...');
+    // Initial fetch and setup
     fetchUnreadCount();
-    
-    // Subscribe to notifications if not already subscribed
-    const setupNotifications = () => {
-      if (!socketService.isSubscribedToNotifications()) {
-        socketService.subscribeToNotifications();
-      }
-    };
-
-    // Handle new notifications
-    const handleNewNotification = () => {
-      console.log('Updating unread count due to new notification');
-      fetchUnreadCount();
-    };
-
     setupNotifications();
 
-    // Handle reconnection
-    const handleReconnect = () => {
-      console.log('Socket reconnected, refreshing notification state');
-      socketService.subscribeToNotifications();
+    // Event handlers
+    const handleNewNotification = () => {
+      console.log('New notification received, updating count');
       fetchUnreadCount();
     };
-    
-    // Setup event listeners
+
+    const handleCountUpdate = (event) => {
+      console.log('Notification count updated:', event.detail?.count);
+    };
+
+    const handleReconnect = () => {
+      console.log('Socket reconnected, refreshing notification state');
+      setupNotifications();
+      fetchUnreadCount();
+    };
+
+    // Set up event listeners
     const socket = socketService.getSocket();
-    socket?.on('notification_count_updated', fetchUnreadCount);
+    if (socket) {
+      socket.on('new_notification', handleNewNotification);
+      socket.on('notification_count_updated', fetchUnreadCount);
+    }
+    
     window.addEventListener('socket_reconnected', handleReconnect);
     window.addEventListener('new_notification', handleNewNotification);
+    window.addEventListener('unread_count_updated', handleCountUpdate);
 
-    // Refresh count periodically
+    // Periodic refresh as fallback
     const refreshInterval = setInterval(fetchUnreadCount, 30000);
 
-
-
-
+    // Cleanup
     return () => {
+      console.log('NotificationBadge unmounting, cleaning up...');
       clearInterval(refreshInterval);
-      socket?.off('notification_count_updated', fetchUnreadCount);
-      window.removeEventListener('new_notification', handleNewNotification);
+      if (socket) {
+        socket.off('new_notification', handleNewNotification);
+        socket.off('notification_count_updated', fetchUnreadCount);
+      }
       window.removeEventListener('socket_reconnected', handleReconnect);
+      window.removeEventListener('new_notification', handleNewNotification);
+      window.removeEventListener('unread_count_updated', handleCountUpdate);
     };
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, setupNotifications]);
 
   return (
     <div className="relative">

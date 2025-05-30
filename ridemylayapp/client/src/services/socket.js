@@ -3,6 +3,9 @@ import useNotificationStore from '../stores/notificationStore';
 
 let socket = null;
 let isSubscribedToNotifications = false;
+let notificationListeners = new Set();
+
+
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 2000;
@@ -32,6 +35,7 @@ const createSocket = () => {
     // Connection event handlers
     socket.on('connect', () => {
       console.log('Socket connected:', socket.id);
+      reconnectAttempts = 0; // Reset reconnect attempts on successful connection
       handleReconnect(); // Handle reconnection logic
     });
     
@@ -84,6 +88,11 @@ const createSocket = () => {
     socket.on('new_notification', (notification) => {
       console.log('Received new notification:', notification);
       window.dispatchEvent(new CustomEvent('new_notification', { detail: notification }));
+    });
+
+    socket.on('notification_count_updated', () => {
+      const notificationStore = useNotificationStore.getState();
+      notificationStore.fetchUnreadCount();
     });
 
     // Connect the socket
@@ -286,10 +295,30 @@ const subscribeToNotifications = () => {
     isSubscribedToNotifications = true;
 
     // Setup notification count listener
-      socket.on('notification_count_updated', () => {
-        const notificationStore = useNotificationStore.getState();
-        notificationStore.fetchUnreadCount();
-      });
+    const handleNotificationCount = () => {
+      const notificationStore = useNotificationStore.getState();
+      notificationStore.fetchUnreadCount();
+    };
+
+    const handleNewNotification = (notification) => {
+      console.log('New notification received:', notification);
+      window.dispatchEvent(new CustomEvent('new_notification', { 
+        detail: notification 
+      }));
+    };
+
+    s.on('notification_count_updated', handleNotificationCount);
+    s.on('new_notification', handleNewNotification);
+
+    notificationListeners.add({ 
+      event: 'notification_count_updated', 
+      handler: handleNotificationCount 
+    });
+    notificationListeners.add({ 
+      event: 'new_notification', 
+      handler: handleNewNotification 
+    });
+
     return true;
   }
   return false;
@@ -302,19 +331,26 @@ const unsubscribeFromNotifications = () => {
     console.log('Unsubscribing from notifications');
     s.emit('unsubscribe_notifications');
     isSubscribedToNotifications = false;
-    socket.off('notification_count_updated');
-
+    
+    notificationListeners.forEach(({ event, handler }) => {
+      s.off(event, handler);
+    });
+    notificationListeners.clear();
   }
 };
 
 // Add reconnection handler
 const handleReconnect = () => {
-    const s = getSocket();
-    if (s?.connected && isSubscribedToNotifications) {
+  const s = getSocket();
+  if (s?.connected) {
+    console.log('Socket reconnected, handling reconnection');
+    if (isSubscribedToNotifications) {
       console.log('Resubscribing to notifications after reconnect');
-      s.emit('subscribe_notifications');
+      subscribeToNotifications();
+      window.dispatchEvent(new Event('socket_reconnected'));
     }
   }
+};
 
 const markNotificationAsRead = (notificationId) => {
   const s = getSocket();
